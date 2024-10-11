@@ -87,13 +87,13 @@
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
   #define ul_static_assert(cond, msg) _Static_assert(cond, msg)
 #elif defined(__cplusplus)
-  namespace __ecul_static_assert {
+  namespace __ul_static_assert {
     template<bool x> struct __UL_STATIC_CAST_FAILURE;
     template<> struct __UL_STATIC_CAST_FAILURE<true> { enum { value = 1 }; };
   }
-  #define ul_static_assert(cond, msg)                                                          \
-    enum { UL_JOIN(___UL_STATIC_ASSERT_, __LINE__) =                                           \
-      sizeof(::__ecul_static_assert::__UL_STATIC_CAST_FAILURE<static_cast(bool, cond)>::value) \
+  #define ul_static_assert(cond, msg)                                                        \
+    enum { UL_JOIN(___UL_STATIC_ASSERT_, __LINE__) =                                         \
+      sizeof(::__ul_static_assert::__UL_STATIC_CAST_FAILURE<static_cast<bool>(cond)>::value) \
     }
 #else
   #define ul_static_assert(cond, msg) \
@@ -122,14 +122,14 @@
 #include <stdio.h>
 
 #define ULBN_PUBLIC
-#define ULBN_INTERNAL ul_unused static
-#define ULBN_PRIVATE ul_unused static
+#define ULBN_INTERNAL static
+#define ULBN_PRIVATE static
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if 0
+#if 1
 typedef unsigned long ulbn_limb_t;
 typedef signed long ulbn_slimb_t;
   #define ULBN_LIMB_MAX ULONG_MAX
@@ -144,6 +144,7 @@ typedef signed char ulbn_slimb_t;
 #endif
 
 
+typedef unsigned long ulbn_bits_t;
 typedef signed long ulbn_ssize_t;
 typedef unsigned long ulbn_usize_t;
 #define ULBN_USIZE_MAX ULONG_MAX
@@ -271,19 +272,12 @@ enum ULBN_MATH_ERROR_ENUM {
 };
 
 typedef void* ulbn_alloc_func_t(void* opaque, void* ptr, size_t on, size_t nn);
-typedef struct ulbn_ctx_t {
+typedef struct ulbn_alloc_t {
   ulbn_alloc_func_t* alloc_func;
   void* alloc_opaque;
+} ulbn_alloc_t;
+ULBN_PUBLIC ulbn_alloc_t* ulbn_default_alloc(void);
 
-  ulbn_limb_t* ul_restrict cache[3];
-  ulbn_usize_t cache_size[3];
-} ulbn_ctx_t;
-
-ULBN_PUBLIC void ulbn_init_ctx2(ulbn_ctx_t* ctx, ulbn_alloc_func_t* alloc_func, void* alloc_opaque);
-ULBN_PUBLIC void ulbn_init_ctx(ulbn_ctx_t* ctx);
-ULBN_PUBLIC void ulbn_init_ctx_share(ulbn_ctx_t* ctx, const ulbn_ctx_t* src);
-ULBN_PUBLIC void ulbn_deinit_ctx(ulbn_ctx_t* ctx);
-ULBN_PUBLIC ulbn_limb_t* ulbn_prepare_buffer(ulbn_ctx_t* ctx, int k, ulbn_usize_t n);
 
 typedef struct ulbi_t {
   ulbn_ssize_t len;
@@ -304,7 +298,7 @@ ULBN_PUBLIC ulbi_t* ulbi_init(ulbi_t* o);
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_init_reserve(ulbn_ctx_t* ctx, ulbi_t* o, ulbn_usize_t n);
+ULBN_PUBLIC int ulbi_init_reserve(ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n);
 /**
  * @brief Set `dst` to zero
  * @note This function never fails
@@ -315,19 +309,19 @@ ULBN_PUBLIC ulbi_t* ulbi_set_zero(ulbi_t* dst);
  * @brief Deinitialize a big integer
  * @note After this, `o` will become 0. `o` is still usable but memory is freed
  */
-ULBN_PUBLIC void ulbi_deinit(ulbn_ctx_t* ctx, ulbi_t* o);
+ULBN_PUBLIC void ulbi_deinit(ulbn_alloc_t* alloc, ulbi_t* o);
 /**
  * @brief Shrink the memory of `o`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory (in this case `o` remains unchanged, so this error can be ignored)
  */
-ULBN_PUBLIC int ulbi_shrink(ulbn_ctx_t* ctx, ulbi_t* o);
+ULBN_PUBLIC int ulbi_shrink(ulbn_alloc_t* alloc, ulbi_t* o);
 /**
  * @brief Reserve space for at least `n` limbs in `o`
  * @return Non-null pointer if allocation is successful;
  * @return `NULL` if out of memory (handled as `ULBN_ERR_NOMEM`)
  */
-ULBN_PUBLIC ulbn_limb_t* ulbi_reserve(ulbn_ctx_t* ctx, ulbi_t* o, ulbn_usize_t n);
+ULBN_PUBLIC ulbn_limb_t* ulbi_reserve(ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n);
 
 
 /**
@@ -339,13 +333,13 @@ ULBN_PUBLIC void ulbi_swap(ulbi_t* o1, ulbi_t* o2);
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_neg(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao);
+ULBN_PUBLIC int ulbi_neg(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao);
 /**
  * @brief `ro` = abs(`ao`)
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_abs(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao);
+ULBN_PUBLIC int ulbi_abs(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao);
 
 
 /**
@@ -353,58 +347,59 @@ ULBN_PUBLIC int ulbi_abs(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao);
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_set_copy(ulbn_ctx_t* ctx, ulbi_t* dst, const ulbi_t* src);
+ULBN_PUBLIC int ulbi_set_copy(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* src);
 /**
  * @brief Move `src` to `dst`
  * @note This function never fails; after this `src` will be as if `ulbi_deinit` was called
  */
-ULBN_PUBLIC void ulbi_set_move(ulbn_ctx_t* ctx, ulbi_t* dst, ulbi_t* src);
+ULBN_PUBLIC void ulbi_set_move(ulbn_alloc_t* alloc, ulbi_t* dst, ulbi_t* src);
 /**
  * @brief Set `dst` to `limb`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_set_limb(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_limb_t limb);
+ULBN_PUBLIC int ulbi_set_limb(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_limb_t limb);
 /**
  * @brief Set `dst` to `slimb`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_set_slimb(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_slimb_t slimb);
+ULBN_PUBLIC int ulbi_set_slimb(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slimb_t slimb);
 /**
  * @brief Set `dst` to `l`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_set_ulong(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_ulong_t l);
+ULBN_PUBLIC int ulbi_set_ulong(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ulong_t l);
 /**
  * @brief Set `dst` to `l`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_set_slong(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_slong_t l);
+ULBN_PUBLIC int ulbi_set_slong(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slong_t l);
 /**
  * @brief Set `dst` to `x`
  * @return `0` if `x` can be exactly represented as an integer;
  * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_set_double(ulbn_ctx_t* ctx, ulbi_t* dst, double x);
+ULBN_PUBLIC int ulbi_set_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x);
 /**
  * @brief Set `dst` to 2^n
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_set_2exp(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_usize_t n);
+ULBN_PUBLIC int ulbi_set_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n);
 /**
  * @brief Set `dst` to the integer represented by `str` in base `base`
  * @note This function stops parsing when it encounters the first illegal character
  * @param base 0 means automatic detection;
  *  otherwise, it should be greater than or equal to 2 and less than or equal to 36
  * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid
  */
-ULBN_PUBLIC int ulbi_set_string(ulbn_ctx_t* ctx, ulbi_t* dst, const char* str, int base);
+ULBN_PUBLIC int ulbi_set_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base);
 
 
 /**
@@ -412,58 +407,59 @@ ULBN_PUBLIC int ulbi_set_string(ulbn_ctx_t* ctx, ulbi_t* dst, const char* str, i
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_init_copy(ulbn_ctx_t* ctx, ulbi_t* dst, const ulbi_t* src);
+ULBN_PUBLIC int ulbi_init_copy(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* src);
 /**
  * @brief Initialize `dst` as a move from `src`
  * @note This function never fails; after this `src` will be as if `ulbi_deinit` was called
  */
-ULBN_PUBLIC void ulbi_init_move(ulbn_ctx_t* ctx, ulbi_t* dst, ulbi_t* src);
+ULBN_PUBLIC void ulbi_init_move(ulbn_alloc_t* alloc, ulbi_t* dst, ulbi_t* src);
 /**
  * @brief Initialize `dst` with `limb`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_init_limb(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_limb_t limb);
+ULBN_PUBLIC int ulbi_init_limb(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_limb_t limb);
 /**
  * @brief Initialize `dst` with `slimb`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_init_slimb(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_slimb_t limb);
+ULBN_PUBLIC int ulbi_init_slimb(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slimb_t limb);
 /**
  * @brief Initialize `dst` with `l`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_init_ulong(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_ulong_t l);
+ULBN_PUBLIC int ulbi_init_ulong(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ulong_t l);
 /**
  * @brief Initialize `dst` with `l`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_init_slong(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_slong_t l);
+ULBN_PUBLIC int ulbi_init_slong(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slong_t l);
 /**
  * @brief Initialize `dst` with `x`
  * @return `0` if `x` can be exactly represented as an integer;
  * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_init_double(ulbn_ctx_t* ctx, ulbi_t* dst, double x);
+ULBN_PUBLIC int ulbi_init_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x);
 /**
  * @brief Initialize `dst` with 2^n
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_init_2exp(ulbn_ctx_t* ctx, ulbi_t* dst, ulbn_usize_t n);
+ULBN_PUBLIC int ulbi_init_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n);
 /**
  * @brief Initialize `dst` with the integer represented by `str` in base `base`
  * @note This function stops parsing when it encounters the first illegal character
  * @param base 0 means automatic detection;
  *  otherwise, it should be greater than or equal to 2 and less than or equal to 36
  * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid
  */
-ULBN_PUBLIC int ulbi_init_string(ulbn_ctx_t* ctx, ulbi_t* dst, const char* str, int base);
+ULBN_PUBLIC int ulbi_init_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base);
 
 
 /**
@@ -533,51 +529,51 @@ ULBN_PUBLIC int ulbi_is_odd(const ulbi_t* o);
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_add(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_add(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 /**
  * @brief `ro` = `ao` - `bo`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_sub(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_sub(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 
 /**
  * @brief `ro` = `ao` + `b`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_add_limb(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_limb_t b);
+ULBN_PUBLIC int ulbi_add_limb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_limb_t b);
 /**
  * @brief `ro` = `ao` - `b`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_sub_limb(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_limb_t b);
+ULBN_PUBLIC int ulbi_sub_limb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_limb_t b);
 /**
  * @brief `ro` = `a` - `bo`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_limb_sub(ulbn_ctx_t* ctx, ulbi_t* ro, ulbn_limb_t a, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_limb_sub(ulbn_alloc_t* alloc, ulbi_t* ro, ulbn_limb_t a, const ulbi_t* bo);
 
 /**
  * @brief `ro` = `ao` + `b`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_add_slimb(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
+ULBN_PUBLIC int ulbi_add_slimb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
 /**
  * @brief `ro` = `ao` - `b`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_sub_slimb(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
+ULBN_PUBLIC int ulbi_sub_slimb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
 /**
  * @brief `ro` = `a` - `bo`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_slimb_sub(ulbn_ctx_t* ctx, ulbi_t* ro, ulbn_slimb_t a, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_slimb_sub(ulbn_alloc_t* alloc, ulbi_t* ro, ulbn_slimb_t a, const ulbi_t* bo);
 
 
 /**
@@ -585,19 +581,19 @@ ULBN_PUBLIC int ulbi_slimb_sub(ulbn_ctx_t* ctx, ulbi_t* ro, ulbn_slimb_t a, cons
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_mul_limb(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_limb_t b);
+ULBN_PUBLIC int ulbi_mul_limb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_limb_t b);
 /**
  * @brief `ro` = `ao` * `b`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_mul_slimb(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
+ULBN_PUBLIC int ulbi_mul_slimb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
 /**
  * @brief `ro` = `ao` * `bo`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_mul(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_mul(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 
 
 /**
@@ -607,7 +603,7 @@ ULBN_PUBLIC int ulbi_mul(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, const ul
  * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_divmod(ulbn_ctx_t* ctx, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_divmod(ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 /**
  * @brief `qo` = `ao` / `bo`
  * @note `qo` is allowed to be `NULL`
@@ -615,13 +611,13 @@ ULBN_PUBLIC int ulbi_divmod(ulbn_ctx_t* ctx, ulbi_t* qo, ulbi_t* ro, const ulbi_
  * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_div(ulbn_ctx_t* ctx, ulbi_t* qo, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_div(ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, const ulbi_t* bo);
 /**
  * @brief `ro` = `ao` % `bo`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_mod(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_mod(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 
 /**
  * @brief `qo` = `ao` / `b`, `ro` = The smallest non-negative number congruent to (`ao` % `b`) under modulo `b`
@@ -632,7 +628,7 @@ ULBN_PUBLIC int ulbi_mod(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, const ul
  * @return `ULBN_ERR_INEXACT` if `ro` is not NULL but the remainder is negative;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_divmod_limb(ulbn_ctx_t* ctx, ulbi_t* qo, ulbn_limb_t* ro, const ulbi_t* ao, ulbn_limb_t b);
+ULBN_PUBLIC int ulbi_divmod_limb(ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_limb_t* ro, const ulbi_t* ao, ulbn_limb_t b);
 /**
  * @brief `qo` = `ao` / `b`
  * @note `qo` is allowed to be `NULL`
@@ -640,7 +636,7 @@ ULBN_PUBLIC int ulbi_divmod_limb(ulbn_ctx_t* ctx, ulbi_t* qo, ulbn_limb_t* ro, c
  * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_div_limb(ulbn_ctx_t* ctx, ulbi_t* qo, const ulbi_t* ao, ulbn_limb_t b);
+ULBN_PUBLIC int ulbi_div_limb(ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, ulbn_limb_t b);
 /**
  * @brief `ro` = The smallest non-negative number congruent to (`ao` % `b`) under modulo `b`
  * @note The representation of `ro` is different from `ulbi_divmod` because `ro` cannot store negative values
@@ -648,7 +644,7 @@ ULBN_PUBLIC int ulbi_div_limb(ulbn_ctx_t* ctx, ulbi_t* qo, const ulbi_t* ao, ulb
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_mod_limb(ulbn_ctx_t* ctx, ulbn_limb_t* ro, const ulbi_t* ao, ulbn_limb_t b);
+ULBN_PUBLIC int ulbi_mod_limb(ulbn_alloc_t* alloc, ulbn_limb_t* ro, const ulbi_t* ao, ulbn_limb_t b);
 
 /**
  * @brief `qo` = `ao` / `b`, `ro` = `ao` % `b`
@@ -657,7 +653,7 @@ ULBN_PUBLIC int ulbi_mod_limb(ulbn_ctx_t* ctx, ulbn_limb_t* ro, const ulbi_t* ao
  * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_divmod_slimb(ulbn_ctx_t* ctx, ulbi_t* qo, ulbn_slimb_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
+ULBN_PUBLIC int ulbi_divmod_slimb(ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_slimb_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
 /**
  * @brief `qo` = `ao` / `b`
  * @note `qo` is allowed to be `NULL`
@@ -665,14 +661,14 @@ ULBN_PUBLIC int ulbi_divmod_slimb(ulbn_ctx_t* ctx, ulbi_t* qo, ulbn_slimb_t* ro,
  * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_div_slimb(ulbn_ctx_t* ctx, ulbi_t* qo, const ulbi_t* ao, ulbn_slimb_t b);
+ULBN_PUBLIC int ulbi_div_slimb(ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, ulbn_slimb_t b);
 /**
  * @brief `ro` = `ao` % `b`
  * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_mod_slimb(ulbn_ctx_t* ctx, ulbn_slimb_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
+ULBN_PUBLIC int ulbi_mod_slimb(ulbn_alloc_t* alloc, ulbn_slimb_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
 
 
 /**
@@ -681,28 +677,28 @@ ULBN_PUBLIC int ulbi_mod_slimb(ulbn_ctx_t* ctx, ulbn_slimb_t* ro, const ulbi_t* 
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_and(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_and(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 /**
  * @brief `ro` = `ao` | `bo`
  * @note The calculation is performed in the sense of two's complement
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_or(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_or(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 /**
  * @brief `ro` = `ao` ^ `bo`
  * @note The calculation is performed in the sense of two's complement
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_xor(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_xor(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 /**
  * @brief `ro` = ~`ao`
  * @note The calculation is performed in the sense of two's complement
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_com(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao);
+ULBN_PUBLIC int ulbi_com(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao);
 
 /**
  * @brief `ro` = `ao` << `b`
@@ -710,14 +706,14 @@ ULBN_PUBLIC int ulbi_com(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao);
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_sal(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
+ULBN_PUBLIC int ulbi_sal(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
 /**
  * @brief `ro` = `ao` >> `b`
  * @note The calculation is performed in the sense of two's complement
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_sar(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
+ULBN_PUBLIC int ulbi_sar(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
 
 
 /**
@@ -731,33 +727,33 @@ ULBN_PUBLIC int ulbi_testbit(const ulbi_t* o, ulbn_usize_t k);
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return the original value of the k-th bit otherwise
  */
-ULBN_PUBLIC int ulbi_setbit(ulbn_ctx_t* ctx, ulbi_t* o, ulbn_usize_t k);
+ULBN_PUBLIC int ulbi_setbit(ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t k);
 /**
  * @brief Set the k-th bit to 0 in two's complement representation
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return the original value of the k-th bit otherwise
  */
-ULBN_PUBLIC int ulbi_resetbit(ulbn_ctx_t* ctx, ulbi_t* o, ulbn_usize_t k);
+ULBN_PUBLIC int ulbi_resetbit(ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t k);
 /**
  * @brief Flip the k-th bit in two's complement representation
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return the original value of the k-th bit otherwise
  */
-ULBN_PUBLIC int ulbi_combit(ulbn_ctx_t* ctx, ulbi_t* o, ulbn_usize_t k);
+ULBN_PUBLIC int ulbi_combit(ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t k);
 
 /**
  * @brief Converts `ao` to a number within the range of an n-bit unsigned binary number
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_as_uint(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
+ULBN_PUBLIC int ulbi_as_uint(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
 /**
  * @brief Converts `ao` to a number within the range of an n-bit signed binary number
  * @note If `b` == 2, the valid range of the number is -1 and 0
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `0` otherwise
  */
-ULBN_PUBLIC int ulbi_as_int(ulbn_ctx_t* ctx, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
+ULBN_PUBLIC int ulbi_as_int(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
 
 
 /**
@@ -828,7 +824,7 @@ ULBN_PUBLIC double ulbi_to_double(const ulbi_t* src);
  * @return `NULL` if the base is invalid (considered as `ULBN_ERR_EXCEED_RANGE`)
  */
 ULBN_PUBLIC char* ulbi_tostr_alloc(
-  ulbn_ctx_t* ctx, ulbn_usize_t* p_len,              /* */
+  ulbn_alloc_t* alloc, ulbn_usize_t* p_len,          /* */
   ulbn_alloc_func_t* alloc_func, void* alloc_opaque, /* */
   const ulbi_t* ao, int base
 );
@@ -840,7 +836,7 @@ ULBN_PUBLIC char* ulbi_tostr_alloc(
  * @return `ULBN_ERR_NOMEM` if memory is insufficient;
  * @return `0` if successful
  */
-ULBN_PUBLIC int ulbi_print(ulbn_ctx_t* ctx, const ulbi_t* o, FILE* fp, int base);
+ULBN_PUBLIC int ulbi_print(ulbn_alloc_t* alloc, const ulbi_t* o, FILE* fp, int base);
 
 #ifdef __cplusplus
 }

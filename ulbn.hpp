@@ -7,20 +7,6 @@
 namespace ul {
 namespace bn {
 
-ulbn_ctx_t* getCurrentContext() {
-  struct ContextGuard {
-    ContextGuard() {
-      ulbn_init_ctx(ctx);
-    }
-    ~ContextGuard() {
-      ulbn_deinit_ctx(ctx);
-    }
-    ulbn_ctx_t ctx[1];
-  };
-  static thread_local ContextGuard guard;
-  return guard.ctx;
-}
-
 class Exception: public std::runtime_error {
 public:
   explicit Exception(int err): std::runtime_error(_make_message(err)), _error(err) { }
@@ -192,8 +178,15 @@ public:
   BigInt(ulbn_limb_t limb) {
     _check(ulbi_init_limb(_ctx(), _value, limb));
   }
+  BigInt(ulbn_slimb_t slimb) {
+    _check(ulbi_init_slimb(_ctx(), _value, slimb));
+  }
   BigInt& operator=(ulbn_limb_t limb) {
     _check(ulbi_set_limb(_ctx(), _value, limb));
+    return *this;
+  }
+  BigInt& operator=(ulbn_slimb_t slimb) {
+    _check(ulbi_set_slimb(_ctx(), _value, slimb));
     return *this;
   }
 
@@ -711,8 +704,9 @@ public:
 
 
 private:
-  static ulbn_ctx_t* _ctx() {
-    return getCurrentContext();
+  static ulbn_alloc_t* _ctx() {
+    static ulbn_alloc_t* ctx = ulbn_default_alloc();
+    return ctx;
   }
   static int _check(int err) {
     if(err < 0 || err == ULBN_ERR_DIV_BY_ZERO)

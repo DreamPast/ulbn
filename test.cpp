@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <limits>
 #include <bit>
+#include <random>
 
 #include "ulbn.hpp"
 using ul::bn::BigInt;
@@ -23,7 +24,6 @@ bool fitType(From from) {
 
 void testException() {
   puts("===Test Exception");
-
   T_assert(ul::bn::Exception(ULBN_ERR_NOMEM) == ULBN_ERR_NOMEM);
   T_assert(ul::bn::Exception(ULBN_ERR_EXCEED_RANGE) == ULBN_ERR_EXCEED_RANGE);
   T_assert(ul::bn::Exception(ULBN_ERR_SUCCESS) == ULBN_ERR_SUCCESS);
@@ -32,6 +32,7 @@ void testException() {
   T_assert(ul::bn::Exception(ULBN_ERR_INVALID) == ULBN_ERR_INVALID);
   T_assert(ul::bn::Exception(ULBN_ERR_OVERFLOW) == ULBN_ERR_OVERFLOW);
   T_assert(ul::bn::Exception(ULBN_ERR_UNDERFLOW) == ULBN_ERR_UNDERFLOW);
+  T_assert(ul::bn::Exception(-100) == -100);
 }
 
 void testCastFrom() {
@@ -58,8 +59,12 @@ void testCastFrom() {
   T_assert(BigInt("-0b1101") == -13);
 
 
-  T_assert(BigInt(static_cast<ulbn_limb_t>(0)) == 0u);
-  T_assert(BigInt(static_cast<ulbn_limb_t>(12)) == 12u);
+  T_assert(BigInt(static_cast<ulbn_limb_t>(0u)) == 0u);
+  T_assert(BigInt(static_cast<ulbn_limb_t>(12u)) == 12u);
+
+  T_assert(BigInt(static_cast<ulbn_slimb_t>(0)) == 0);
+  T_assert(BigInt(static_cast<ulbn_slimb_t>(-12)) == -12);
+  T_assert(BigInt(static_cast<ulbn_slimb_t>(12)) == 12);
 
 
   T_assert(BigInt(INFINITY) == 0);
@@ -92,6 +97,9 @@ void testCastTo() {
   } catch(ul::bn::Exception& e) {
     T_assert(e == ULBN_ERR_EXCEED_RANGE);
   }
+
+  for(int i = -256; i <= 256; ++i)
+    T_assert(BigInt(i).toString() == std::to_string(i));
 
 
   BigInt("12345678901234567890").print();
@@ -152,6 +160,8 @@ void testCompare() {
     T_assert(BigInt(a).sign() == (a == 0 ? 0 : (a > 0 ? 1 : -1)));
     T_assert(BigInt(a).is_even() == (a % 2 == 0));
     T_assert(BigInt(a).is_odd() == (a % 2 != 0));
+    T_assert(-BigInt(a) == -a);
+    T_assert(BigInt(a).abs() == std::abs(a));
 
     for(int b = -256; b <= 256; ++b) {
       T_assert((BigInt(a) < BigInt(b)) == (a < b));
@@ -254,7 +264,7 @@ void subtestMul() {
   T_assert(-a2 * static_cast<int8_t>(-12) == BigInt("148148146814814814680"));
 
 
-  for(int64_t a = -256; a <= 256; ++a)
+  for(int64_t a = -256; a <= 256; ++a) {
     for(int64_t b = -256; b <= 256; ++b) {
       T_assert(BigInt(a) * BigInt(b) == a * b);
       if(fitType<int8_t>(b))
@@ -262,6 +272,11 @@ void subtestMul() {
       if(fitType<uint8_t>(b))
         T_assert(BigInt(a) * static_cast<uint8_t>(b) == a * b);
     }
+    {
+      BigInt r(a);
+      T_assert((r *= r) == a * a);
+    }
+  }
 }
 void subtestDivMod() {
   puts("======Subtest DivMod");
@@ -288,19 +303,120 @@ void subtestDivMod() {
           T_assert(BigInt(a) / static_cast<int8_t>(b) == a / b);
 
           ulbn_slimb_t r;
-          T_assert(ulbi_mod_slimb(ul::bn::getCurrentContext(), &r, BigInt(a).get(), static_cast<ulbn_slimb_t>(b)) >= 0);
+          T_assert(ulbi_mod_slimb(ulbn_default_alloc(), &r, BigInt(a).get(), static_cast<ulbn_slimb_t>(b)) >= 0);
           T_assert(r == a % b);
         }
         if(fitType<uint8_t>(b)) {
           T_assert(BigInt(a) / static_cast<uint8_t>(b) == a / b);
-          {
-            BigInt tmp(a);
-            ulbn_limb_t r;
-            T_assert(ulbi_mod_limb(ul::bn::getCurrentContext(), &r, tmp.get(), static_cast<ulbn_limb_t>(b)) >= 0);
-            T_assert(static_cast<int>(r) == (a % b + b) % b);
-          }
+
+          BigInt tmp(a);
+          ulbn_limb_t r;
+          T_assert(ulbi_mod_limb(ulbn_default_alloc(), &r, tmp.get(), static_cast<ulbn_limb_t>(b)) >= 0);
+          T_assert(static_cast<int>(r) == (a % b + b) % b);
         }
       }
+
+
+  puts("=========1by1_random");
+  {
+    std::mt19937_64 mt(std::random_device{}());
+    std::uniform_int_distribution<uint64_t> ud1;
+    std::uniform_int_distribution<uint64_t> ud2(1, 1ll << 8);
+    for(int64_t t = 0; t <= 1000000ll; ++t) {
+      const uint64_t a = ud1(mt);
+      const uint64_t b = ud2(mt);
+
+      T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
+    }
+  }
+
+  puts("=========2by1_random");
+  {
+    std::mt19937_64 mt(std::random_device{}());
+    std::uniform_int_distribution<uint64_t> ud1;
+    std::uniform_int_distribution<uint64_t> ud2(1, 1ll << 16);
+    for(int64_t t = 0; t <= 1000000ll; ++t) {
+      const uint64_t a = ud1(mt);
+      const uint64_t b = ud2(mt);
+
+      T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
+    }
+  }
+
+  puts("=========3by2_random");
+  {
+    std::mt19937_64 mt(std::random_device{}());
+    std::uniform_int_distribution<uint64_t> ud1(1ll << 48);
+    std::uniform_int_distribution<uint64_t> ud2(1ll << 32, (1ll << 48) - 1);
+    for(int64_t t = 0; t <= 1000000ll; ++t) {
+      const uint64_t a = ud1(mt);
+      const uint64_t b = ud2(mt);
+
+      T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
+    }
+  }
+
+  puts("=========%any%_random");
+  {
+    std::mt19937_64 mt(std::random_device{}());
+    std::uniform_int_distribution<uint64_t> ud1;
+    std::uniform_int_distribution<uint64_t> ud2(1);
+    for(int64_t t = 0; t <= 1000000ll; ++t) {
+      const uint64_t a = ud1(mt);
+      const uint64_t b = ud2(mt);
+
+      T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
+    }
+  }
+}
+void subtestDivModOverlap() {
+  puts("======Subtest DivMod Overlap");
+
+  std::mt19937_64 mt(std::random_device{}());
+  std::uniform_int_distribution<uint64_t> ud1;
+  std::uniform_int_distribution<uint64_t> ud2(1);
+  for(int64_t t = 0; t <= 10000ll; ++t) {
+    const uint64_t a = ud1(mt);
+    const uint64_t b = ud2(mt);
+
+    {  // a == b
+      BigInt ra;
+      ra = a;
+      T_assert((ra /= ra) == 1);
+      ra = a;
+      T_assert((ra %= ra) == 0);
+    }
+
+    {  // q == a
+      BigInt ra(a);
+      ra /= BigInt(b);
+      T_assert(ra == a / b);
+    }
+
+    {  // r == a
+      BigInt ra(a);
+      ra %= BigInt(b);
+      T_assert(ra == a % b);
+    }
+
+    {  // q == b
+      BigInt ra(a), rb(b);
+      T_assert(ulbi_divmod(ulbn_default_alloc(), rb.get(), ul_nullptr, ra.get(), rb.get()) >= 0);
+      T_assert(rb == a / b);
+    }
+
+    {  // r == b
+      BigInt ra(a), rb(b);
+      T_assert(ulbi_divmod(ulbn_default_alloc(), ul_nullptr, rb.get(), ra.get(), rb.get()) >= 0);
+      T_assert(rb == a % b);
+    }
+
+    {  // q == r
+      BigInt ra(a), rb(b);
+      T_assert(ulbi_divmod(ulbn_default_alloc(), ra.get(), ra.get(), ra.get(), rb.get()) >= 0);
+      T_assert((ra == a / b) || (ra == a % b));
+    }
+  }
 }
 void testArithmeticOperation() {
   puts("===Test Arithmetic Operation");
@@ -308,6 +424,7 @@ void testArithmeticOperation() {
   subtestAddSub();
   subtestMul();
   subtestDivMod();
+  subtestDivModOverlap();
 }
 
 
@@ -366,6 +483,7 @@ void subtestAsInt() {
 void subtestBitCountInfo() {
   puts("======Subtest Bit Count Info");
 
+  T_assert(BigInt(0).ctz() == 0);
   T_assert(BigInt(0).absFloorLog2() == 0);
 
   for(unsigned i = 1; i <= 1024u; ++i) {
@@ -391,7 +509,7 @@ void testBitOperation() {
 void testOther() {
   puts("===Test Other");
 
-  ulbn_ctx_t* ctx = ul::bn::getCurrentContext();
+  auto ctx = ulbn_default_alloc();
 
   {  // ulbi_divmod_limb: b = 0
     ulbn_limb_t r;
@@ -435,15 +553,83 @@ void testOther() {
     ulbi_abs_floor_log2(x.get(), &rh);
     T_assert(rh == 0);
   }
+
+  {  // ulbi_init_2exp
+    for(int i = 0; i <= 16; ++i) {
+      ulbi_t x[1];
+      T_assert(ulbi_init_2exp(ctx, x, i) == 0);
+      T_assert(BigInt(x) == (1 << i));
+      ulbi_deinit(ctx, x);
+    }
+  }
+
+  {  // ulbi_init_move
+    BigInt x = 12;
+    ulbi_t y[1];
+    ulbi_init_move(ctx, y, x.get());
+    T_assert(x == 0 && ulbi_eq_slimb(y, 12));
+    ulbi_deinit(ctx, y);
+  }
+
+  {  // ulbi_init_string, ulbi_set_string: base = -1
+    ulbi_t x[1];
+    T_assert(ulbi_init_string(ctx, x, "12", -1) == ULBN_ERR_EXCEED_RANGE);
+    ulbi_deinit(ctx, x);
+  }
+
+  {  // ulbi_set_move
+    BigInt x = 12;
+    BigInt y;
+    y = std::move(x);
+    T_assert(x == 0 && y == 12);
+  }
+
+  {  // ulbi_swap
+    BigInt x = 12, y = 13;
+    x.swap(y);
+    T_assert(x == 13 && y == 12);
+  }
+
+  {  // ulbi_reserve, ulbi_shrink, ulbi_set_zero
+    BigInt x = BigInt::from_reserve(12);
+    T_assert(x == 0);
+    x.shrink();
+    T_assert(x == 0);
+
+    x = 12;
+    x.shrink();
+    T_assert(x == 12);
+
+    ulbi_set_zero(x.get());
+    x.shrink();
+    T_assert(x == 0);
+  }
+
+  {  // ulbi_init_reserve
+    ulbi_t x[1];
+    ulbi_init_reserve(ctx, x, 12);
+    ulbi_deinit(ctx, x);
+    T_assert(ulbi_is_zero(x));
+    ulbi_init_reserve(ctx, x, 0);
+    ulbi_deinit(ctx, x);
+    T_assert(ulbi_is_zero(x));
+  }
 }
 
+size_t tot_mem = 0;
+size_t max_mem = 0;
+ulbn_alloc_func_t* original_alloc_func;
+void* original_alloc_opaque;
 
 int main() {
-  BigInt a("8070445940888263371");
-  BigInt b("32135758879894");
-  // std::cout << (a / b) << '\n';
-  std::cout << (a % b) << '\n';
-  return 0;
+  original_alloc_func = ulbn_default_alloc()->alloc_func;
+  original_alloc_opaque = ulbn_default_alloc()->alloc_opaque;
+  ulbn_default_alloc()->alloc_func = [](void* opaque, void* ptr, size_t on, size_t nn) -> void* {
+    tot_mem -= on;
+    tot_mem += nn;
+    max_mem = std::max(max_mem, tot_mem);
+    return original_alloc_func(original_alloc_opaque, ptr, on, nn);
+  };
 
   testException();
   testCastFrom();
@@ -452,6 +638,10 @@ int main() {
   testArithmeticOperation();
   testBitOperation();
   testOther();
+
+  std::cout << "Maximum Memory:" << max_mem << '\n';
+  std::cout << "Total Memory:" << tot_mem << '\n';
+  T_assert(tot_mem == 0);
   return 0;
 }
 
