@@ -66,12 +66,6 @@ concept FitUlong = requires {
   requires std::is_convertible_v<T, ulbn_ulong_t>;
 };
 template<class T>
-concept FitDouble = requires {
-  requires std::is_floating_point_v<T>;
-  requires sizeof(T) <= sizeof(double);
-  requires std::is_convertible_v<T, double>;
-};
-template<class T>
 concept FitLimb = requires {
   requires std::is_integral_v<T>;
   requires std::is_unsigned_v<T>;
@@ -99,6 +93,14 @@ concept FitSsize = requires {
   requires sizeof(T) <= sizeof(ulbn_ssize_t);
   requires std::is_convertible_v<T, ulbn_ssize_t>;
 };
+#if ULBN_CONF_HAS_DOUBLE
+template<class T>
+concept FitDouble = requires {
+  requires std::is_floating_point_v<T>;
+  requires sizeof(T) <= sizeof(double);
+  requires std::is_convertible_v<T, double>;
+};
+#endif /* ULBN_CONF_HAS_DOUBLE */
 
 class BigInt {
 public:
@@ -155,10 +157,6 @@ public:
   BigInt(T value) {
     _check(ulbi_init_ulong(_ctx(), _value, static_cast<ulbn_ulong_t>(value)));
   }
-  template<FitDouble T>
-  explicit BigInt(T value) {
-    _check(ulbi_init_double(_ctx(), _value, static_cast<double>(value)));
-  }
   template<FitSlong T>
   BigInt& operator=(T value) {
     _check(ulbi_set_slong(_ctx(), _value, static_cast<ulbn_slong_t>(value)));
@@ -167,11 +165,6 @@ public:
   template<FitUlong T>
   BigInt& operator=(T value) {
     _check(ulbi_set_ulong(_ctx(), _value, static_cast<ulbn_ulong_t>(value)));
-    return *this;
-  }
-  template<FitDouble T>
-  BigInt& operator=(T value) {
-    _check(ulbi_set_double(_ctx(), _value, static_cast<double>(value)));
     return *this;
   }
 
@@ -573,6 +566,12 @@ public:
     return ret;
   }
 
+  BigInt pow(ulbn_usize_t e) const {
+    BigInt ret;
+    _check(ulbi_pow(_ctx(), ret._value, _value, e));
+    return ret;
+  }
+
   BigInt& shrink() {
     _check(ulbi_shrink(_ctx(), _value));
     return *this;
@@ -609,8 +608,8 @@ public:
   ulbn_limb_t toLimb() const {
     return ulbi_to_limb(_value);
   }
-  double toDouble() const {
-    return ulbi_to_double(_value);
+  ulbn_slimb_t toSlimb() const {
+    return ulbi_to_slimb(_value);
   }
 
   explicit operator ulbn_ulong_t() const {
@@ -618,9 +617,6 @@ public:
   }
   explicit operator ulbn_slong_t() const {
     return toSlong();
-  }
-  explicit operator double() const {
-    return toDouble();
   }
 
   std::string toString(int base = 10) const {
@@ -698,9 +694,27 @@ public:
   ulbn_usize_t absPopcount() const {
     return ulbi_abs_popcount(_value, nullptr);
   }
-  ulbn_usize_t absFloorLog2() const {
-    return ulbi_abs_floor_log2(_value, nullptr);
+  ulbn_usize_t absBitWidth() const {
+    return ulbi_abs_bit_width(_value, nullptr);
   }
+
+#if ULBN_CONF_HAS_DOUBLE
+  template<FitDouble T>
+  explicit BigInt(T value) {
+    _check(ulbi_init_double(_ctx(), _value, static_cast<double>(value)));
+  }
+  template<FitDouble T>
+  BigInt& operator=(T value) {
+    _check(ulbi_set_double(_ctx(), _value, static_cast<double>(value)));
+    return *this;
+  }
+  double toDouble() const {
+    return ulbi_to_double(_value);
+  }
+  explicit operator double() const {
+    return toDouble();
+  }
+#endif /* ULBN_CONF_HAS_DOUBLE */
 
 
 private:

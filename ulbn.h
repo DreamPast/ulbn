@@ -215,19 +215,14 @@ typedef signed long ulbn_slong_t;
   #define ULBN_CONF_CHECK_BITS_OVERFLOW 1
 #endif /* ULBN_CONF_CHECK_BITS_OVERFLOW */
 
-enum ULBN_BUF_ENUM {
-  ULBN_BUF_DIV_REMAINDER = 0,
-  ULBN_BUF_DIV_DIVISOR = 1,
-  ULBN_BUF_DIV_QUOTIENT = 2,
+/**
+ * @def ULBN_CONF_HAS_DOUBLE
+ * @brief Configuration: Whether to enable double precision floating point number
+ */
+#ifndef ULBN_CONF_HAS_DOUBLE
+  #define ULBN_CONF_HAS_DOUBLE 1
+#endif /* ULBN_CONF_HAS_DOUBLE */
 
-  ULBN_BUF_MUL_MULTIPLIER0 = 0,
-  ULBN_BUF_MUL_MULTIPLIER1 = 1,
-
-  ULBN_BUF_CONVBASE_DEST = 0,
-  ULBN_BUF_CONVBASE_SOURCE = 1,
-
-  ULBN_BUF_SQRT_TEMP = 0
-};
 
 /* <0 indicates a system error, >0 indicates a mathematical error
 This error directly corresponds to the IEEE754 error code */
@@ -378,13 +373,6 @@ ULBN_PUBLIC int ulbi_set_ulong(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ulong_t l)
  */
 ULBN_PUBLIC int ulbi_set_slong(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slong_t l);
 /**
- * @brief Set `dst` to `x`
- * @return `0` if `x` can be exactly represented as an integer;
- * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
- * @return `ULBN_ERR_NOMEM` if out of memory
- */
-ULBN_PUBLIC int ulbi_set_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x);
-/**
  * @brief Set `dst` to 2^n
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
@@ -437,13 +425,6 @@ ULBN_PUBLIC int ulbi_init_ulong(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ulong_t l
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
 ULBN_PUBLIC int ulbi_init_slong(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slong_t l);
-/**
- * @brief Initialize `dst` with `x`
- * @return `0` if `x` can be exactly represented as an integer;
- * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
- * @return `ULBN_ERR_NOMEM` if out of memory
- */
-ULBN_PUBLIC int ulbi_init_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x);
 /**
  * @brief Initialize `dst` with 2^n
  * @return `0` if successful;
@@ -672,6 +653,14 @@ ULBN_PUBLIC int ulbi_mod_slimb(ulbn_alloc_t* alloc, ulbn_slimb_t* ro, const ulbi
 
 
 /**
+ * @brief `ro` = `ao` ** b
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
+
+
+/**
  * @brief `ro` = `ao` & `bo`
  * @note The calculation is performed in the sense of two's complement
  * @return `0` if successful;
@@ -781,18 +770,21 @@ ULBN_PUBLIC ulbn_usize_t ulbi_cto(const ulbi_t* ro, ulbn_usize_t* p_rh);
  */
 ULBN_PUBLIC ulbn_usize_t ulbi_abs_popcount(const ulbi_t* ro, ulbn_usize_t* p_rh);
 /**
- * @brief Get the floor of log2 of the absolute value of `ro`
- *        (or, the position of the highest bit 1 in the absolute value of `ro`)
+ * @brief Get the minimum number of bits required to represent the absolute value of `ro`
  * @note If `ro` == 0, return 0
  * @note Since the number may exceed `ulbn_usize_t`, the higher part will be stored in `p_rh` (if not NULL)
  * @return The lower part of the count
  */
-ULBN_PUBLIC ulbn_usize_t ulbi_abs_floor_log2(const ulbi_t* ro, ulbn_usize_t* p_rh);
+ULBN_PUBLIC ulbn_usize_t ulbi_abs_bit_width(const ulbi_t* ro, ulbn_usize_t* p_rh);
 
 /**
  * @brief Converts `src` to `ulbn_limb_t` type
  */
 ULBN_PUBLIC ulbn_limb_t ulbi_to_limb(const ulbi_t* src);
+/**
+ * @brief Converts `src` to `ulbn_slimb_t` type
+ */
+ULBN_PUBLIC ulbn_slimb_t ulbi_to_slimb(const ulbi_t* src);
 /**
  * @brief Converts abs(`src`) to `ulbn_ulong_t` type
  */
@@ -805,10 +797,6 @@ ULBN_PUBLIC ulbn_ulong_t ulbi_to_ulong(const ulbi_t* src);
  * @brief Converts `src` to `ulbn_slong_t` type
  */
 ULBN_PUBLIC ulbn_slong_t ulbi_to_slong(const ulbi_t* src);
-/**
- * @brief Converts `src` to `double` type
- */
-ULBN_PUBLIC double ulbi_to_double(const ulbi_t* src);
 
 
 /**
@@ -837,6 +825,27 @@ ULBN_PUBLIC char* ulbi_tostr_alloc(
  * @return `0` if successful
  */
 ULBN_PUBLIC int ulbi_print(ulbn_alloc_t* alloc, const ulbi_t* o, FILE* fp, int base);
+
+#if ULBN_CONF_HAS_DOUBLE
+/**
+ * @brief Set `dst` to `x`
+ * @return `0` if `x` can be exactly represented as an integer;
+ * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_set_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x);
+/**
+ * @brief Initialize `dst` with `x`
+ * @return `0` if `x` can be exactly represented as an integer;
+ * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_init_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x);
+/**
+ * @brief Converts `src` to `double` type
+ */
+ULBN_PUBLIC double ulbi_to_double(const ulbi_t* src);
+#endif /* ULBN_CONF_HAS_DOUBLE */
 
 #ifdef __cplusplus
 }

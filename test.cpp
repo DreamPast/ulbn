@@ -124,6 +124,7 @@ void testCastTo() {
     T_assert(BigInt(i).toSlong() == i);
     T_assert(BigInt(i).toUlong() == static_cast<ulbn_ulong_t>(i));
     T_assert(BigInt(i).toLimb() == static_cast<ulbn_limb_t>(static_cast<ulbn_ulong_t>(i)));
+    T_assert(BigInt(i).toSlimb() == static_cast<ulbn_slimb_t>(i));
     T_assert(BigInt(i).toDouble() == static_cast<double>(i));
   }
 }
@@ -418,6 +419,24 @@ void subtestDivModOverlap() {
     }
   }
 }
+void subtestPower() {
+  puts("======Subtest Power");
+  auto&& fastpow = [](int64_t a, unsigned e) {
+    int64_t r = 1;
+    while(e) {
+      if(e & 1)
+        r *= a;
+      a *= a;
+      e >>= 1;
+    }
+    return r;
+  };
+  for(int64_t a = 2; a <= 32; ++a) {
+    for(unsigned e = 1; pow(static_cast<double>(a), e) < static_cast<double>(1ull << 63); ++e) {
+      T_assert(BigInt(a).pow(e) == fastpow(a, e));
+    }
+  }
+}
 void testArithmeticOperation() {
   puts("===Test Arithmetic Operation");
 
@@ -425,6 +444,7 @@ void testArithmeticOperation() {
   subtestMul();
   subtestDivMod();
   subtestDivModOverlap();
+  subtestPower();
 }
 
 
@@ -484,11 +504,11 @@ void subtestBitCountInfo() {
   puts("======Subtest Bit Count Info");
 
   T_assert(BigInt(0).ctz() == 0);
-  T_assert(BigInt(0).absFloorLog2() == 0);
+  T_assert(BigInt(0).absBitWidth() == 0);
 
   for(unsigned i = 1; i <= 1024u; ++i) {
     T_assert(BigInt(i).ctz() == static_cast<unsigned>(std::countr_zero(i)));
-    T_assert(BigInt(i).absFloorLog2() == sizeof(unsigned) * CHAR_BIT - std::countl_zero(i));
+    T_assert(BigInt(i).absBitWidth() == sizeof(unsigned) * CHAR_BIT - std::countl_zero(i));
     T_assert(BigInt(i).is2Pow() == ((i & (i - 1u)) == 0));
   }
   for(unsigned i = 0; i <= 1024u; ++i) {
@@ -550,7 +570,24 @@ void testOther() {
     ulbi_abs_popcount(x.get(), &rh);
     T_assert(rh == 0);
 
-    ulbi_abs_floor_log2(x.get(), &rh);
+    ulbi_abs_bit_width(x.get(), &rh);
+    T_assert(rh == 0);
+  }
+
+  {
+    BigInt x = 0;
+    ulbn_usize_t rh;
+
+    ulbi_ctz(x.get(), &rh);
+    T_assert(rh == 0);
+
+    ulbi_cto(x.get(), &rh);
+    T_assert(rh == 0);
+
+    ulbi_abs_popcount(x.get(), &rh);
+    T_assert(rh == 0);
+
+    ulbi_abs_bit_width(x.get(), &rh);
     T_assert(rh == 0);
   }
 
