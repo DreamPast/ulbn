@@ -22,6 +22,10 @@ bool fitType(From from) {
   return static_cast<To>(from) == from;
 }
 
+constexpr const int LIMIT = 1024;
+constexpr const int64_t TEST = 1000000ll;
+std::mt19937_64 mt64(std::random_device{}());
+
 void testException() {
   puts("===Test Exception");
   T_assert(ul::bn::Exception(ULBN_ERR_NOMEM) == ULBN_ERR_NOMEM);
@@ -98,7 +102,7 @@ void testCastTo() {
     T_assert(e == ULBN_ERR_EXCEED_RANGE);
   }
 
-  for(int i = -256; i <= 256; ++i)
+  for(int i = -LIMIT; i <= LIMIT; ++i)
     T_assert(BigInt(i).toString() == std::to_string(i));
 
 
@@ -120,7 +124,7 @@ void testCastTo() {
   T_assert(BigInt(-1.0).toDouble() == -1.0);
   T_assert(BigInt(ldexp(1.0, 52) + 0.5).toDouble() == ldexp(1.0, 52));
 
-  for(ulbn_slong_t i = -256 * 3; i <= 256 * 3; ++i) {
+  for(ulbn_slong_t i = -LIMIT; i <= LIMIT; ++i) {
     T_assert(BigInt(i).toSlong() == i);
     T_assert(BigInt(i).toUlong() == static_cast<ulbn_ulong_t>(i));
     T_assert(BigInt(i).toLimb() == static_cast<ulbn_limb_t>(static_cast<ulbn_ulong_t>(i)));
@@ -156,7 +160,7 @@ void testCompare() {
   T_assert(-BigInt("12345678901234567890") != static_cast<int8_t>(-12));
 
 
-  for(int a = -256; a <= 256; ++a) {
+  for(int a = -LIMIT; a <= LIMIT; ++a) {
     T_assert(BigInt(a).is_zero() == (a == 0));
     T_assert(BigInt(a).sign() == (a == 0 ? 0 : (a > 0 ? 1 : -1)));
     T_assert(BigInt(a).is_even() == (a % 2 == 0));
@@ -164,7 +168,7 @@ void testCompare() {
     T_assert(-BigInt(a) == -a);
     T_assert(BigInt(a).abs() == std::abs(a));
 
-    for(int b = -256; b <= 256; ++b) {
+    for(int b = -LIMIT; b <= LIMIT; ++b) {
       T_assert((BigInt(a) < BigInt(b)) == (a < b));
       T_assert((BigInt(a) <= BigInt(b)) == (a <= b));
       T_assert((BigInt(a) > BigInt(b)) == (a > b));
@@ -215,8 +219,8 @@ void testCompare() {
 void subtestAddSub() {
   puts("======Subtest AddSub");
 
-  for(int a = -256; a <= 256; ++a)
-    for(int b = -256; b <= 256; ++b) {
+  for(int a = -LIMIT; a <= LIMIT; ++a)
+    for(int b = -LIMIT; b <= LIMIT; ++b) {
       T_assert(BigInt(a) + BigInt(b) == a + b);
       T_assert(BigInt(a) - BigInt(b) == a - b);
       if(fitType<int8_t>(b)) {
@@ -265,8 +269,8 @@ void subtestMul() {
   T_assert(-a2 * static_cast<int8_t>(-12) == BigInt("148148146814814814680"));
 
 
-  for(int64_t a = -256; a <= 256; ++a) {
-    for(int64_t b = -256; b <= 256; ++b) {
+  for(int64_t a = -LIMIT; a <= LIMIT; ++a) {
+    for(int64_t b = -LIMIT; b <= LIMIT; ++b) {
       T_assert(BigInt(a) * BigInt(b) == a * b);
       if(fitType<int8_t>(b))
         T_assert(BigInt(a) * static_cast<int8_t>(b) == a * b);
@@ -277,6 +281,15 @@ void subtestMul() {
       BigInt r(a);
       T_assert((r *= r) == a * a);
     }
+  }
+}
+void subtestMulRandom() {
+  puts("======Subtest Mul (Random)");
+  std::uniform_int_distribution<uint32_t> dist;
+  for(int t = TEST; t--;) {
+    const uint32_t a = dist(mt64);
+    const uint32_t b = dist(mt64);
+    T_assert(BigInt(a) * BigInt(b) == static_cast<uint64_t>(a) * b);
   }
 }
 void subtestDivMod() {
@@ -295,8 +308,8 @@ void subtestDivMod() {
   }
 
 
-  for(int a = -256; a <= 256; ++a)
-    for(int b = -256; b <= 256; ++b)
+  for(int a = -LIMIT; a <= LIMIT; ++a)
+    for(int b = -LIMIT; b <= LIMIT; ++b)
       if(b != 0) {
         T_assert(BigInt(a) / BigInt(b) == a / b);
         T_assert(BigInt(a) % BigInt(b) == a % b);
@@ -316,16 +329,17 @@ void subtestDivMod() {
           T_assert(static_cast<int>(r) == (a % b + b) % b);
         }
       }
-
+}
+void subtestDivModRandom() {
+  puts("======Subtest DivMod (Random)");
 
   puts("=========1by1_random");
   {
-    std::mt19937_64 mt(std::random_device{}());
     std::uniform_int_distribution<uint64_t> ud1;
     std::uniform_int_distribution<uint64_t> ud2(1, 1ll << 8);
-    for(int64_t t = 0; t <= 1000000ll; ++t) {
-      const uint64_t a = ud1(mt);
-      const uint64_t b = ud2(mt);
+    for(int64_t t = 0; t <= TEST; ++t) {
+      const uint64_t a = ud1(mt64);
+      const uint64_t b = ud2(mt64);
 
       T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
     }
@@ -333,12 +347,11 @@ void subtestDivMod() {
 
   puts("=========2by1_random");
   {
-    std::mt19937_64 mt(std::random_device{}());
     std::uniform_int_distribution<uint64_t> ud1;
     std::uniform_int_distribution<uint64_t> ud2(1, 1ll << 16);
-    for(int64_t t = 0; t <= 1000000ll; ++t) {
-      const uint64_t a = ud1(mt);
-      const uint64_t b = ud2(mt);
+    for(int64_t t = 0; t <= TEST; ++t) {
+      const uint64_t a = ud1(mt64);
+      const uint64_t b = ud2(mt64);
 
       T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
     }
@@ -346,12 +359,11 @@ void subtestDivMod() {
 
   puts("=========3by2_random");
   {
-    std::mt19937_64 mt(std::random_device{}());
     std::uniform_int_distribution<uint64_t> ud1(1ll << 48);
     std::uniform_int_distribution<uint64_t> ud2(1ll << 32, (1ll << 48) - 1);
-    for(int64_t t = 0; t <= 1000000ll; ++t) {
-      const uint64_t a = ud1(mt);
-      const uint64_t b = ud2(mt);
+    for(int64_t t = 0; t <= TEST; ++t) {
+      const uint64_t a = ud1(mt64);
+      const uint64_t b = ud2(mt64);
 
       T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
     }
@@ -362,7 +374,7 @@ void subtestDivMod() {
     std::mt19937_64 mt(std::random_device{}());
     std::uniform_int_distribution<uint64_t> ud1;
     std::uniform_int_distribution<uint64_t> ud2(1);
-    for(int64_t t = 0; t <= 1000000ll; ++t) {
+    for(int64_t t = 0; t <= TEST; ++t) {
       const uint64_t a = ud1(mt);
       const uint64_t b = ud2(mt);
 
@@ -370,15 +382,14 @@ void subtestDivMod() {
     }
   }
 }
-void subtestDivModOverlap() {
-  puts("======Subtest DivMod Overlap");
+void subtestDivModOverlapRandom() {
+  puts("======Subtest DivMod Overlap (Random)");
 
-  std::mt19937_64 mt(std::random_device{}());
   std::uniform_int_distribution<uint64_t> ud1;
   std::uniform_int_distribution<uint64_t> ud2(1);
   for(int64_t t = 0; t <= 10000ll; ++t) {
-    const uint64_t a = ud1(mt);
-    const uint64_t b = ud2(mt);
+    const uint64_t a = ud1(mt64);
+    const uint64_t b = ud2(mt64);
 
     {  // a == b
       BigInt ra;
@@ -442,8 +453,10 @@ void testArithmeticOperation() {
 
   subtestAddSub();
   subtestMul();
+  subtestMulRandom();
   subtestDivMod();
-  subtestDivModOverlap();
+  subtestDivModRandom();
+  subtestDivModOverlapRandom();
   subtestPower();
 }
 
@@ -451,11 +464,11 @@ void testArithmeticOperation() {
 void subtestBitwiseOperation() {
   puts("======Subtest Bitwise Operation");
 
-  for(int a = -256; a <= 256; ++a) {
+  for(int a = -LIMIT; a <= LIMIT; ++a) {
     T_assert((BigInt(a) & BigInt(a)) == a);
     T_assert((BigInt(a) | BigInt(a)) == a);
     T_assert((BigInt(a) ^ BigInt(a)) == 0);
-    for(int b = -256; b <= 256; ++b) {
+    for(int b = -LIMIT; b <= LIMIT; ++b) {
       T_assert((BigInt(a) | BigInt(b)) == (a | b));
       T_assert((BigInt(a) & BigInt(b)) == (a & b));
       T_assert((BigInt(a) ^ BigInt(b)) == (a ^ b));
@@ -477,7 +490,7 @@ void subtestBitwiseOperation() {
 void subtestSingleBitOperation() {
   puts("======Subtest Single Bit Operation");
 
-  for(int a = -256; a <= 256; ++a) {
+  for(int a = -LIMIT; a <= LIMIT; ++a) {
     for(int b = 0; b < 31; ++b) {
       T_assert(BigInt(a).testBit(b) == ((a >> b) & 1));
       T_assert(BigInt(a).setBit(b) == (a | (1 << b)));
@@ -490,7 +503,7 @@ void subtestAsInt() {
   puts("======Subtest AsInt");
 
   static constexpr auto INT_BITS = sizeof(int) * CHAR_BIT;
-  for(int i = -256 * 3; i <= 256 * 3; ++i) {
+  for(int i = -LIMIT; i <= LIMIT; ++i) {
     T_assert(BigInt(i).asUint(0) == 0);
     for(int b = 1; b < INT_BITS - 1; ++b) {
       T_assert(BigInt(i).asUint(b) == (static_cast<unsigned>(i) << (INT_BITS - b) >> (INT_BITS - b)));
