@@ -2638,7 +2638,7 @@ ULBN_PUBLIC char* ulbi_tostr_alloc(
   unsigned B_pow;
 
   ulbn_limb_t* cp = ul_nullptr;
-  ulbn_usize_t cn, c_alloc = 0;
+  ulbn_usize_t ci, c_alloc = 0;
   ulbn_usize_t on = 0;
 
   if(base < 2 || base > 36)
@@ -2661,18 +2661,16 @@ ULBN_PUBLIC char* ulbi_tostr_alloc(
   B_pow = 1;
   for(B = ul_static_cast(ulbn_limb_t, base); B <= B_guard; B *= ul_static_cast(ulbn_limb_t, base))
     ++B_pow;
-  cn = ulbn_convbase(alloc, &cp, &c_alloc, rp, an, B);
-  ULBN_DO_IF_ALLOC_COND(cn == 0, { goto done; });
+  ci = ulbn_convbase(alloc, &cp, &c_alloc, rp, an, B);
+  ULBN_DO_IF_ALLOC_COND(ci == 0, { goto done; });
 
-  on = ulbn_conv2str(cn, cp, ul_nullptr, 0, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
+  on = ulbn_conv2str(ci, cp, ul_nullptr, 0, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
   ULBN_DO_IF_ALLOC_COND(on == 0, { goto done; });
-  buf = ul_reinterpret_cast(
-    char*, alloc_func(alloc_opaque, ul_nullptr, 0, (ul_static_cast(size_t, on) + 1 + a_neg) * sizeof(ulbn_limb_t))
-  );
+  buf = ul_reinterpret_cast(char*, alloc_func(alloc_opaque, ul_nullptr, 0, ul_static_cast(size_t, on) + 1 + a_neg));
   ULBN_DO_IF_ALLOC_COND(buf == ul_nullptr, { goto done; });
   if(ul_unlikely(a_neg))
     buf[0] = '-';
-  ulbn_conv2str(cn, cp, buf + a_neg, on, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
+  ulbn_conv2str(ci, cp, buf + a_neg, on, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
   on += a_neg;
   buf[on] = 0;
 
@@ -2691,7 +2689,7 @@ ULBN_PUBLIC int ulbi_print(ulbn_alloc_t* alloc, const ulbi_t* o, FILE* fp, int b
   str = ulbi_tostr_alloc(alloc, &len, alloc->alloc_func, alloc->alloc_opaque, o, base);
   ULBN_RETURN_IF_ALLOC_FAILED(str, ULBN_ERR_NOMEM);
   fwrite(str, 1, len, fp);
-  ulbn_reallocT(char, alloc, str, len + 1, 0);
+  ulbn_deallocT(char, alloc, str, len + 1);
   return 0;
 }
 

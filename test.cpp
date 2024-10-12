@@ -662,6 +662,7 @@ int main() {
   original_alloc_func = ulbn_default_alloc()->alloc_func;
   original_alloc_opaque = ulbn_default_alloc()->alloc_opaque;
   ulbn_default_alloc()->alloc_func = [](void* opaque, void* ptr, size_t on, size_t nn) -> void* {
+    (void)opaque;
     tot_mem -= on;
     tot_mem += nn;
     max_mem = std::max(max_mem, tot_mem);
