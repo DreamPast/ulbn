@@ -274,6 +274,23 @@ typedef struct ulbn_alloc_t {
 ULBN_PUBLIC ulbn_alloc_t* ulbn_default_alloc(void);
 
 
+#if UINT_MAX >= 0xFFFFFFFFu
+typedef unsigned ulbn_rand_uint_t;
+#else
+typedef unsigned long ulbn_rand_uint_t;
+#endif
+/* [PCG Random Number Generators](https://www.pcg-random.org/) */
+typedef struct ulbn_rand_t {
+  ulbn_rand_uint_t state;
+  ulbn_rand_uint_t inc;
+
+  unsigned cache;
+  int bits;
+} ulbn_rand_t;
+ULBN_PUBLIC void ulbn_rand_init(ulbn_rand_t* rng);
+ULBN_PUBLIC void ulbn_rand_init2(ulbn_rand_t* rng, ulbn_rand_uint_t seed);
+
+
 typedef struct ulbi_t {
   ulbn_ssize_t len;
   ulbn_usize_t cap;
@@ -1044,6 +1061,25 @@ ULBN_PUBLIC int ulbi_init_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x);
  */
 ULBN_PUBLIC double ulbi_to_double(const ulbi_t* src);
 #endif /* ULBN_CONF_HAS_DOUBLE */
+
+
+/**
+ * @brief Set `dst` to a random number in the range [0, 2**n)
+ */
+ULBN_PUBLIC int ulbi_set_rand_usize(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_usize_t n);
+/**
+ * @brief Set `dst` to a random number in the range [0, 2**n)
+ */
+ULBN_PUBLIC int ulbi_set_rand(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* n);
+/**
+ * @brief Initialize `dst` with a random number in the range [0, 2**n)
+ */
+ULBN_PUBLIC int ulbi_init_rand_usize(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_usize_t n);
+/**
+ * @brief Initialize `dst` with a random number in the range [0, 2**n)
+ */
+ULBN_PUBLIC int ulbi_init_rand(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* n);
+
 
 #ifdef __cplusplus
 }

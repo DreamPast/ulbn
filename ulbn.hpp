@@ -51,6 +51,18 @@ private:
   int _error;
 };
 
+ulbn_rand_t* getCurrentRand() {
+  struct _RandManager {
+    _RandManager() {
+      ulbn_rand_init(&hold);
+    }
+    ulbn_rand_t hold;
+  };
+
+  static thread_local _RandManager rng;
+  return &rng.hold;
+}
+
 template<class T>
 concept FitSlong = requires {
   requires std::is_integral_v<T>;
@@ -203,6 +215,21 @@ public:
     _check(ulbi_reserve(_ctx(), ret._value, n) ? 0 : ULBN_ERR_NOMEM);
     return ret;
   }
+
+
+#if 1 /* random */
+  template<FitUsize T>
+  static BigInt from_random(T n) {
+    BigInt ret;
+    _check(ulbi_set_rand_usize(_ctx(), getCurrentRand(), ret._value, static_cast<ulbn_usize_t>(n)));
+    return ret;
+  }
+  static BigInt from_random(const BigInt& n) {
+    BigInt ret;
+    _check(ulbi_set_rand(_ctx(), getCurrentRand(), ret._value, n._value));
+    return ret;
+  }
+#endif
 
 
   BigInt& operator+=(const BigInt& other) {

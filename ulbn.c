@@ -1646,6 +1646,73 @@ ULBN_INTERNAL int ulbn_to_bit_info(ulbn_limb_t* limb, ulbn_usize_t n, ulbn_usize
 }
 
 
+ULBN_INTERNAL unsigned ulbn_rand_gen(ulbn_rand_t* rng) {
+  ulbn_rand_uint_t state;
+  unsigned ret, shift;
+  state = rng->state;
+  rng->state = state * 0x321Du + rng->inc;
+  shift = state >> 28;
+  ret = ul_static_cast(unsigned, (((state >> 10u) ^ state) >> 12u) & 0xFFFFu);
+  ret = (ret >> shift) | (ret << ((0u - shift) & 15));
+  return ret & 0xFFFFu;
+}
+
+#include <time.h>
+ULBN_PUBLIC void ulbn_rand_init2(ulbn_rand_t* rng, ulbn_rand_uint_t seed) {
+  rng->state = 0u;
+  rng->inc = (0xBB75u << 1u) | 1u;
+  rng->state = rng->state * 0x321Du + rng->inc;
+  rng->state += seed;
+  rng->state = rng->state * 0x321Du + rng->inc;
+
+  rng->bits = 0;
+  rng->cache = 0;
+}
+ULBN_PUBLIC void ulbn_rand_init(ulbn_rand_t* rng) {
+  ulbn_rand_uint_t seed;
+  seed = ul_static_cast(ulbn_rand_uint_t, ul_reinterpret_cast(size_t, &seed));
+  seed ^= ul_static_cast(ulbn_rand_uint_t, time(ul_nullptr));
+  seed ^= ul_static_cast(ulbn_rand_uint_t, clock());
+  /* printf("seed=%lu\n", ul_static_cast(unsigned long, seed)); */
+  ulbn_rand_init2(rng, seed);
+}
+
+ULBN_INTERNAL ulbn_limb_t ulbn_rand(ulbn_rand_t* rng, int n) {
+  int b = rng->bits;
+  unsigned c = rng->cache;
+  ulbn_limb_t l = 0;
+
+  ulbn_assert(n >= 0 && n <= ULBN_LIMB_BITS);
+
+#if ULBN_LIMB_MAX >= 0xFFFFu
+  while(n >= 16) {
+    l <<= 16;
+    l |= ul_static_cast(ulbn_limb_t, ulbn_rand_gen(rng));
+    n -= 16;
+  }
+#endif
+
+  if(b < n) {
+    l <<= b;
+    l |= ul_static_cast(ulbn_limb_t, c);
+    c = ulbn_rand_gen(rng);
+    n -= b;
+    b = 16;
+  }
+
+  l <<= n;
+  l |= ul_static_cast(ulbn_limb_t, c & (ULBN_LIMB_SHL(1u, n) - 1u));
+  rng->cache = c >> n;
+  rng->bits = b - n;
+  return l;
+}
+ULBN_INTERNAL void ulbn_rand_multi(ulbn_rand_t* rng, ulbn_limb_t* p, ulbn_usize_t n) {
+  ulbn_usize_t i;
+  for(i = 0; i < n; ++i)
+    p[i] = ulbn_rand(rng, ULBN_LIMB_BITS);
+}
+
+
 #if 0
 /* return ap[0:an] <=> mp[0:mn]/2 */
 ULBN_INTERNAL int ulbn_check_round(const ulbn_limb_t* ap, ulbn_usize_t an, const ulbn_limb_t* mp, ulbn_usize_t mn) {
@@ -3311,3 +3378,40 @@ ULBN_PUBLIC double ulbi_to_double(const ulbi_t* src) {
   return src->len >= 0 ? r : -r;
 }
 #endif /* ULBN_CONF_HAS_DOUBLE */
+
+
+ULBN_PRIVATE int _ulbi_set_rand(
+  ulbn_alloc_t* alloc, ulbn_rand_t* rng,   /* */
+  ulbi_t* dst, ulbn_usize_t idx, int shift /* */
+) {
+  ulbn_limb_t* p = _ulbi_res(alloc, dst, idx + (shift != 0));
+  ULBN_RETURN_IF_ALLOC_COND(p == ul_nullptr, ULBN_ERR_NOMEM);
+  ulbn_rand_multi(rng, p, idx);
+  if(shift != 0)
+    p[idx++] = ulbn_rand(rng, shift);
+  idx = ulbn_normalize(p, idx);
+  ULBN_RETURN_IF_SSIZE_OVERFLOW(idx, ULBN_ERR_EXCEED_RANGE);
+  dst->len = ulbn_cast_ssize(idx);
+  return 0;
+}
+ULBN_PUBLIC int ulbi_set_rand_usize(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_usize_t n) {
+  ulbn_usize_t idx = n / ULBN_LIMB_BITS;
+  const int shift = ul_static_cast(int, n % ULBN_LIMB_BITS);
+  return _ulbi_set_rand(alloc, rng, dst, idx, shift);
+}
+ULBN_PUBLIC int ulbi_set_rand(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* n) {
+  ulbn_usize_t idx;
+  int shift;
+  if(ul_unlikely(n->len < 0))
+    return ULBN_ERR_EXCEED_RANGE;
+  shift = ulbn_to_bit_info(_ulbi_limb(n), ulbn_cast_usize(n->len), &idx);
+  if(ul_unlikely(shift < 0))
+    return ULBN_ERR_EXCEED_RANGE;
+  return _ulbi_set_rand(alloc, rng, dst, idx, shift);
+}
+ULBN_PUBLIC int ulbi_init_rand_usize(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_usize_t n) {
+  return ulbi_set_rand_usize(alloc, rng, ulbi_init(dst), n);
+}
+ULBN_PUBLIC int ulbi_init_rand(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* n) {
+  return ulbi_set_rand(alloc, rng, ulbi_init(dst), n);
+}
