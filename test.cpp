@@ -19,7 +19,11 @@ void _T_assert(const char* msg, const char* file, int line) {
 
 template<class To, class From>
 bool fitType(From from) {
-  return static_cast<To>(from) == from;
+  if(!std::is_integral_v<To>)
+    return static_cast<To>(from) == from;
+  if(from >= 0)
+    return from <= std::numeric_limits<To>::max();
+  return std::is_signed_v<To> && from >= std::numeric_limits<To>::min();
 }
 
 constexpr const int LIMIT = 1024;
@@ -129,7 +133,16 @@ void testCastTo() {
     T_assert(BigInt(i).toUlong() == static_cast<ulbn_ulong_t>(i));
     T_assert(BigInt(i).toLimb() == static_cast<ulbn_limb_t>(static_cast<ulbn_ulong_t>(i)));
     T_assert(BigInt(i).toSlimb() == static_cast<ulbn_slimb_t>(i));
+    T_assert(BigInt(i).toUsize() == static_cast<ulbn_usize_t>(static_cast<ulbn_ulong_t>(i)));
+    T_assert(BigInt(i).toSsize() == static_cast<ulbn_ssize_t>(i));
     T_assert(BigInt(i).toDouble() == static_cast<double>(i));
+
+    T_assert(BigInt(i).fitUlong() == fitType<ulbn_ulong_t>(i));
+    T_assert(BigInt(i).fitSlong() == fitType<ulbn_slong_t>(i));
+    T_assert(BigInt(i).fitLimb() == fitType<ulbn_limb_t>(i));
+    T_assert(BigInt(i).fitSlimb() == fitType<ulbn_slimb_t>(i));
+    T_assert(BigInt(i).fitUsize() == fitType<ulbn_usize_t>(i));
+    T_assert(BigInt(i).fitSsize() == fitType<ulbn_ssize_t>(i));
   }
 }
 
@@ -211,6 +224,42 @@ void testCompare() {
         T_assert((static_cast<uint8_t>(a) == BigInt(b)) == (a == b));
         T_assert((static_cast<uint8_t>(a) != BigInt(b)) == (a != b));
       }
+
+      if(fitType<ulbn_slong_t>(b)) {
+        T_assert((BigInt(a) < static_cast<ulbn_slong_t>(b)) == (a < b));
+        T_assert((BigInt(a) <= static_cast<ulbn_slong_t>(b)) == (a <= b));
+        T_assert((BigInt(a) > static_cast<ulbn_slong_t>(b)) == (a > b));
+        T_assert((BigInt(a) >= static_cast<ulbn_slong_t>(b)) == (a >= b));
+        T_assert((BigInt(a) == static_cast<ulbn_slong_t>(b)) == (a == b));
+        T_assert((BigInt(a) != static_cast<ulbn_slong_t>(b)) == (a != b));
+      }
+
+      if(fitType<ulbn_slong_t>(a)) {
+        T_assert((static_cast<ulbn_slong_t>(a) < BigInt(b)) == (a < b));
+        T_assert((static_cast<ulbn_slong_t>(a) <= BigInt(b)) == (a <= b));
+        T_assert((static_cast<ulbn_slong_t>(a) > BigInt(b)) == (a > b));
+        T_assert((static_cast<ulbn_slong_t>(a) >= BigInt(b)) == (a >= b));
+        T_assert((static_cast<ulbn_slong_t>(a) == BigInt(b)) == (a == b));
+        T_assert((static_cast<ulbn_slong_t>(a) != BigInt(b)) == (a != b));
+      }
+
+      if(fitType<ulbn_ulong_t>(b)) {
+        T_assert((BigInt(a) < static_cast<ulbn_ulong_t>(b)) == (a < b));
+        T_assert((BigInt(a) <= static_cast<ulbn_ulong_t>(b)) == (a <= b));
+        T_assert((BigInt(a) > static_cast<ulbn_ulong_t>(b)) == (a > b));
+        T_assert((BigInt(a) >= static_cast<ulbn_ulong_t>(b)) == (a >= b));
+        T_assert((BigInt(a) == static_cast<ulbn_ulong_t>(b)) == (a == b));
+        T_assert((BigInt(a) != static_cast<ulbn_ulong_t>(b)) == (a != b));
+      }
+
+      if(fitType<ulbn_ulong_t>(a)) {
+        T_assert((static_cast<ulbn_ulong_t>(a) < BigInt(b)) == (a < b));
+        T_assert((static_cast<ulbn_ulong_t>(a) <= BigInt(b)) == (a <= b));
+        T_assert((static_cast<ulbn_ulong_t>(a) > BigInt(b)) == (a > b));
+        T_assert((static_cast<ulbn_ulong_t>(a) >= BigInt(b)) == (a >= b));
+        T_assert((static_cast<ulbn_ulong_t>(a) == BigInt(b)) == (a == b));
+        T_assert((static_cast<ulbn_ulong_t>(a) != BigInt(b)) == (a != b));
+      }
     }
   }
 }
@@ -280,6 +329,22 @@ void subtestMul() {
     {
       BigInt r(a);
       T_assert((r *= r) == a * a);
+    }
+  }
+
+  {
+    BigInt r = 1, a = 0x100;
+    for(int t = 1; t <= 0xFF; ++t) {
+      r *= a;
+      T_assert(r == BigInt::from_2exp(8 * t));
+    }
+  }
+
+  {
+    BigInt r = 1, a = BigInt::from_2exp(1000);
+    for(int t = 1; t <= 0xFF; ++t) {
+      r *= a;
+      T_assert(r == BigInt::from_2exp(1000 * t));
     }
   }
 }
@@ -447,6 +512,8 @@ void subtestPower() {
       T_assert(BigInt(a).pow(e) == fastpow(a, e));
     }
   }
+
+  T_assert(BigInt("0x100").pow(0xFFFF) == BigInt::from_2exp(0xFFFF * 8));
 }
 void testArithmeticOperation() {
   puts("===Test Arithmetic Operation");
@@ -484,6 +551,15 @@ void subtestBitwiseOperation() {
 
       T_assert((BigInt(a) << -b) == (a >> b));
       T_assert((BigInt(a) >> -b) == (a << b));
+
+      T_assert((BigInt(a) << static_cast<unsigned>(b)) == (a << b));
+      T_assert((BigInt(a) >> static_cast<unsigned>(b)) == (a >> b));
+
+      T_assert((BigInt(a) << BigInt(b)) == (a << b));
+      T_assert((BigInt(a) >> BigInt(b)) == (a >> b));
+
+      T_assert((BigInt(a) << BigInt(-b)) == (a >> b));
+      T_assert((BigInt(a) >> BigInt(-b)) == (a << b));
     }
   }
 }
@@ -496,6 +572,10 @@ void subtestSingleBitOperation() {
       T_assert(BigInt(a).setBit(b) == (a | (1 << b)));
       T_assert(BigInt(a).resetBit(b) == (a & ~(1 << b)));
       T_assert(BigInt(a).comBit(b) == (a ^ (1 << b)));
+      T_assert(BigInt(a).testBit(BigInt(b)) == ((a >> b) & 1));
+      T_assert(BigInt(a).setBit(BigInt(b)) == (a | (1 << b)));
+      T_assert(BigInt(a).resetBit(BigInt(b)) == (a & ~(1 << b)));
+      T_assert(BigInt(a).comBit(BigInt(b)) == (a ^ (1 << b)));
     }
   }
 }
@@ -505,12 +585,17 @@ void subtestAsInt() {
   static constexpr auto INT_BITS = sizeof(int) * CHAR_BIT;
   for(int i = -LIMIT; i <= LIMIT; ++i) {
     T_assert(BigInt(i).asUint(0) == 0);
+    T_assert(BigInt(i).asUint(0_bi) == 0);
     for(int b = 1; b < INT_BITS - 1; ++b) {
       T_assert(BigInt(i).asUint(b) == (static_cast<unsigned>(i) << (INT_BITS - b) >> (INT_BITS - b)));
       T_assert(BigInt(i).asInt(b) == ((i) << (INT_BITS - b) >> (INT_BITS - b)));
+      T_assert(BigInt(i).asUint(BigInt(b)) == (static_cast<unsigned>(i) << (INT_BITS - b) >> (INT_BITS - b)));
+      T_assert(BigInt(i).asInt(BigInt(b)) == ((i) << (INT_BITS - b) >> (INT_BITS - b)));
     }
     T_assert(BigInt(i).asUint(0) == 0);
     T_assert(BigInt(i).asInt(0) == 0);
+    T_assert(BigInt(i).asUint(0_bi) == 0);
+    T_assert(BigInt(i).asInt(0_bi) == 0);
   }
 }
 void subtestBitCountInfo() {
@@ -522,9 +607,9 @@ void subtestBitCountInfo() {
   for(unsigned i = 1; i <= 1024u; ++i) {
     T_assert(BigInt(i).ctz() == static_cast<unsigned>(std::countr_zero(i)));
     T_assert(BigInt(i).absBitWidth() == sizeof(unsigned) * CHAR_BIT - std::countl_zero(i));
-    T_assert(BigInt(i).is2Pow() == ((i & (i - 1u)) == 0));
   }
   for(unsigned i = 0; i <= 1024u; ++i) {
+    T_assert(BigInt(i).is2Pow() == ((i & (i - 1u)) == 0));
     T_assert(BigInt(i).cto() == static_cast<unsigned>(std::countr_one(i)));
     T_assert(BigInt(i).absPopcount() == static_cast<unsigned>(std::popcount(i)));
   }
@@ -570,37 +655,37 @@ void testOther() {
     T_assert(r == 0);
   }
 
-  {  // ulbi_ctz, ulbi_cto, ulbi_abs_popcount, ulbi_abs_floor_log2: rh != nullptr
+  {  // ulbi_ctz_usize, ulbi_cto_usize, ulbi_abs_popcount_usize, ulbi_abs_floor_log2_usize: rh != nullptr
     BigInt x = 12_bi;
     ulbn_usize_t rh;
 
-    ulbi_ctz(x.get(), &rh);
+    ulbi_ctz_usize(x.get(), &rh);
     T_assert(rh == 0);
 
-    ulbi_cto(x.get(), &rh);
+    ulbi_cto_usize(x.get(), &rh);
     T_assert(rh == 0);
 
-    ulbi_abs_popcount(x.get(), &rh);
+    ulbi_abs_popcount_usize(x.get(), &rh);
     T_assert(rh == 0);
 
-    ulbi_abs_bit_width(x.get(), &rh);
+    ulbi_abs_bit_width_usize(x.get(), &rh);
     T_assert(rh == 0);
   }
 
-  {
+  {  // ulbi_ctz_usize, ulbi_cto_usize, ulbi_abs_popcount_usize, ulbi_abs_floor_log2_usize: x = 0
     BigInt x = 0;
     ulbn_usize_t rh;
 
-    ulbi_ctz(x.get(), &rh);
+    ulbi_ctz_usize(x.get(), &rh);
     T_assert(rh == 0);
 
-    ulbi_cto(x.get(), &rh);
+    ulbi_cto_usize(x.get(), &rh);
     T_assert(rh == 0);
 
-    ulbi_abs_popcount(x.get(), &rh);
+    ulbi_abs_popcount_usize(x.get(), &rh);
     T_assert(rh == 0);
 
-    ulbi_abs_bit_width(x.get(), &rh);
+    ulbi_abs_bit_width_usize(x.get(), &rh);
     T_assert(rh == 0);
   }
 

@@ -428,6 +428,7 @@ public:
   friend std::strong_ordering operator<=>(const BigInt& lhs, const BigInt& rhs) {
     return ulbi_comp(lhs._value, rhs._value) <=> 0;
   }
+
   template<FitLimb T>
   friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) {
     return ulbi_comp_limb(lhs._value, static_cast<ulbn_limb_t>(rhs)) <=> 0;
@@ -436,6 +437,17 @@ public:
   friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) {
     return ulbi_comp_slimb(lhs._value, static_cast<ulbn_slimb_t>(rhs)) <=> 0;
   }
+  template<FitUlong T>
+    requires(!FitLimb<T>)
+  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) {
+    return ulbi_comp_ulong(lhs._value, static_cast<ulbn_ulong_t>(rhs)) <=> 0;
+  }
+  template<FitSlong T>
+    requires(!FitSlimb<T>)
+  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) {
+    return ulbi_comp_slong(lhs._value, static_cast<ulbn_slong_t>(rhs)) <=> 0;
+  }
+
   template<FitLimb T>
   friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) {
     return (-ulbi_comp_limb(rhs._value, static_cast<ulbn_limb_t>(lhs))) <=> 0;
@@ -443,6 +455,16 @@ public:
   template<FitSlimb T>
   friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) {
     return (-ulbi_comp_slimb(rhs._value, static_cast<ulbn_slimb_t>(lhs))) <=> 0;
+  }
+  template<FitUlong T>
+    requires(!FitLimb<T>)
+  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) {
+    return (-ulbi_comp_ulong(rhs._value, static_cast<ulbn_ulong_t>(lhs))) <=> 0;
+  }
+  template<FitSlong T>
+    requires(!FitSlimb<T>)
+  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) {
+    return (-ulbi_comp_slong(rhs._value, static_cast<ulbn_slong_t>(lhs))) <=> 0;
   }
 
   friend bool operator==(const BigInt& lhs, const BigInt& rhs) {
@@ -456,6 +478,17 @@ public:
   friend bool operator==(const BigInt& lhs, T rhs) {
     return ulbi_eq_slimb(lhs._value, static_cast<ulbn_slimb_t>(rhs)) != 0;
   }
+  template<FitUlong T>
+    requires(!FitLimb<T>)
+  friend bool operator==(const BigInt& lhs, T rhs) {
+    return ulbi_eq_ulong(lhs._value, static_cast<ulbn_ulong_t>(rhs)) != 0;
+  }
+  template<FitSlong T>
+    requires(!FitSlimb<T>)
+  friend bool operator==(const BigInt& lhs, T rhs) {
+    return ulbi_eq_slong(lhs._value, static_cast<ulbn_slong_t>(rhs)) != 0;
+  }
+
   template<FitLimb T>
   friend bool operator==(T lhs, const BigInt& rhs) {
     return ulbi_eq_limb(rhs._value, static_cast<ulbn_limb_t>(lhs)) != 0;
@@ -463,6 +496,16 @@ public:
   template<FitSlimb T>
   friend bool operator==(T lhs, const BigInt& rhs) {
     return ulbi_eq_slimb(rhs._value, static_cast<ulbn_slimb_t>(lhs)) != 0;
+  }
+  template<FitUlong T>
+    requires(!FitLimb<T>)
+  friend bool operator==(T lhs, const BigInt& rhs) {
+    return ulbi_eq_ulong(rhs._value, static_cast<ulbn_ulong_t>(lhs)) != 0;
+  }
+  template<FitSlong T>
+    requires(!FitSlimb<T>)
+  friend bool operator==(T lhs, const BigInt& rhs) {
+    return ulbi_eq_slong(rhs._value, static_cast<ulbn_slong_t>(lhs)) != 0;
   }
 
 
@@ -510,59 +553,65 @@ public:
 
   template<FitUsize T>
   BigInt& operator<<=(T shift) {
-    _check(ulbi_sal(_ctx(), _value, _value, static_cast<ulbn_usize_t>(shift)));
+    _check(ulbi_sal_usize(_ctx(), _value, _value, static_cast<ulbn_usize_t>(shift)));
     return *this;
   }
   template<FitSsize T>
   BigInt& operator<<=(T shift) {
-    if(shift >= 0)
-      _check(ulbi_sal(_ctx(), _value, _value, static_cast<ulbn_usize_t>(shift)));
-    else
-      _check(ulbi_sar(_ctx(), _value, _value, static_cast<ulbn_usize_t>(-(shift + 1)) + 1u));
+    _check(ulbi_sal_ssize(_ctx(), _value, _value, static_cast<ulbn_ssize_t>(shift)));
+    return *this;
+  }
+  BigInt& operator<<=(const BigInt& shift) {
+    _check(ulbi_sal(_ctx(), _value, _value, shift._value));
     return *this;
   }
   template<FitUsize T>
   friend BigInt operator<<(const BigInt& lhs, T shift) {
     BigInt ret;
-    _check(ulbi_sal(_ctx(), ret._value, lhs._value, static_cast<ulbn_usize_t>(shift)));
+    _check(ulbi_sal_usize(_ctx(), ret._value, lhs._value, static_cast<ulbn_usize_t>(shift)));
     return ret;
   }
   template<FitSsize T>
   friend BigInt operator<<(const BigInt& lhs, T shift) {
     BigInt ret;
-    if(shift >= 0)
-      _check(ulbi_sal(_ctx(), ret._value, lhs._value, static_cast<ulbn_usize_t>(shift)));
-    else
-      _check(ulbi_sar(_ctx(), ret._value, lhs._value, static_cast<ulbn_usize_t>(-(shift + 1)) + 1u));
+    _check(ulbi_sal_ssize(_ctx(), ret._value, lhs._value, static_cast<ulbn_ssize_t>(shift)));
+    return ret;
+  }
+  friend BigInt operator<<(const BigInt& lhs, const BigInt& shift) {
+    BigInt ret;
+    _check(ulbi_sal(_ctx(), ret._value, lhs._value, shift._value));
     return ret;
   }
 
   template<FitUsize T>
   BigInt& operator>>=(T shift) {
-    _check(ulbi_sar(_ctx(), _value, _value, static_cast<ulbn_usize_t>(shift)));
+    _check(ulbi_sar_usize(_ctx(), _value, _value, static_cast<ulbn_usize_t>(shift)));
     return *this;
   }
   template<FitSsize T>
   BigInt& operator>>=(T shift) {
-    if(shift >= 0)
-      _check(ulbi_sar(_ctx(), _value, _value, static_cast<ulbn_usize_t>(shift)));
-    else
-      _check(ulbi_sal(_ctx(), _value, _value, static_cast<ulbn_usize_t>(-(shift + 1)) + 1u));
+    _check(ulbi_sar_ssize(_ctx(), _value, _value, static_cast<ulbn_ssize_t>(shift)));
+    return *this;
+  }
+  BigInt& operator>>=(const BigInt& shift) {
+    _check(ulbi_sar(_ctx(), _value, _value, shift._value));
     return *this;
   }
   template<FitUsize T>
   friend BigInt operator>>(const BigInt& lhs, T shift) {
     BigInt ret;
-    _check(ulbi_sar(_ctx(), ret._value, lhs._value, static_cast<ulbn_usize_t>(shift)));
+    _check(ulbi_sar_usize(_ctx(), ret._value, lhs._value, static_cast<ulbn_usize_t>(shift)));
     return ret;
   }
   template<FitSsize T>
   friend BigInt operator>>(const BigInt& lhs, T shift) {
     BigInt ret;
-    if(shift >= 0)
-      _check(ulbi_sar(_ctx(), ret._value, lhs._value, static_cast<ulbn_usize_t>(shift)));
-    else
-      _check(ulbi_sal(_ctx(), ret._value, lhs._value, static_cast<ulbn_usize_t>(-(shift + 1)) + 1u));
+    _check(ulbi_sar_ssize(_ctx(), ret._value, lhs._value, static_cast<ulbn_ssize_t>(shift)));
+    return ret;
+  }
+  friend BigInt operator>>(const BigInt& lhs, const BigInt& shift) {
+    BigInt ret;
+    _check(ulbi_sar(_ctx(), ret._value, lhs._value, shift._value));
     return ret;
   }
 
@@ -599,6 +648,25 @@ public:
     return ulbi_sign(_value);
   }
 
+  bool fitUlong() const {
+    return ulbi_fit_ulong(_value);
+  }
+  bool fitSlong() const {
+    return ulbi_fit_slong(_value);
+  }
+  bool fitLimb() const {
+    return ulbi_fit_limb(_value);
+  }
+  bool fitSlimb() const {
+    return ulbi_fit_slimb(_value);
+  }
+  bool fitUsize() const {
+    return ulbi_fit_usize(_value);
+  }
+  bool fitSsize() const {
+    return ulbi_fit_ssize(_value);
+  }
+
   ulbn_ulong_t toUlong() const {
     return ulbi_to_ulong(_value);
   }
@@ -610,6 +678,12 @@ public:
   }
   ulbn_slimb_t toSlimb() const {
     return ulbi_to_slimb(_value);
+  }
+  ulbn_usize_t toUsize() const {
+    return ulbi_to_usize(_value);
+  }
+  ulbn_ssize_t toSsize() const {
+    return ulbi_to_ssize(_value);
   }
 
   explicit operator ulbn_ulong_t() const {
@@ -656,46 +730,83 @@ public:
   }
 
   bool testBit(ulbn_usize_t n) const noexcept {
-    return ulbi_testbit(_value, n) != 0;
+    return ulbi_testbit_usize(_value, n) != 0;
   }
   BigInt& setBit(ulbn_usize_t n) {
-    _check(ulbi_setbit(_ctx(), _value, n));
+    _check(ulbi_setbit_usize(_ctx(), _value, n));
     return *this;
   }
   BigInt& resetBit(ulbn_usize_t n) {
-    _check(ulbi_resetbit(_ctx(), _value, n));
+    _check(ulbi_resetbit_usize(_ctx(), _value, n));
     return *this;
   }
   BigInt& comBit(ulbn_usize_t n) {
-    _check(ulbi_combit(_ctx(), _value, n));
+    _check(ulbi_combit_usize(_ctx(), _value, n));
     return *this;
   }
 
+  bool testBit(const BigInt& n) const noexcept {
+    return ulbi_testbit(_value, n._value) != 0;
+  }
+  BigInt& setBit(const BigInt& n) {
+    _check(ulbi_setbit(_ctx(), _value, n._value));
+    return *this;
+  }
+  BigInt& resetBit(const BigInt& n) {
+    _check(ulbi_resetbit(_ctx(), _value, n._value));
+    return *this;
+  }
+  BigInt& comBit(const BigInt& n) {
+    _check(ulbi_combit(_ctx(), _value, n._value));
+    return *this;
+  }
+
+
   BigInt asUint(ulbn_usize_t n) const {
     BigInt ret;
-    _check(ulbi_as_uint(_ctx(), ret._value, _value, n));
+    _check(ulbi_as_uint_usize(_ctx(), ret._value, _value, n));
     return ret;
   }
   BigInt asInt(ulbn_usize_t n) const {
     BigInt ret;
-    _check(ulbi_as_int(_ctx(), ret._value, _value, n));
+    _check(ulbi_as_int_usize(_ctx(), ret._value, _value, n));
     return ret;
   }
+
+  BigInt asUint(const BigInt& n) const {
+    BigInt ret;
+    _check(ulbi_as_uint(_ctx(), ret._value, _value, n._value));
+    return ret;
+  }
+  BigInt asInt(const BigInt& n) const {
+    BigInt ret;
+    _check(ulbi_as_int(_ctx(), ret._value, _value, n._value));
+    return ret;
+  }
+
 
   bool is2Pow() const {
     return ulbi_is_2pow(_value);
   }
-  ulbn_usize_t ctz() const {
-    return ulbi_ctz(_value, nullptr);
+  BigInt ctz() const {
+    BigInt ret;
+    _check(ulbi_ctz(_ctx(), ret._value, _value));
+    return ret;
   }
-  ulbn_usize_t cto() const {
-    return ulbi_cto(_value, nullptr);
+  BigInt cto() const {
+    BigInt ret;
+    _check(ulbi_cto(_ctx(), ret._value, _value));
+    return ret;
   }
-  ulbn_usize_t absPopcount() const {
-    return ulbi_abs_popcount(_value, nullptr);
+  BigInt absPopcount() const {
+    BigInt ret;
+    _check(ulbi_abs_popcount(_ctx(), ret._value, _value));
+    return ret;
   }
-  ulbn_usize_t absBitWidth() const {
-    return ulbi_abs_bit_width(_value, nullptr);
+  BigInt absBitWidth() const {
+    BigInt ret;
+    _check(ulbi_abs_bit_width(_ctx(), ret._value, _value));
+    return ret;
   }
 
 #if ULBN_CONF_HAS_DOUBLE
