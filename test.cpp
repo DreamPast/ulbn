@@ -88,6 +88,13 @@ void testCastFrom() {
   T_assert(BigInt(-0.5) == 0);
   T_assert(BigInt(ldexp(1.0, 51) + 0.5) == BigInt::from_2exp(51));
   T_assert(BigInt(ldexp(1.0, 52) + 0.5) == BigInt::from_2exp(52));
+
+  {
+    BigInt tmp;
+    T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +0.0) == 0);
+    T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +0.5) == ULBN_ERR_INEXACT);
+    T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +1.0) == 0);
+  }
 }
 
 void testCastTo() {

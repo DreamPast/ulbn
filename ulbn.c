@@ -3358,10 +3358,10 @@ ULBN_PUBLIC int ulbi_set_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x) {
   double xl;
   int positive;
 
-  /* NaN or +Inf or -Inf */
+  /* NaN, +Inf, -Inf or 0 */
   if(x != x || _ulbn_feq(x, x * 0.5)) {
     dst->len = 0;
-    return ULBN_ERR_INVALID;
+    return _ulbn_feq(x, 0.0) ? 0 : ULBN_ERR_INVALID;
   }
   positive = x >= 0.0;
   if(!positive)
