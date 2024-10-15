@@ -1638,7 +1638,7 @@ ULBN_INTERNAL int ulbn_to_bit_info(ulbn_limb_t* limb, ulbn_usize_t n, ulbn_usize
 
   do {
     idx <<= sizeof(ulbn_limb_t) * CHAR_BIT;
-    idx |= limb[--qn];
+    idx |= q[--qn];
   } while(qn);
   *p_idx = idx;
   return ul_static_cast(int, r[0]);
