@@ -745,7 +745,14 @@ ULBN_PUBLIC int ulbi_mod_slimb(ulbn_alloc_t* alloc, ulbn_slimb_t* ro, const ulbi
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
+ULBN_PUBLIC int ulbi_pow_usize(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t b);
+/**
+ * @brief `ro` = `ao` ** b
+ * @return `0` if successful;
+ * @return `ULBN_ERR_INEXACT` if `b` < 0 (in this case, `ro` is set to 0);
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* b);
 
 
 /**
@@ -1102,9 +1109,26 @@ ULBN_PUBLIC int ulbi_init_rand(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* ds
  */
 ULBN_PUBLIC int ulbi_set_rand_range(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* limit);
 /**
+ * @brief Set `dst` to a random number in the range [lo, hi)
+ * @note If `lo` > `hi`, swap them
+ */
+ULBN_PUBLIC int ulbi_set_rand_range2(
+  ulbn_alloc_t* alloc, ulbn_rand_t* rng,          /* */
+  ulbi_t* dst, const ulbi_t* lo, const ulbi_t* hi /* */
+);
+/**
  * @brief Initialize `dst` with a random number in the range [0, limit)
  */
 ULBN_PUBLIC int ulbi_init_rand_range(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* limit);
+/**
+ * @brief Initialize `dst` with a random number in the range [lo, hi)
+ * @note If `lo` > `hi`, swap them
+ */
+ULBN_PUBLIC int ulbi_init_rand_range2(
+  ulbn_alloc_t* alloc, ulbn_rand_t* rng,          /* */
+  ulbi_t* dst, const ulbi_t* lo, const ulbi_t* hi /* */
+);
+
 
 #ifdef __cplusplus
 }
