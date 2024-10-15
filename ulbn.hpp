@@ -205,23 +205,47 @@ public:
     return *this;
   }
 
-  static BigInt from_2exp(ulbn_usize_t n) {
-    BigInt ret;
-    _check(ulbi_set_2exp(_ctx(), ret._value, n));
-    return ret;
-  }
   static BigInt from_reserve(ulbn_usize_t n) {
     BigInt ret;
     _check(ulbi_reserve(_ctx(), ret._value, n) ? 0 : ULBN_ERR_NOMEM);
     return ret;
   }
 
+  template<FitUsize T>
+  static BigInt from_2exp(T n) {
+    BigInt ret;
+    _check(ulbi_set_2exp_usize(_ctx(), ret._value, static_cast<ulbn_usize_t>(n)));
+    return ret;
+  }
+  template<FitSsize T>
+  static BigInt from_2exp(T n) {
+    BigInt ret;
+    if(n >= 0)
+      _check(ulbi_set_2exp_usize(_ctx(), ret._value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))));
+    return ret;
+  }
+  static BigInt from_2exp(const BigInt& n) {
+    BigInt ret;
+    _check(ulbi_set_2exp(_ctx(), ret._value, n._value));
+    return ret;
+  }
 
-#if 1 /* random */
+
   template<FitUsize T>
   static BigInt from_random(T n) {
     BigInt ret;
     _check(ulbi_set_rand_usize(_ctx(), getCurrentRand(), ret._value, static_cast<ulbn_usize_t>(n)));
+    return ret;
+  }
+  template<FitSsize T>
+  static BigInt from_random(T n) {
+    BigInt ret;
+    if(n >= 0)
+      _check(ulbi_set_rand_usize(
+        _ctx(), getCurrentRand(), ret._value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))
+      ));
+    else
+      _check(ULBN_ERR_EXCEED_RANGE);
     return ret;
   }
   static BigInt from_random(const BigInt& n) {
@@ -229,7 +253,6 @@ public:
     _check(ulbi_set_rand(_ctx(), getCurrentRand(), ret._value, n._value));
     return ret;
   }
-#endif
 
 
   BigInt& operator+=(const BigInt& other) {

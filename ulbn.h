@@ -408,7 +408,15 @@ ULBN_PUBLIC int ulbi_set_ssize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ssize_t l)
  * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_set_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n);
+ULBN_PUBLIC int ulbi_set_2exp_usize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n);
+/**
+ * @brief Set `dst` to 2^n
+ * @return `0` if successful;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `ULBN_ERR_INEXACT` if `n` is negative
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_set_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n);
 /**
  * @brief Set `dst` to the integer represented by `str` in base `base`
  * @note This function stops parsing when it encounters the first illegal character
@@ -471,9 +479,18 @@ ULBN_PUBLIC int ulbi_init_ssize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ssize_t l
 /**
  * @brief Initialize `dst` with 2^n
  * @return `0` if successful;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
-ULBN_PUBLIC int ulbi_init_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n);
+ULBN_PUBLIC int ulbi_init_2exp_usize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n);
+/**
+ * @brief Initialize `dst` with 2^n
+ * @return `0` if successful;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `ULBN_ERR_INEXACT` if `n` is negative
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_init_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n);
 /**
  * @brief Initialize `dst` with the integer represented by `str` in base `base`
  * @note This function stops parsing when it encounters the first illegal character

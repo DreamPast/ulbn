@@ -337,6 +337,7 @@ void subtestMul() {
     for(int t = 1; t <= 0xFF; ++t) {
       r *= a;
       T_assert(r == BigInt::from_2exp(8 * t));
+      T_assert(r == BigInt::from_2exp(BigInt(8 * t)));
     }
   }
 
@@ -345,6 +346,7 @@ void subtestMul() {
     for(int t = 1; t <= 0xFF; ++t) {
       r *= a;
       T_assert(r == BigInt::from_2exp(1000 * t));
+      T_assert(r == BigInt::from_2exp(BigInt(1000 * t)));
     }
   }
 }
@@ -368,6 +370,9 @@ void subtestDivMod() {
 
   for(unsigned i = 64; i < 256; ++i) {
     BigInt d = BigInt::from_2exp(i);
+    T_assert((a2 / d) * d + (a2 % d) == a2);
+    T_assert((a2 * d) / d == a2 && (a2 * d) % d == 0);
+    d = BigInt::from_2exp(BigInt(i));
     T_assert((a2 / d) * d + (a2 % d) == a2);
     T_assert((a2 * d) / d == a2 && (a2 * d) % d == 0);
   }
@@ -689,10 +694,10 @@ void testOther() {
     T_assert(rh == 0);
   }
 
-  {  // ulbi_init_2exp
+  {  // ulbi_init_2exp_usize
     for(int i = 0; i <= 16; ++i) {
       ulbi_t x[1];
-      T_assert(ulbi_init_2exp(ctx, x, i) == 0);
+      T_assert(ulbi_init_2exp_usize(ctx, x, i) == 0);
       T_assert(BigInt(x) == (1 << i));
       ulbi_deinit(ctx, x);
     }

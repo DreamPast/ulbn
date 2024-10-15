@@ -1960,17 +1960,38 @@ ULBN_PUBLIC int ulbi_set_ssize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ssize_t l)
   return err;
 }
 
-ULBN_PUBLIC int ulbi_set_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n) {
+ULBN_PUBLIC int ulbi_set_2exp_usize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n) {
   ulbn_limb_t* p;
   const ulbn_usize_t idx = n / ULBN_LIMB_BITS;
   ULBN_RETURN_IF_SSIZE_OVERFLOW(idx + 1, ULBN_ERR_EXCEED_RANGE);
   p = _ulbi_res(alloc, dst, idx + 1);
   ULBN_RETURN_IF_ALLOC_FAILED(p, ULBN_ERR_NOMEM);
-  ulbn_fill0(p, idx + 1);
+  ulbn_fill0(p, idx);
   p[idx] = ULBN_LIMB_SHL(1, n % ULBN_LIMB_BITS);
   dst->len = ulbn_cast_ssize(idx + 1);
   return 0;
 }
+ULBN_PUBLIC int ulbi_set_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n) {
+  ulbn_limb_t* p;
+  ulbn_usize_t idx;
+  int shift;
+
+  if(n->len < 0) {
+    dst->len = 0;
+    return ULBN_ERR_INEXACT;
+  }
+  shift = ulbn_to_bit_info(_ulbi_limb(n), _ulbn_abs_size(n->len), &idx);
+  if(shift < 0)
+    return ULBN_ERR_EXCEED_RANGE;
+  ULBN_RETURN_IF_SSIZE_OVERFLOW(idx + 1, ULBN_ERR_EXCEED_RANGE);
+  p = _ulbi_res(alloc, dst, idx + 1);
+  ULBN_RETURN_IF_ALLOC_FAILED(p, ULBN_ERR_NOMEM);
+  ulbn_fill0(p, idx);
+  p[idx] = ULBN_LIMB_SHL(1, shift);
+  dst->len = ulbn_cast_ssize(idx + 1);
+  return 0;
+}
+
 ULBN_PUBLIC int ulbi_set_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base) {
   ulbn_limb_t GUARD;
   ulbn_limb_t l = 0, B = 1;
@@ -2080,7 +2101,10 @@ ULBN_PUBLIC int ulbi_init_usize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t l
 ULBN_PUBLIC int ulbi_init_ssize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ssize_t l) {
   return ulbi_set_ssize(alloc, ulbi_init(dst), l);
 }
-ULBN_PUBLIC int ulbi_init_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n) {
+ULBN_PUBLIC int ulbi_init_2exp_usize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t n) {
+  return ulbi_set_2exp_usize(alloc, ulbi_init(dst), n);
+}
+ULBN_PUBLIC int ulbi_init_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n) {
   return ulbi_set_2exp(alloc, ulbi_init(dst), n);
 }
 ULBN_PUBLIC int ulbi_init_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base) {
