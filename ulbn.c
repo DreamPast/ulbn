@@ -3408,14 +3408,15 @@ ULBN_PRIVATE int _ulbi_set_rand(
   ulbn_alloc_t* alloc, ulbn_rand_t* rng,   /* */
   ulbi_t* dst, ulbn_usize_t idx, int shift /* */
 ) {
-  ulbn_limb_t* p = _ulbi_res(alloc, dst, idx + (shift != 0));
-  ULBN_RETURN_IF_ALLOC_COND(p == ul_nullptr, ULBN_ERR_NOMEM);
+  ulbn_usize_t n = idx + (shift != 0);
+  ulbn_limb_t* p = _ulbi_res(alloc, dst, n);
+  ULBN_RETURN_IF_ALLOC_COND(n != 0 && p == ul_nullptr, ULBN_ERR_NOMEM);
   ulbn_rand_multi(rng, p, idx);
   if(shift != 0)
-    p[idx++] = ulbn_rand(rng, shift);
-  idx = ulbn_normalize(p, idx);
-  ULBN_RETURN_IF_SSIZE_OVERFLOW(idx, ULBN_ERR_EXCEED_RANGE);
-  dst->len = ulbn_cast_ssize(idx);
+    p[idx] = ulbn_rand(rng, shift);
+  n = ulbn_normalize(p, n);
+  ULBN_RETURN_IF_SSIZE_OVERFLOW(n, ULBN_ERR_EXCEED_RANGE);
+  dst->len = ulbn_cast_ssize(n);
   return 0;
 }
 ULBN_PUBLIC int ulbi_set_rand_usize(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_usize_t n) {
@@ -3438,4 +3439,44 @@ ULBN_PUBLIC int ulbi_init_rand_usize(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi
 }
 ULBN_PUBLIC int ulbi_init_rand(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* n) {
   return ulbi_set_rand(alloc, rng, ulbi_init(dst), n);
+}
+
+ULBN_PUBLIC int ulbi_set_rand_range(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* limit) {
+  ulbi_t nbits = ULBI_INIT;
+  ulbi_t threshold = ULBI_INIT;
+  int err;
+
+  if(ul_unlikely(limit->len <= 0)) {
+    dst->len = 0;
+    return ULBN_ERR_EXCEED_RANGE;
+  }
+  err = ulbi_abs_bit_width(alloc, &nbits, limit);
+  ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+  if(ulbi_is_2pow(limit)) {
+    err = ulbi_sub_limb(alloc, &nbits, &nbits, 1);
+    ulbn_assert(err == 0);
+    err = ulbi_set_rand(alloc, rng, dst, &nbits);
+    goto cleanup;
+  }
+
+  err = ulbi_set_2exp(alloc, &threshold, &nbits);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  err = ulbi_sub(alloc, &threshold, &threshold, limit);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ulbn_assert(threshold.len >= 0);
+  err = ulbi_mod(alloc, &threshold, &threshold, limit);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+
+  do {
+    err = ulbi_set_rand(alloc, rng, dst, &nbits);
+    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  } while(ulbi_comp(dst, &threshold) < 0);
+  err = ulbi_mod(alloc, dst, dst, limit);
+cleanup:
+  ulbi_deinit(alloc, &nbits);
+  ulbi_deinit(alloc, &threshold);
+  return err;
+}
+ULBN_PUBLIC int ulbi_init_rand_range(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* limit) {
+  return ulbi_set_rand_range(alloc, rng, ulbi_init(dst), limit);
 }

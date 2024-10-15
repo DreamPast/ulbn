@@ -254,6 +254,12 @@ public:
     return ret;
   }
 
+  static BigInt from_random_range(const BigInt& limit) {
+    BigInt ret;
+    _check(ulbi_set_rand_range(_ctx(), getCurrentRand(), ret._value, limit._value));
+    return ret;
+  }
+
 
   BigInt& operator+=(const BigInt& other) {
     _check(ulbi_add(_ctx(), _value, _value, other._value));
