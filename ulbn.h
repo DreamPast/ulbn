@@ -117,6 +117,19 @@
   #endif
 #endif /* ul_restrict */
 
+#ifndef ul_constexpr
+  #ifdef __cplusplus
+    #if __cplusplus >= 201103L
+      #define ul_constexpr constexpr
+    #elif defined(_MSC_VER) && _MSC_VER >= 1900 /* Visual Studio 2015 and above */
+      #define ul_constexpr constexpr
+    #endif
+  #endif
+  #ifndef ul_constexpr
+    #define ul_constexpr
+  #endif
+#endif /* ul_constexpr */
+
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -129,14 +142,19 @@
 extern "C" {
 #endif
 
-#if 1
+
+#if !defined(_ULBN_DEBUG_LIMB)
 typedef unsigned long ulbn_limb_t;
 typedef signed long ulbn_slimb_t;
   #define ULBN_LIMB_MAX ULONG_MAX
+  #define ULBN_SLIMB_MAX LONG_MAX
+  #define ULBN_SLIMB_MIN LONG_MIN
 #else
 typedef unsigned char ulbn_limb_t;
 typedef signed char ulbn_slimb_t;
   #define ULBN_LIMB_MAX UCHAR_MAX
+  #define ULBN_SLIMB_MAX SCHAR_MAX
+  #define ULBN_SLIMB_MIN SCHAR_MIN
 #endif
 
 #if defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
@@ -144,12 +162,19 @@ typedef signed char ulbn_slimb_t;
 #endif
 
 
-typedef unsigned long ulbn_bits_t;
+#if !defined(_ULBN_DEBUG_USIZE)
 typedef signed long ulbn_ssize_t;
 typedef unsigned long ulbn_usize_t;
-#define ULBN_USIZE_MAX ULONG_MAX
-#define ULBN_SSIZE_MAX LONG_MAX
-#define ULBN_SSIZE_MIN LONG_MIN
+  #define ULBN_USIZE_MAX ULONG_MAX
+  #define ULBN_SSIZE_MAX LONG_MAX
+  #define ULBN_SSIZE_MIN LONG_MIN
+#else
+typedef signed char ulbn_ssize_t;
+typedef unsigned char ulbn_usize_t;
+  #define ULBN_USIZE_MAX UCHAR_MAX
+  #define ULBN_SSIZE_MAX CHAR_MAX
+  #define ULBN_SSIZE_MIN CHAR_MIN
+#endif
 
 #define ULBN_USIZE_SMAX ulbn_cast_usize(ULBN_SSIZE_MAX)
 #define ulbn_cast_usize(n) ul_static_cast(ulbn_usize_t, (n))
@@ -184,15 +209,7 @@ typedef signed long ulbn_slong_t;
   #else
     #define ULBN_CONF_CHECK_USIZE_OVERFLOW 1
   #endif
-#endif
-
-/**
- * @def ULBN_CONF_CHECK_OVERFLOW
- * @brief Configuration: Whether to check for signed length integer overflow
- */
-#ifndef ULBN_CONF_CHECK_SSIZE_OVERFLOW
-  #define ULBN_CONF_CHECK_SSIZE_OVERFLOW 1
-#endif /* ULBN_CONF_CHECK_SSIZE_OVERFLOW */
+#endif /* ULBN_CONF_CHECK_USIZE_OVERFLOW */
 
 /**
  * @def ULBN_CONF_CHECK_ALLOCATION_FAILURE
@@ -287,8 +304,9 @@ typedef struct ulbn_rand_t {
   unsigned cache;
   int bits;
 } ulbn_rand_t;
-ULBN_PUBLIC void ulbn_rand_init(ulbn_rand_t* rng);
+ULBN_PUBLIC ulbn_rand_uint_t ulbn_rand_init(ulbn_rand_t* rng);
 ULBN_PUBLIC void ulbn_rand_init2(ulbn_rand_t* rng, ulbn_rand_uint_t seed);
+ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n);
 
 
 typedef struct ulbi_t {

@@ -1,4 +1,5 @@
 #define ULBN_CONF_CHECK_BITS_OVERFLOW 0
+#define _ULBN_DEBUG_LIMB 1
 #include <iostream>
 #include <cmath>
 #include <cfloat>
