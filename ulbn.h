@@ -1076,6 +1076,7 @@ ULBN_PUBLIC char* ulbi_tostr_alloc(
  */
 ULBN_PUBLIC int ulbi_print(ulbn_alloc_t* alloc, const ulbi_t* o, FILE* fp, int base);
 
+
 #if ULBN_CONF_HAS_DOUBLE
 /**
  * @brief Set `dst` to `x`

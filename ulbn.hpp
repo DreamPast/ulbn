@@ -1,6 +1,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <limits>
 
 #include "ulbn.h"
 
@@ -29,7 +30,7 @@ private:
   static std::string _make_message(int err) {
     switch(err) {
     case ULBN_ERR_EXCEED_RANGE:
-      return "unauthorized out-of-range error";
+      return "unexpected out-of-bounds error";
     case ULBN_ERR_NOMEM:
       return "memory error";
     case ULBN_ERR_SUCCESS:
@@ -111,6 +112,10 @@ concept FitDouble = requires {
   requires std::is_floating_point_v<T>;
   requires sizeof(T) <= sizeof(double);
   requires std::is_convertible_v<T, double>;
+
+  requires std::numeric_limits<T>::digits <= std::numeric_limits<double>::digits;
+  requires std::numeric_limits<T>::min_exponent >= std::numeric_limits<double>::min_exponent;
+  requires std::numeric_limits<T>::max_exponent <= std::numeric_limits<double>::max_exponent;
 };
 #endif /* ULBN_CONF_HAS_DOUBLE */
 
@@ -154,50 +159,78 @@ public:
   }
 
   BigInt(const ulbi_t* src) {
-    _check(ulbi_init_copy(_ctx(), _value, src));
+    if(src)
+      _check(ulbi_init_copy(_ctx(), _value, src));
+    else
+      ulbi_init(_value);
+  }
+  BigInt(const ulbi_t& src) {
+    _check(ulbi_init_copy(_ctx(), _value, &src));
   }
   BigInt& operator=(const ulbi_t* src) {
-    _check(ulbi_set_copy(_ctx(), _value, src));
+    if(src)
+      _check(ulbi_set_copy(_ctx(), _value, src));
+    else
+      ulbi_set_zero(_value);
+    return *this;
+  }
+  BigInt& operator=(const ulbi_t& src) {
+    _check(ulbi_set_copy(_ctx(), _value, &src));
+    return *this;
+  }
+
+  template<FitSlimb T>
+  BigInt(T value) {
+    _check(ulbi_init_slimb(_ctx(), _value, static_cast<ulbn_slimb_t>(value)));
+  }
+  template<FitLimb T>
+  BigInt(T value) {
+    _check(ulbi_init_limb(_ctx(), _value, static_cast<ulbn_limb_t>(value)));
+  }
+  template<FitSlimb T>
+  BigInt& operator=(T value) {
+    _check(ulbi_set_slimb(_ctx(), _value, static_cast<ulbn_slimb_t>(value)));
+    return *this;
+  }
+  template<FitLimb T>
+  BigInt& operator=(T value) {
+    _check(ulbi_set_limb(_ctx(), _value, static_cast<ulbn_limb_t>(value)));
     return *this;
   }
 
   template<FitSlong T>
+    requires(!FitSlimb<T>)
   BigInt(T value) {
     _check(ulbi_init_slong(_ctx(), _value, static_cast<ulbn_slong_t>(value)));
   }
   template<FitUlong T>
+    requires(!FitLimb<T>)
   BigInt(T value) {
     _check(ulbi_init_ulong(_ctx(), _value, static_cast<ulbn_ulong_t>(value)));
   }
   template<FitSlong T>
+    requires(!FitSlimb<T>)
   BigInt& operator=(T value) {
     _check(ulbi_set_slong(_ctx(), _value, static_cast<ulbn_slong_t>(value)));
     return *this;
   }
   template<FitUlong T>
+    requires(!FitLimb<T>)
   BigInt& operator=(T value) {
     _check(ulbi_set_ulong(_ctx(), _value, static_cast<ulbn_ulong_t>(value)));
     return *this;
   }
 
-  BigInt(ulbn_limb_t limb) {
-    _check(ulbi_init_limb(_ctx(), _value, limb));
-  }
-  BigInt(ulbn_slimb_t slimb) {
-    _check(ulbi_init_slimb(_ctx(), _value, slimb));
-  }
-  BigInt& operator=(ulbn_limb_t limb) {
-    _check(ulbi_set_limb(_ctx(), _value, limb));
-    return *this;
-  }
-  BigInt& operator=(ulbn_slimb_t slimb) {
-    _check(ulbi_set_slimb(_ctx(), _value, slimb));
-    return *this;
-  }
-
 
   BigInt& move_from(ulbi_t* src) noexcept {
-    ulbi_set_move(_ctx(), _value, src);
+    if(src)
+      ulbi_set_move(_ctx(), _value, src);
+    else
+      ulbi_init(_value);
+    return *this;
+  }
+  BigInt& move_from(ulbi_t& src) noexcept {
+    ulbi_set_move(_ctx(), _value, &src);
     return *this;
   }
   BigInt& move_from(BigInt& src) noexcept {
@@ -205,11 +238,13 @@ public:
     return *this;
   }
 
+
   static BigInt from_reserve(ulbn_usize_t n) {
     BigInt ret;
     _check(ulbi_reserve(_ctx(), ret._value, n) ? 0 : ULBN_ERR_NOMEM);
     return ret;
   }
+
 
   template<FitUsize T>
   static BigInt from_2exp(T n) {
@@ -254,9 +289,15 @@ public:
     return ret;
   }
 
+
   static BigInt from_random_range(const BigInt& limit) {
     BigInt ret;
     _check(ulbi_set_rand_range(_ctx(), getCurrentRand(), ret._value, limit._value));
+    return ret;
+  }
+  static BigInt from_random_range(const BigInt& lo, const BigInt& hi) {
+    BigInt ret;
+    _check(ulbi_set_rand_range2(_ctx(), getCurrentRand(), ret._value, lo._value, hi._value));
     return ret;
   }
 
@@ -305,6 +346,7 @@ public:
     _check(ulbi_add_slimb(_ctx(), ret._value, rhs._value, static_cast<ulbn_slimb_t>(lhs)));
     return ret;
   }
+
 
   BigInt& operator-=(const BigInt& other) {
     _check(ulbi_sub(_ctx(), _value, _value, other._value));
@@ -413,16 +455,16 @@ public:
     _check(ulbi_mul_limb(_ctx(), ret._value, lhs._value, static_cast<ulbn_limb_t>(rhs)));
     return ret;
   }
-  template<FitLimb T>
-  friend BigInt operator*(T lhs, const BigInt& rhs) {
-    BigInt ret;
-    _check(ulbi_mul_limb(_ctx(), ret._value, rhs._value, static_cast<ulbn_limb_t>(lhs)));
-    return ret;
-  }
   template<FitSlimb T>
   friend BigInt operator*(const BigInt& lhs, T rhs) {
     BigInt ret;
     _check(ulbi_mul_slimb(_ctx(), ret._value, lhs._value, static_cast<ulbn_slimb_t>(rhs)));
+    return ret;
+  }
+  template<FitLimb T>
+  friend BigInt operator*(T lhs, const BigInt& rhs) {
+    BigInt ret;
+    _check(ulbi_mul_limb(_ctx(), ret._value, rhs._value, static_cast<ulbn_limb_t>(lhs)));
     return ret;
   }
   template<FitSlimb T>
@@ -480,6 +522,7 @@ public:
     _check(ulbi_divmod(_ctx(), q._value, r._value, _value, other._value));
     return {q, r};
   }
+
 
   friend std::strong_ordering operator<=>(const BigInt& lhs, const BigInt& rhs) {
     return ulbi_comp(lhs._value, rhs._value) <=> 0;
@@ -671,6 +714,7 @@ public:
     return ret;
   }
 
+
   template<FitUsize T>
   BigInt pow(T e) const {
     BigInt ret;
@@ -690,6 +734,7 @@ public:
     return ret;
   }
 
+
   BigInt& shrink() {
     _check(ulbi_shrink(_ctx(), _value));
     return *this;
@@ -699,68 +744,74 @@ public:
     return *this;
   }
 
-  BigInt& swap(BigInt& other) {
+
+  BigInt& swap(BigInt& other) noexcept {
     ulbi_swap(_value, other._value);
     return *this;
   }
 
-  bool is_zero() const {
+
+  bool isZero() const noexcept {
     return ulbi_is_zero(_value);
   }
-  bool is_odd() const {
+  bool isOdd() const noexcept {
     return ulbi_is_odd(_value);
   }
-  bool is_even() const {
+  bool isEven() const noexcept {
     return ulbi_is_even(_value);
   }
-  int sign() const {
+  int sign() const noexcept {
     return ulbi_sign(_value);
   }
 
-  bool fitUlong() const {
+
+  bool fitUlong() const noexcept {
     return ulbi_fit_ulong(_value);
   }
-  bool fitSlong() const {
+  bool fitSlong() const noexcept {
     return ulbi_fit_slong(_value);
   }
-  bool fitLimb() const {
+  bool fitLimb() const noexcept {
     return ulbi_fit_limb(_value);
   }
-  bool fitSlimb() const {
+  bool fitSlimb() const noexcept {
     return ulbi_fit_slimb(_value);
   }
-  bool fitUsize() const {
+  bool fitUsize() const noexcept {
     return ulbi_fit_usize(_value);
   }
-  bool fitSsize() const {
+  bool fitSsize() const noexcept {
     return ulbi_fit_ssize(_value);
   }
 
-  ulbn_ulong_t toUlong() const {
+
+  ulbn_ulong_t toUlong() const noexcept {
     return ulbi_to_ulong(_value);
   }
-  ulbn_slong_t toSlong() const {
+  ulbn_slong_t toSlong() const noexcept {
     return ulbi_to_slong(_value);
   }
-  ulbn_limb_t toLimb() const {
+  ulbn_limb_t toLimb() const noexcept {
     return ulbi_to_limb(_value);
   }
-  ulbn_slimb_t toSlimb() const {
+  ulbn_slimb_t toSlimb() const noexcept {
     return ulbi_to_slimb(_value);
   }
-  ulbn_usize_t toUsize() const {
+  ulbn_usize_t toUsize() const noexcept {
     return ulbi_to_usize(_value);
   }
-  ulbn_ssize_t toSsize() const {
+  ulbn_ssize_t toSsize() const noexcept {
     return ulbi_to_ssize(_value);
   }
 
-  explicit operator ulbn_ulong_t() const {
+
+  explicit operator ulbn_ulong_t() const noexcept {
     return toUlong();
   }
-  explicit operator ulbn_slong_t() const {
+  explicit operator ulbn_slong_t() const noexcept {
     return toSlong();
   }
+
 
   std::string toString(int base = 10) const {
     std::string ret;
@@ -783,7 +834,6 @@ public:
     ret.resize(len);
     return ret;
   }
-
   friend std::ostream& operator<<(std::ostream& ost, const BigInt& value) {
     return ost << value.toString();
   }
@@ -798,31 +848,61 @@ public:
     return _value;
   }
 
+
   bool testBit(ulbn_usize_t n) const noexcept {
     return ulbi_testbit_usize(_value, n) != 0;
   }
-  BigInt& setBit(ulbn_usize_t n) {
-    _check(ulbi_setbit_usize(_ctx(), _value, n));
-    return *this;
-  }
-  BigInt& resetBit(ulbn_usize_t n) {
-    _check(ulbi_resetbit_usize(_ctx(), _value, n));
-    return *this;
-  }
-  BigInt& comBit(ulbn_usize_t n) {
-    _check(ulbi_combit_usize(_ctx(), _value, n));
-    return *this;
-  }
-
   bool testBit(const BigInt& n) const noexcept {
     return ulbi_testbit(_value, n._value) != 0;
+  }
+
+  template<FitUsize T>
+  BigInt& setBit(T n) {
+    _check(ulbi_setbit_usize(_ctx(), _value, static_cast<ulbn_usize_t>(n)));
+    return *this;
+  }
+  template<FitSsize T>
+  BigInt& setBit(T n) {
+    if(n >= 0)
+      _check(ulbi_setbit_usize(_ctx(), _value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))));
+    else
+      _check(ULBN_ERR_EXCEED_RANGE);
+    return *this;
   }
   BigInt& setBit(const BigInt& n) {
     _check(ulbi_setbit(_ctx(), _value, n._value));
     return *this;
   }
+
+  template<FitUsize T>
+  BigInt& resetBit(T n) {
+    _check(ulbi_resetbit_usize(_ctx(), _value, static_cast<ulbn_usize_t>(n)));
+    return *this;
+  }
+  template<FitSsize T>
+  BigInt& resetBit(T n) {
+    if(n >= 0)
+      _check(ulbi_resetbit_usize(_ctx(), _value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))));
+    else
+      _check(ULBN_ERR_EXCEED_RANGE);
+    return *this;
+  }
   BigInt& resetBit(const BigInt& n) {
     _check(ulbi_resetbit(_ctx(), _value, n._value));
+    return *this;
+  }
+
+  template<FitUsize T>
+  BigInt& comBit(T n) {
+    _check(ulbi_combit_usize(_ctx(), _value, static_cast<ulbn_usize_t>(n)));
+    return *this;
+  }
+  template<FitSsize T>
+  BigInt& comBit(T n) {
+    if(n >= 0)
+      _check(ulbi_combit_usize(_ctx(), _value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))));
+    else
+      _check(ULBN_ERR_EXCEED_RANGE);
     return *this;
   }
   BigInt& comBit(const BigInt& n) {
@@ -831,23 +911,43 @@ public:
   }
 
 
-  BigInt asUint(ulbn_usize_t n) const {
+  template<FitUsize T>
+  BigInt asUint(T n) {
     BigInt ret;
-    _check(ulbi_as_uint_usize(_ctx(), ret._value, _value, n));
+    _check(ulbi_as_uint_usize(_ctx(), ret._value, _value, static_cast<ulbn_usize_t>(n)));
     return ret;
   }
-  BigInt asInt(ulbn_usize_t n) const {
+  template<FitSsize T>
+  BigInt asUint(T n) {
     BigInt ret;
-    _check(ulbi_as_int_usize(_ctx(), ret._value, _value, n));
+    if(n >= 0)
+      _check(ulbi_as_uint_usize(_ctx(), ret._value, _value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))));
+    else
+      _check(ULBN_ERR_EXCEED_RANGE);
     return ret;
   }
-
-  BigInt asUint(const BigInt& n) const {
+  BigInt asUint(const BigInt& n) {
     BigInt ret;
     _check(ulbi_as_uint(_ctx(), ret._value, _value, n._value));
     return ret;
   }
-  BigInt asInt(const BigInt& n) const {
+
+  template<FitUsize T>
+  BigInt asInt(T n) {
+    BigInt ret;
+    _check(ulbi_as_int_usize(_ctx(), ret._value, _value, static_cast<ulbn_usize_t>(n)));
+    return ret;
+  }
+  template<FitSsize T>
+  BigInt asInt(T n) {
+    BigInt ret;
+    if(n >= 0)
+      _check(ulbi_as_int_usize(_ctx(), ret._value, _value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))));
+    else
+      _check(ULBN_ERR_EXCEED_RANGE);
+    return ret;
+  }
+  BigInt asInt(const BigInt& n) {
     BigInt ret;
     _check(ulbi_as_int(_ctx(), ret._value, _value, n._value));
     return ret;
@@ -878,6 +978,7 @@ public:
     return ret;
   }
 
+
 #if ULBN_CONF_HAS_DOUBLE
   template<FitDouble T>
   explicit BigInt(T value) {
@@ -888,10 +989,13 @@ public:
     _check(ulbi_set_double(_ctx(), _value, static_cast<double>(value)));
     return *this;
   }
-  double toDouble() const {
+  double toDouble() const noexcept {
     return ulbi_to_double(_value);
   }
-  explicit operator double() const {
+  bool fitDouble() const noexcept {
+    return ulbi_fit_double(_value);
+  }
+  explicit operator double() const noexcept {
     return toDouble();
   }
 #endif /* ULBN_CONF_HAS_DOUBLE */
@@ -918,9 +1022,6 @@ BigInt operator""_bi(const char* str, size_t len) {
   (void)len;
   return BigInt(str);
 }
-// BigInt operator""_bi(unsigned long long val) {
-//   return BigInt(val);
-// }
 
 }  // namespace bn
 }  // namespace ul

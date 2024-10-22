@@ -1,4 +1,3 @@
-#define ULBN_CONF_CHECK_BITS_OVERFLOW 0
 #define _ULBN_DEBUG_LIMB 1
 #include <iostream>
 #include <cmath>
@@ -137,13 +136,14 @@ void testCastTo() {
   T_assert(BigInt(ldexp(1.0, 52) + 0.5).toDouble() == ldexp(1.0, 52));
 
   for(ulbn_slong_t i = -LIMIT; i <= LIMIT; ++i) {
+    double d;
+
     T_assert(BigInt(i).toSlong() == i);
     T_assert(BigInt(i).toUlong() == static_cast<ulbn_ulong_t>(i));
     T_assert(BigInt(i).toLimb() == static_cast<ulbn_limb_t>(static_cast<ulbn_ulong_t>(i)));
     T_assert(BigInt(i).toSlimb() == static_cast<ulbn_slimb_t>(i));
     T_assert(BigInt(i).toUsize() == static_cast<ulbn_usize_t>(static_cast<ulbn_ulong_t>(i)));
     T_assert(BigInt(i).toSsize() == static_cast<ulbn_ssize_t>(i));
-    T_assert(BigInt(i).toDouble() == static_cast<double>(i));
 
     T_assert(BigInt(i).fitUlong() == fitType<ulbn_ulong_t>(i));
     T_assert(BigInt(i).fitSlong() == fitType<ulbn_slong_t>(i));
@@ -151,6 +151,10 @@ void testCastTo() {
     T_assert(BigInt(i).fitSlimb() == fitType<ulbn_slimb_t>(i));
     T_assert(BigInt(i).fitUsize() == fitType<ulbn_usize_t>(i));
     T_assert(BigInt(i).fitSsize() == fitType<ulbn_ssize_t>(i));
+
+    d = BigInt(i).toDouble();
+    T_assert(d == static_cast<double>(i));
+    T_assert(BigInt(i).fitDouble() == (std::trunc(d) == d));
   }
 }
 
@@ -182,10 +186,10 @@ void testCompare() {
 
 
   for(int a = -LIMIT; a <= LIMIT; ++a) {
-    T_assert(BigInt(a).is_zero() == (a == 0));
+    T_assert(BigInt(a).isZero() == (a == 0));
     T_assert(BigInt(a).sign() == (a == 0 ? 0 : (a > 0 ? 1 : -1)));
-    T_assert(BigInt(a).is_even() == (a % 2 == 0));
-    T_assert(BigInt(a).is_odd() == (a % 2 != 0));
+    T_assert(BigInt(a).isEven() == (a % 2 == 0));
+    T_assert(BigInt(a).isOdd() == (a % 2 != 0));
     T_assert(-BigInt(a) == -a);
     T_assert(BigInt(a).abs() == std::abs(a));
 
@@ -268,6 +272,29 @@ void testCompare() {
         T_assert((static_cast<ulbn_ulong_t>(a) == BigInt(b)) == (a == b));
         T_assert((static_cast<ulbn_ulong_t>(a) != BigInt(b)) == (a != b));
       }
+    }
+  }
+}
+void testRandom() {
+  puts("===Test Random");
+
+  for(int t = TEST; t--;) {
+    for(int i = 0; i < 16; ++i)
+      T_assert(BigInt::from_random(i) <= BigInt::from_2exp(i));
+  }
+
+  for(int t = TEST; t--;) {
+    for(int i = 0; i < 16; ++i)
+      T_assert(BigInt::from_random(BigInt(i)) <= BigInt::from_2exp(BigInt(i)));
+  }
+
+  for(int tt = 1; tt <= 100; ++tt) {
+    BigInt lbound = BigInt::from_random(100), rbound = BigInt::from_random(100);
+    for(int t = (TEST + 99) / 100; t--;) {
+      if(lbound == rbound)
+        continue;
+      BigInt g = BigInt::from_random_range(lbound, rbound);
+      T_assert(g >= std::min(lbound, rbound) && g < std::max(lbound, rbound));
     }
   }
 }
@@ -523,6 +550,7 @@ void subtestPower() {
   for(int64_t a = 2; a <= 32; ++a) {
     for(unsigned e = 1; pow(static_cast<double>(a), e) < static_cast<double>(1ull << 63); ++e) {
       T_assert(BigInt(a).pow(e) == fastpow(a, e));
+      T_assert(BigInt(a).pow(BigInt(e)) == fastpow(a, e));
     }
   }
 
@@ -784,6 +812,7 @@ int main() {
   testCastFrom();
   testCastTo();
   testCompare();
+  testRandom();
   testArithmeticOperation();
   testBitOperation();
   testOther();
