@@ -535,6 +535,18 @@ void subtestDivModOverlapRandom() {
     }
   }
 }
+void subtestBigMulDiv() {
+  puts("======Subtest Big MulDiv");
+
+  for(int t = 3000; t--;) {
+    BigInt x, y, z;
+    x = 1 + BigInt::from_random("0xFFF");
+    y = 1 + BigInt::from_random("0xFFF");
+    z = x * y;
+    T_assert(z / x == y && z % x == 0);
+    T_assert(z / y == x && z % y == 0);
+  }
+}
 void subtestPower() {
   puts("======Subtest Power");
   auto&& fastpow = [](int64_t a, unsigned e) {
@@ -565,6 +577,7 @@ void testArithmeticOperation() {
   subtestDivMod();
   subtestDivModRandom();
   subtestDivModOverlapRandom();
+  subtestBigMulDiv();
   subtestPower();
 }
 

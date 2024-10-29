@@ -121,7 +121,7 @@
   #ifdef __cplusplus
     #if __cplusplus >= 201103L
       #define ul_constexpr constexpr
-    #elif defined(_MSC_VER) && _MSC_VER >= 1900 /* Visual Studio 2015 and above */
+    #elif defined(_MSC_VER) && _MSC_VER >= 1900 && !defined(__clang__) /* Visual Studio 2015 and above */
       #define ul_constexpr constexpr
     #endif
   #endif
