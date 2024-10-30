@@ -6,6 +6,7 @@
 #include <limits>
 #include <bit>
 #include <random>
+#include <numeric>
 
 #include "ulbn.hpp"
 using ul::bn::BigInt;
@@ -678,6 +679,30 @@ void testBitOperation() {
 }
 
 
+void subtestGcdLcm() {
+  puts("======Subtest GCD LCM");
+
+  for(int x = -LIMIT; x <= LIMIT; ++x)
+    for(int y = x + 1; y <= LIMIT; ++y) {
+      T_assert(BigInt(x).gcd(BigInt(y)) == std::gcd(x, y));
+      if(fitType<ulbn_limb_t>(y))
+        T_assert(BigInt(x).gcd(static_cast<ulbn_limb_t>(y)) == std::gcd(x, y));
+      if(fitType<ulbn_slimb_t>(y))
+        T_assert(BigInt(x).gcd(static_cast<ulbn_slimb_t>(y)) == std::gcd(x, y));
+      if(y)
+        T_assert(BigInt(x).lcm(y) % y == 0);
+      if(x)
+        T_assert(BigInt(x).lcm(y) % x == 0);
+      if(x && y)
+        T_assert(BigInt(x).lcm(y).abs() <= (BigInt(x) * y).abs());
+    }
+}
+void testNumberTheory() {
+  puts("===Test Number Theory");
+  subtestGcdLcm();
+}
+
+
 void testOther() {
   puts("===Test Other");
 
@@ -828,6 +853,7 @@ int main() {
   testRandom();
   testArithmeticOperation();
   testBitOperation();
+  testNumberTheory();
   testOther();
 
   std::cout << "Maximum Memory:" << max_mem << '\n';

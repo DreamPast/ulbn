@@ -36,6 +36,8 @@
 #define ulbn_assert_forward_overlap(d, dn, s, sn) ulbn_assert(ulbn_safe_forward_overlap(d, dn, s, sn))
 #define ulbn_assert_backward_overlap(d, dn, s, sn) ulbn_assert(ulbn_safe_backward_overlap(d, dn, s, sn))
 #define ulbn_assert_overlap(d, dn, s, sn) ulbn_assert(ulbn_safe_overlap(d, dn, s, sn))
+#define ulbn_assert_same_or_not_overlap(d, dn, s, sn) \
+  ulbn_assert((d) == ul_nullptr || (s) == ul_nullptr || (s) == (d) || ulbn_safe_overlap(d, dn, s, sn))
 
 #define _ulbn_max_(a, b) ((a) > (b) ? (a) : (b))
 #define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
@@ -953,7 +955,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_21(
    */
   ulbn_limb_t* ul_restrict zp;
 
-  ulbn_assert(an > 1 && bn > 1);
+  ulbn_assert(an > 0 && bn > 0);
   ulbn_assert(an >= bn);
   ulbn_assert(an >= m && an - m <= m);
   ulbn_assert(bn <= m);
@@ -989,7 +991,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_22(
   ulbn_usize_t nz, n1, n2;
   int err = ULBN_ERR_NOMEM;
 
-  ulbn_assert(an > 1 && bn > 1);
+  ulbn_assert(an > 0 && bn > 0);
   ulbn_assert(an >= bn);
   ulbn_assert(an >= m && an - m <= m);
   ulbn_assert(bn > m);
@@ -1051,14 +1053,14 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
     v(inf) = (   1   0   0   0)
   */
 
-  const ulbn_usize_t m2 = m << 1, am = an - m2, bm = bn - m;
+  const ulbn_usize_t m2 = m << 1, am = an - m2, bm = bn - m, abm = am + bm;
   const ulbn_limb_t *const a0 = ap, *const a1 = ap + m, *const a2 = ap + m2;
   const ulbn_limb_t *const b0 = bp, *const b1 = bp + m;
   ulbn_limb_t* rinf = rp + m2 + m;
 
   ulbn_assert(an >= bn);
   ulbn_assert(an >= 3 && an <= 3 * m && an >= 3 * m - 2);
-  ulbn_assert(bn > m * 2);
+  ulbn_assert(bn > m && bn <= m * 2);
   ulbn_assert(an + bn >= an);
 
   ulbn_limb_t *ul_restrict v1, *ul_restrict vm1;
@@ -1126,7 +1128,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   putchar('\n');
 
   printf("vinf = ");
-  ulbn_dump(stdout, rinf, am + bm);
+  ulbn_dump(stdout, rinf, abm);
   putchar('\n');
 #endif
 
@@ -1148,7 +1150,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   /* v1 = v1 / 2 = (1, 0, 1, 0) */
   /* v1 = v1 - vinf = (0, 0, 1, 0) */
   ulbn_shr(v1, v1, m2 + 1, 1);
-  ulbn_sub(v1, v1, m2 + 1, rinf, am + bm);
+  ulbn_sub(v1, v1, m2 + 1, rinf, abm);
 
 #if 0
   printf("v0 = ");
@@ -1164,14 +1166,14 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   putchar('\n');
 
   printf("vinf = ");
-  ulbn_dump(stdout, rinf, am + bm);
+  ulbn_dump(stdout, rinf, abm);
   putchar('\n');
 #endif
 
   ulbn_copy(rp + m2, t1, m);
-  ulbn_assert(ulbn_normalize(t1, m2 + 1) <= m + am + bm);
-  ulbn_add(rinf, rinf, am + bm, t1 + m, _ulbn_min_(m + 1, am + bm));
-  ulbn_add(rp + m, rp + m, am + bm + m2, v1, m2 + 1);
+  ulbn_assert(ulbn_normalize(t1, m2 + 1) <= m + abm);
+  ulbn_add(rinf, rinf, abm, t1 + m, _ulbn_min_(m + 1, abm));
+  ulbn_add(rp + m, rp + m, abm + m2, v1, m2 + 1);
   err = 0;
 
   ulbn_deallocT(ulbn_limb_t, alloc, t1, m2 + 2);
@@ -1203,7 +1205,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   const ulbn_limb_t D3_INV = _ulbn_divinv1(D3_NORM);
   static ulbn_limb_t R_TEMP;
 
-  const ulbn_usize_t m2 = m << 1, am = an - m2, bm = bn - m2;
+  const ulbn_usize_t m2 = m << 1, am = an - m2, bm = bn - m2, abm = am + bm;
   const ulbn_limb_t *const a0 = ap, *const a1 = ap + m, *const a2 = ap + m2;
   const ulbn_limb_t *const b0 = bp, *const b1 = bp + m, *const b2 = bp + m2;
   ulbn_limb_t* rinf = rp + m2 + m2;
@@ -1214,6 +1216,11 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   ulbn_usize_t n1, n2, nt;
   int sign;
   int err = ULBN_ERR_NOMEM;
+
+  ulbn_assert(an >= bn);
+  ulbn_assert(an >= 3 && an <= 3 * m && an >= 3 * m - 2);
+  ulbn_assert(bn > m * 2);
+  ulbn_assert(an + bn >= an);
 
   ulbn_mul(alloc, rp, a0, m, b0, m);
   ulbn_mul(alloc, rinf, a2, am, b2, bm);
@@ -1293,7 +1300,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   putchar('\n');
 
   printf("vinf = ");
-  ulbn_dump(stdout, rinf, am + bm);
+  ulbn_dump(stdout, rinf, abm);
   putchar('\n');
 #endif
 
@@ -1316,7 +1323,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   /* t1 = t1 - vinf = (0, 0, 1, 0, 0) */
   ulbn_sub(v1, v1, m2 + 1, rp, m2);
   ulbn_sub(t1, v1, m2 + 1, vm1, m2 + 1);
-  ulbn_sub(t1, t1, m2 + 1, rinf, am + bm);
+  ulbn_sub(t1, t1, m2 + 1, rinf, abm);
 
   /* v1 = v2 - v1 = (4, 2, 0, 0, 0) */
   /* v1 = v1 / 2 = (2, 1, 0, 0, 0) */
@@ -1326,8 +1333,8 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   /* t2 = vinf * 2 = (2, 0, 0, 0, 0) */
   /* v1 = v1 - t2 = (0, 1, 0, 0, 0) */
   /* vm1 = vm1 - v1 = (0, 0, 0, 1, 0) */
-  t2[am + bm] = ulbn_add(t2, rinf, am + bm, rinf, am + bm);
-  ulbn_sub(v1, v1, m2 + 1, t2, am + bm + 1);
+  t2[abm] = ulbn_add(t2, rinf, abm, rinf, abm);
+  ulbn_sub(v1, v1, m2 + 1, t2, abm + 1);
   ulbn_sub(vm1, vm1, m2 + 1, v1, m2 + 1);
 
 #if 0
@@ -1348,14 +1355,14 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   putchar('\n');
 
   printf("vinf = ");
-  ulbn_dump(stdout, rinf, am + bm);
+  ulbn_dump(stdout, rinf, abm);
   putchar('\n');
 #endif
 
   ulbn_copy(rp + m2, t1, m2);
-  ulbn_add1(rinf, rinf, am + bm, t1[m2]);
+  ulbn_add1(rinf, rinf, abm, t1[m2]);
   ulbn_add(rp + m, rp + m, an + bn - m, vm1, m2 + 1);
-  ulbn_add(rinf - m, rinf - m, am + bm + m, v1, m2 + 1);
+  ulbn_add(rinf - m, rinf - m, abm + m, v1, _ulbn_min_(m2 + 1, abm + m));
   err = 0;
 
   ulbn_deallocT(ulbn_limb_t, alloc, t2, m2 + 1);
@@ -1748,12 +1755,12 @@ ULBN_INTERNAL int ulbn_divmod_guard(
   ulbn_assert(ap != ul_nullptr && dp != ul_nullptr);
 
   /* Ensure qp, rp, ap, and dp are either equal to each other, do not overlap, or are NULL */
-  ulbn_assert(ap == dp || ulbn_safe_overlap(ap, an, dp, dn));
-  ulbn_assert(rp == ap || rp == ul_nullptr || ulbn_safe_overlap(rp, dn, ap, an));
-  ulbn_assert(rp == dp || rp == ul_nullptr || ulbn_safe_overlap(rp, dn, dp, dn));
-  ulbn_assert(qp == ap || qp == ul_nullptr || ulbn_safe_overlap(qp, an - dn + 1, ap, an));
-  ulbn_assert(qp == dp || qp == ul_nullptr || ulbn_safe_overlap(qp, an - dn + 1, dp, dn));
-  ulbn_assert(qp == rp || qp == ul_nullptr || rp == ul_nullptr || ulbn_safe_overlap(qp, an - dn + 1, rp, dn));
+  ulbn_assert_same_or_not_overlap(ap, an, dp, dn);
+  ulbn_assert_same_or_not_overlap(rp, dn, ap, an);
+  ulbn_assert_same_or_not_overlap(rp, dn, dp, dn);
+  ulbn_assert_same_or_not_overlap(qp, an - dn + 1, ap, an);
+  ulbn_assert_same_or_not_overlap(qp, an - dn + 1, dp, dn);
+  ulbn_assert_same_or_not_overlap(qp, an - dn + 1, rp, dn);
 
   if(ul_likely(dn <= 2)) {
     const ulbn_limb_t d0 = ul_static_cast(ulbn_limb_t, dp[0] << shift);
@@ -2176,6 +2183,111 @@ ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n) {
   ulbn_usize_t i;
   for(i = 0; i < n; ++i)
     p[i] = ul_static_cast(unsigned char, ulbn_rand(rng, CHAR_BIT));
+}
+
+
+ULBN_PRIVATE ulbn_limb_t _ulbn_gcd_(ulbn_limb_t a, ulbn_limb_t b) {
+  int shift = 0, a_shift, b_shift;
+  ulbn_assert(a > 0 && b > 0);
+  for(;;) {
+    a_shift = _ulbn_ctz_(a);
+    b_shift = _ulbn_ctz_(b);
+    a >>= a_shift;
+    b >>= b_shift;
+    shift += _ulbn_min_(a_shift, b_shift);
+    if(a == b)
+      break;
+    if(a > b)
+      a -= b;
+    else
+      b -= a;
+  }
+  return a << shift;
+}
+ULBN_INTERNAL ulbn_usize_t ulbn_gcd(
+  ulbn_limb_t* ul_restrict ap, ulbn_usize_t an, /* */
+  ulbn_limb_t* ul_restrict bp, ulbn_usize_t bn  /* */
+) {
+  ulbn_usize_t shl_idx = 0;
+  int shl_shift = 0;
+  int cmp;
+  ulbn_usize_t a_idx, b_idx;
+  int a_shift, b_shift;
+
+  ulbn_assert_overlap(ap, an, bp, bn);
+  ulbn_assert(an > 0 && bn > 0);
+
+  for(;;) {
+    if((an | bn) == 1) {
+      ap[0] = _ulbn_gcd_(ap[0], bp[0]);
+      break;
+    }
+
+    for(a_idx = 0; ap[a_idx] == 0; ++a_idx) { }
+    a_shift = _ulbn_ctz_(ap[a_idx]);
+    for(b_idx = 0; bp[b_idx] == 0; ++b_idx) { }
+    b_shift = _ulbn_ctz_(bp[b_idx]);
+
+    if(a_idx == b_idx) {
+      shl_idx += a_idx;
+      shl_shift += _ulbn_min_(a_shift, b_shift);
+    } else {
+      if(a_idx < b_idx) {
+        shl_idx += a_idx;
+        shl_shift += a_shift;
+      } else {
+        shl_idx += b_idx;
+        shl_shift += b_shift;
+      }
+    }
+    if(shl_shift > ULBN_LIMB_BITS) {
+      shl_shift -= ULBN_LIMB_BITS;
+      ++shl_idx;
+    }
+
+    if(a_shift)
+      ulbn_shr(ap, ap + a_idx, an - a_idx, a_shift);
+    else
+      ulbn_fcopy(ap, ap + a_idx, an - a_idx);
+    if(b_shift)
+      ulbn_shr(bp, bp + b_idx, bn - b_idx, b_shift);
+    else
+      ulbn_fcopy(bp, bp + b_idx, bn - b_idx);
+    an -= a_idx;
+    an -= (ap[an - 1] == 0);
+    bn -= b_idx;
+    bn -= (bp[bn - 1] == 0);
+
+#if 0
+    printf("ap = ");
+    ulbn_dump(stdout, ap, an);
+    printf("\tbp = ");
+    ulbn_dump(stdout, bp, bn);
+    putchar('\n');
+#endif
+
+    cmp = ulbn_cmp(ap, an, bp, bn);
+    if(cmp == 0)
+      break;
+    if(cmp > 0) {
+      ulbn_sub(ap, ap, an, bp, bn);
+      an = ulbn_normalize(ap, an);
+    } else {
+      ulbn_sub(bp, bp, bn, ap, an);
+      bn = ulbn_normalize(bp, bn);
+    }
+  }
+
+  if(shl_shift) {
+    const ulbn_limb_t cy = ulbn_shl(ap + shl_idx, ap, an, shl_shift);
+    if(cy) {
+      ap[an + shl_idx] = cy;
+      ++an;
+    }
+  } else
+    ulbn_rcopy(ap + shl_idx, ap, an);
+  ulbn_fill0(ap, shl_idx);
+  return ulbn_normalize(ap, shl_idx + an);
 }
 
 
@@ -4093,4 +4205,64 @@ ULBN_PUBLIC int ulbi_init_rand_range2(
   ulbi_t* dst, const ulbi_t* lo, const ulbi_t* hi /* */
 ) {
   return ulbi_set_rand_range2(alloc, rng, ulbi_init(dst), lo, hi);
+}
+
+ULBN_PUBLIC int ulbi_gcd(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo) {
+  ulbn_limb_t *ap, *bp;
+  ulbn_usize_t an, bn;
+
+  an = _ulbn_abs_size(ao->len);
+  bn = _ulbn_abs_size(bo->len);
+  if(ul_unlikely(an == 0))
+    return ulbi_abs(alloc, ro, bo);
+  if(ul_unlikely(bn == 0))
+    return ulbi_abs(alloc, ro, ao);
+
+  ap = _ulbi_res(alloc, ro, an);
+  ULBN_RETURN_IF_ALLOC_FAILED(ap, ULBN_ERR_NOMEM);
+  if(ro != ao)
+    ulbn_copy(ap, _ulbi_limb(ao), an);
+
+  bp = ulbn_allocT(ulbn_limb_t, alloc, bn);
+  ULBN_RETURN_IF_ALLOC_FAILED(bp, ULBN_ERR_NOMEM);
+  ulbn_copy(bp, _ulbi_limb(bo), bn);
+
+  ro->len = ulbn_cast_ssize(ulbn_gcd(ap, an, bp, bn));
+  ulbn_deallocT(ulbn_limb_t, alloc, bp, bn);
+  return 0;
+}
+ULBN_PUBLIC int ulbi_gcd_limb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_limb_t b) {
+  ulbn_limb_t* ap;
+  ulbn_usize_t an, bn;
+
+  an = _ulbn_abs_size(ao->len);
+  if(ul_unlikely(an == 0))
+    return ulbi_set_limb(alloc, ro, b);
+  if(ul_unlikely(b == 0))
+    return ulbi_abs(alloc, ro, ao);
+
+  ap = _ulbi_res(alloc, ro, an);
+  ULBN_RETURN_IF_ALLOC_FAILED(ap, ULBN_ERR_NOMEM);
+  if(ro != ao)
+    ulbn_copy(ap, _ulbi_limb(ao), an);
+
+  ro->len = ulbn_cast_ssize(ulbn_gcd(ap, an, &b, 1));
+  return 0;
+}
+ULBN_PUBLIC int ulbi_gcd_slimb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_slimb_t b) {
+  if(b >= 0)
+    return ulbi_gcd_limb(alloc, ro, ao, _ulbn_from_pos_slimb(b));
+  else
+    return ulbi_gcd_limb(alloc, ro, ao, _ulbn_from_neg_slimb(b));
+}
+ULBN_PUBLIC int ulbi_lcm(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo) {
+  int err;
+  err = ulbi_gcd(alloc, ro, ao, bo);
+  ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+  /* if `a` and `b` are both 0, `ulbi_div` will return `ULBN_ERR_DIV_BY_ZERO`, and set `r` to 0 */
+  err = ulbi_div(alloc, ro, ao, ro);
+  ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+  err = ulbi_mul(alloc, ro, ro, bo);
+  ro->len = _ulbn_abs_(ro->len);
+  return err;
 }

@@ -1145,6 +1145,31 @@ ULBN_PUBLIC int ulbi_init_rand_range2(
   ulbi_t* dst, const ulbi_t* lo, const ulbi_t* hi /* */
 );
 
+/**
+ * @brief `ro` = gcd(abs(`ao`), abs(`bo`))
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_gcd(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+/**
+ * @brief `ro` = gcd(abs(`ao`), `b`)
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_gcd_limb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_limb_t b);
+/**
+ * @brief `ro` = gcd(abs(`ao`), abs(`b`))
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_gcd_slimb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
+/**
+ * @brief `ro` = lcm(abs(`ao`), abs(`bo`))
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_lcm(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+
 
 #ifdef __cplusplus
 }

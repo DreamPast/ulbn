@@ -1001,6 +1001,30 @@ public:
 #endif /* ULBN_CONF_HAS_DOUBLE */
 
 
+  BigInt gcd(const BigInt& other) {
+    BigInt ret;
+    _check(ulbi_gcd(_ctx(), ret._value, _value, other._value));
+    return ret;
+  }
+  template<FitLimb T>
+  BigInt gcd(T other) {
+    BigInt ret;
+    _check(ulbi_gcd_limb(_ctx(), ret._value, _value, static_cast<ulbn_limb_t>(other)));
+    return ret;
+  }
+  template<FitSlimb T>
+  BigInt gcd(T other) {
+    BigInt ret;
+    _check(ulbi_gcd_slimb(_ctx(), ret._value, _value, static_cast<ulbn_slimb_t>(other)));
+    return ret;
+  }
+  BigInt lcm(const BigInt& other) {
+    BigInt ret;
+    _check(ulbi_lcm(_ctx(), ret._value, _value, other._value));
+    return ret;
+  }
+
+
 private:
   static ulbn_alloc_t* _ctx() {
     static ulbn_alloc_t* ctx = ulbn_default_alloc();
