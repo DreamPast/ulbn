@@ -486,7 +486,7 @@ ULBN_INTERNAL ulbn_usize_t ulbn_popcount(const ulbn_limb_t* p, ulbn_usize_t n, u
 }
 ULBN_INTERNAL ulbn_usize_t ulbn_bit_width(const ulbn_limb_t* p, ulbn_usize_t n, ulbn_usize_t* p_rh) {
   static ul_constexpr const size_t USIZE_BITS = sizeof(ulbn_usize_t) * CHAR_BIT;
-  static ul_constexpr const size_t USIZE_HALF_BITS = USIZE_BITS >> 1;
+  static ul_constexpr const size_t USIZE_HALF_BITS = sizeof(ulbn_usize_t) * CHAR_BIT >> 1;
   ulbn_usize_t rl, rh;
 
   ulbn_assert(n > 0);
@@ -1058,17 +1058,17 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   const ulbn_limb_t *const b0 = bp, *const b1 = bp + m;
   ulbn_limb_t* rinf = rp + m2 + m;
 
-  ulbn_assert(an >= bn);
-  ulbn_assert(an >= 3 && an <= 3 * m && an >= 3 * m - 2);
-  ulbn_assert(bn > m && bn <= m * 2);
-  ulbn_assert(an + bn >= an);
-
   ulbn_limb_t *ul_restrict v1, *ul_restrict vm1;
   ulbn_limb_t* ul_restrict t1;
 
   ulbn_usize_t n1, n2, nt;
   int sign;
   int err = ULBN_ERR_NOMEM;
+
+  ulbn_assert(an >= bn);
+  ulbn_assert(an >= 3 && an <= 3 * m && an >= 3 * m - 2);
+  ulbn_assert(bn > m && bn <= m * 2);
+  ulbn_assert(an + bn >= an);
 
   v1 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
   ULBN_DO_IF_ALLOC_FAILED(v1, goto cleanup_v1;);
@@ -2240,8 +2240,8 @@ ULBN_INTERNAL ulbn_usize_t ulbn_gcd(
         shl_shift += b_shift;
       }
     }
-    if(shl_shift > ULBN_LIMB_BITS) {
-      shl_shift -= ULBN_LIMB_BITS;
+    if(shl_shift > ul_static_cast(int, ULBN_LIMB_BITS)) {
+      shl_shift -= ul_static_cast(int, ULBN_LIMB_BITS);
       ++shl_idx;
     }
 
@@ -4233,7 +4233,7 @@ ULBN_PUBLIC int ulbi_gcd(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, cons
 }
 ULBN_PUBLIC int ulbi_gcd_limb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_limb_t b) {
   ulbn_limb_t* ap;
-  ulbn_usize_t an, bn;
+  ulbn_usize_t an;
 
   an = _ulbn_abs_size(ao->len);
   if(ul_unlikely(an == 0))

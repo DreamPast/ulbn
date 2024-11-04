@@ -106,7 +106,7 @@
 #endif /* ul_nullptr */
 
 #ifndef ul_restrict
-  #if defined(_MSC_VER)
+  #if defined(_MSC_VER) && _MSC_VER >= 1900
     #define ul_restrict __restrict
   #elif defined(__GNUC__) && __GNUC__ > 3
     #define ul_restrict __restrict__
