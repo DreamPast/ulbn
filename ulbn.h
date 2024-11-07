@@ -121,12 +121,17 @@
   #ifdef __cplusplus
     #if __cplusplus >= 201103L
       #define ul_constexpr constexpr
+      #define UL_CONSTEXPR_INIT \
+        { }
     #elif defined(_MSC_VER) && _MSC_VER >= 1900 && !defined(__clang__) /* Visual Studio 2015 and above */
       #define ul_constexpr constexpr
+      #define UL_CONSTEXPR_INIT \
+        { }
     #endif
   #endif
   #ifndef ul_constexpr
     #define ul_constexpr
+    #define UL_CONSTEXPR_INIT
   #endif
 #endif /* ul_constexpr */
 
@@ -143,18 +148,24 @@ extern "C" {
 #endif
 
 
-#if !defined(_ULBN_DEBUG_LIMB)
-typedef unsigned long ulbn_limb_t;
-typedef signed long ulbn_slimb_t;
-  #define ULBN_LIMB_MAX ULONG_MAX
-  #define ULBN_SLIMB_MAX LONG_MAX
-  #define ULBN_SLIMB_MIN LONG_MIN
-#else
+#if defined(_ULBN_DEBUG_LIMB)
 typedef unsigned char ulbn_limb_t;
 typedef signed char ulbn_slimb_t;
   #define ULBN_LIMB_MAX UCHAR_MAX
   #define ULBN_SLIMB_MAX SCHAR_MAX
   #define ULBN_SLIMB_MIN SCHAR_MIN
+#elif defined(LLONG_MAX)
+typedef unsigned long long ulbn_limb_t;
+typedef signed long long ulbn_slimb_t;
+  #define ULBN_LIMB_MAX ULLONG_MAX
+  #define ULBN_SLIMB_MAX LLONG_MAX
+  #define ULBN_SLIMB_MIN LLONG_MIN
+#else
+typedef unsigned long ulbn_limb_t;
+typedef signed long ulbn_slimb_t;
+  #define ULBN_LIMB_MAX ULONG_MAX
+  #define ULBN_SLIMB_MAX LONG_MAX
+  #define ULBN_SLIMB_MIN LONG_MIN
 #endif
 
 #if !defined(ulbn_limb2_t) && defined(__SIZEOF_INT128__) && defined(__GNUC__)

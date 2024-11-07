@@ -276,7 +276,7 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
     } while(0)
 #endif
 
-#define _ulbn_neg_(v) ul_static_cast(ulbn_limb_t, 0u - (v))
+#define _ulbn_neg_(v) ul_static_cast(ulbn_limb_t, ul_static_cast(ulbn_limb_t, 0u) - (v))
 #define _ulbn_add_(s1, s0, a1, a0, b1, b0) \
   do {                                     \
     const ulbn_limb_t __s = (a0) + (b0);   \
@@ -291,22 +291,22 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
   } while(0)
 
 #ifndef _ulbn_umul_
-  #define _ulbn_umul_(p1, p0, u, v)                                                                              \
-    do {                                                                                                         \
-      const ulbn_limb_t __ul = ULBN_LOWPART(u);                                                                  \
-      const ulbn_limb_t __uh = ULBN_HIGHPART(u);                                                                 \
-      const ulbn_limb_t __vl = ULBN_LOWPART(v);                                                                  \
-      const ulbn_limb_t __vh = ULBN_HIGHPART(v);                                                                 \
-      ulbn_limb_t __x0 = ul_static_cast(ulbn_limb_t, __ul * __vl);                                               \
-      ulbn_limb_t __x1 = ul_static_cast(ulbn_limb_t, __ul * __vh);                                               \
-      ulbn_limb_t __x2 = ul_static_cast(ulbn_limb_t, __uh * __vl);                                               \
-      ulbn_limb_t __x3 = ul_static_cast(ulbn_limb_t, __uh * __vh);                                               \
-      __x1 += ULBN_HIGHPART(__x0);                                                                               \
-      __x1 += __x2;                                                                                              \
-      if(__x1 < __x2)                                                                                            \
-        __x3 += ULBN_LIMB_SHL(1, ULBN_LIMB_HALF_BITS);                                                           \
-      (p0) = ul_static_cast(ulbn_limb_t, (__x1 << (ULBN_LIMB_BITS - ULBN_LIMB_HALF_BITS)) | ULBN_LOWPART(__x0)); \
-      (p1) = __x3 + ULBN_HIGHPART(__x1);                                                                         \
+  #define _ulbn_umul_(p1, p0, u, v)                                                           \
+    do {                                                                                      \
+      const ulbn_limb_t __ul = ULBN_LOWPART(u);                                               \
+      const ulbn_limb_t __uh = ULBN_HIGHPART(u);                                              \
+      const ulbn_limb_t __vl = ULBN_LOWPART(v);                                               \
+      const ulbn_limb_t __vh = ULBN_HIGHPART(v);                                              \
+      ulbn_limb_t __x0 = ul_static_cast(ulbn_limb_t, __ul * __vl);                            \
+      ulbn_limb_t __x1 = ul_static_cast(ulbn_limb_t, __ul * __vh);                            \
+      ulbn_limb_t __x2 = ul_static_cast(ulbn_limb_t, __uh * __vl);                            \
+      ulbn_limb_t __x3 = ul_static_cast(ulbn_limb_t, __uh * __vh);                            \
+      __x1 += ULBN_HIGHPART(__x0);                                                            \
+      __x1 += __x2;                                                                           \
+      if(__x1 < __x2)                                                                         \
+        __x3 += ULBN_LIMB_SHL(1, ULBN_LIMB_HALF_BITS);                                        \
+      (p0) = ul_static_cast(ulbn_limb_t, (__x1 << ULBN_LIMB_HALF_BITS) | ULBN_LOWPART(__x0)); \
+      (p1) = __x3 + ULBN_HIGHPART(__x1);                                                      \
     } while(0)
 #endif /* _ulbn_umul_ */
 
@@ -322,7 +322,7 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
       __qh = (n1) / __dh;                                                \
       __r = (n1) - __qh * __dh;                                          \
       __m = __qh * __dl;                                                 \
-      __r = ULBN_LIMB_SHL(__r, ULBN_LIMB_BITS >> 1) | ULBN_HIGHPART(n0); \
+      __r = ULBN_LIMB_SHL(__r, ULBN_LIMB_HALF_BITS) | ULBN_HIGHPART(n0); \
       if(__r < __m) {                                                    \
         --__qh, __r += (d);                                              \
         if(__r >= (d) && __r < __m)                                      \
@@ -333,7 +333,7 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
       __ql = __r / __dh;                                                 \
       __r = __r - __ql * __dh;                                           \
       __m = __ql * __dl;                                                 \
-      __r = ULBN_LIMB_SHL(__r, ULBN_LIMB_BITS >> 1) | ULBN_LOWPART(n0);  \
+      __r = ULBN_LIMB_SHL(__r, ULBN_LIMB_HALF_BITS) | ULBN_LOWPART(n0);  \
       if(__r < __m) {                                                    \
         --__ql, __r += (d);                                              \
         if(__r >= (d) && __r < __m)                                      \
@@ -342,7 +342,7 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
       __r -= __m;                                                        \
                                                                          \
       (r) = __r;                                                         \
-      (q) = ULBN_LIMB_SHL(__qh, ULBN_LIMB_BITS >> 1) | __ql;             \
+      (q) = ULBN_LIMB_SHL(__qh, ULBN_LIMB_HALF_BITS) | __ql;             \
     } while(0)
 #endif /* _ulbn_udiv_ */
 
@@ -352,7 +352,7 @@ ULBN_INTERNAL ul_constexpr ulbn_limb_t _ulbn_divinv1(ulbn_limb_t d1) {
    * di = (B^2-1)//d1 - B
    * di = <B-1-d1, B-1>//d1
    */
-  ulbn_limb_t n1, n0, di;
+  ulbn_limb_t n1 UL_CONSTEXPR_INIT, n0 UL_CONSTEXPR_INIT, di UL_CONSTEXPR_INIT;
 
   n1 = _ulbn_neg_(d1 + 1u);
   n0 = _ulbn_neg_(1u);
@@ -366,8 +366,8 @@ ULBN_INTERNAL ul_constexpr ulbn_limb_t _ulbn_divinv2(ulbn_limb_t d1, ulbn_limb_t
    * di = (B^3-1 - <d1,d0,0>)//<d1, d0>
    * di = <B-1-d1, B-1-d0, B-1>//<d1, d0>
    */
-  ulbn_limb_t n1, n0, di;
-  ulbn_limb_t p, t1, t0;
+  ulbn_limb_t n1 UL_CONSTEXPR_INIT, n0 UL_CONSTEXPR_INIT, di UL_CONSTEXPR_INIT;
+  ulbn_limb_t p UL_CONSTEXPR_INIT, t1 UL_CONSTEXPR_INIT, t0 UL_CONSTEXPR_INIT;
 
   /*
    * di = (B^2-1)//d1 - B
@@ -1003,18 +1003,18 @@ ULBN_PRIVATE int _ulbn_mul_toom_22(
   ulbn_mul(alloc, rp + (m << 1), ap + m, an - m, bp + m, bn - m);
 
   p1 = ulbn_allocT(ulbn_limb_t, alloc, m + 1);
-  ULBN_DO_IF_ALLOC_COND(p1 == ul_nullptr, goto cleanup_p1;);
+  ULBN_DO_IF_ALLOC_FAILED(p1, goto cleanup_p1;);
   p2 = ulbn_allocT(ulbn_limb_t, alloc, m + 1);
-  ULBN_DO_IF_ALLOC_COND(p2 == ul_nullptr, goto cleanup_p2;);
-  /* store (a0 + b0) in `p1` */
+  ULBN_DO_IF_ALLOC_FAILED(p2, goto cleanup_p2;);
+  /* store (a0 + a1) in `p1` */
   p1[m] = ulbn_add(p1, ap, m, ap + m, an - m);
   n1 = m + (p1[m] != 0);
-  /* store (a1 + b1) in `p2` */
+  /* store (b0 + b1) in `p2` */
   p2[m] = ulbn_add(p2, bp, m, bp + m, bn - m);
   n2 = m + (p2[m] != 0);
 
   zp = ulbn_allocT(ulbn_limb_t, alloc, n1 + n2);
-  ULBN_DO_IF_ALLOC_COND(zp == ul_nullptr, goto cleanup_zp;);
+  ULBN_DO_IF_ALLOC_FAILED(zp, goto cleanup_zp;);
   /* z1 = (a0 + a1) * (b0 + b1), store it in `zp[0:n1+n2]` */
   ulbn_mul(alloc, zp, p1, n1, p2, n2);
   nz = n1 + n2 - (zp[n1 + n2 - 1] == 0);
