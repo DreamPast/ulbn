@@ -261,6 +261,20 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
 #endif
 }
 
+#define _ulbn_neg_(v) ul_static_cast(ulbn_limb_t, ul_static_cast(ulbn_limb_t, 0u) - (v))
+#define _ulbn_add_(s1, s0, a1, a0, b1, b0) \
+  do {                                     \
+    const ulbn_limb_t __s = (a0) + (b0);   \
+    (s1) = (a1) + (b1) + (__s < (a0));     \
+    (s0) = __s;                            \
+  } while(0)
+#define _ulbn_sub_(d1, d0, a1, a0, b1, b0) \
+  do {                                     \
+    const ulbn_limb_t __d = (a0) - (b0);   \
+    (d1) = (a1) - (b1) - ((a0) < (b0));    \
+    (d0) = __d;                            \
+  } while(0)
+
 #ifdef ulbn_limb2_t
   #define _ulbn_umul_(p1, p0, u, v)                                \
     do {                                                           \
@@ -276,19 +290,24 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
     } while(0)
 #endif
 
-#define _ulbn_neg_(v) ul_static_cast(ulbn_limb_t, ul_static_cast(ulbn_limb_t, 0u) - (v))
-#define _ulbn_add_(s1, s0, a1, a0, b1, b0) \
-  do {                                     \
-    const ulbn_limb_t __s = (a0) + (b0);   \
-    (s1) = (a1) + (b1) + (__s < (a0));     \
-    (s0) = __s;                            \
-  } while(0)
-#define _ulbn_sub_(d1, d0, a1, a0, b1, b0) \
-  do {                                     \
-    const ulbn_limb_t __d = (a0) - (b0);   \
-    (d1) = (a1) - (b1) - ((a0) < (b0));    \
-    (d0) = __d;                            \
-  } while(0)
+#if !defined(_ulbn_umul_) && defined(_MSC_VER) && defined(ULLONG_MAX) && ULBN_LIMB_MAX == ULLONG_MAX
+  #include <intrin.h>
+  #if defined(__x86_64__) || defined(_M_X64) /* x86_64 */
+    #if _MSC_VER >= 1900
+      #pragma intrinsic(_mul128)
+      #define _ulbn_umul_(p1, p0, u, v) (p0) = _umul128((u), (v), &(p1))
+    #endif
+  #elif defined(__arm64) || defined(__arm64__) || defined(__aarch64__) || defined(_M_ARM64) /* arm64 */
+    #if _MSC_VER >= 1900
+      #pragma intrinsic(__umulh)
+      #define _ulbn_umul_(p1, p0, u, v) ((void)((p0) = (u) * (v)), (p1) = __umulh((u), (v)))
+    #endif
+  #endif
+  #if _MSC_VER >= 1929 && !defined(__clang__)
+    #pragma intrinsic(_udiv128)
+    #define _ulbn_udiv_(q, r, n1, n0, d) (q) = _udiv128((n1), (n0), (d), &(r))
+  #endif
+#endif
 
 #ifndef _ulbn_umul_
   #define _ulbn_umul_(p1, p0, u, v)                                                           \
@@ -347,12 +366,12 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
 #endif /* _ulbn_udiv_ */
 
 /* Let B to be 2^{ULBN_LIMB_BITS}, di = (B^2-1)//d1 - B */
-ULBN_INTERNAL ul_constexpr ulbn_limb_t _ulbn_divinv1(ulbn_limb_t d1) {
+ULBN_INTERNAL ulbn_limb_t _ulbn_divinv1(ulbn_limb_t d1) {
   /*
    * di = (B^2-1)//d1 - B
    * di = <B-1-d1, B-1>//d1
    */
-  ulbn_limb_t n1 UL_CONSTEXPR_INIT, n0 UL_CONSTEXPR_INIT, di UL_CONSTEXPR_INIT;
+  ulbn_limb_t n1, n0, di;
 
   n1 = _ulbn_neg_(d1 + 1u);
   n0 = _ulbn_neg_(1u);
@@ -361,13 +380,13 @@ ULBN_INTERNAL ul_constexpr ulbn_limb_t _ulbn_divinv1(ulbn_limb_t d1) {
 }
 #define ulbn_divinv1(d1) ulbn_condexpr((d1 & ULBN_LIMB_SIGNBIT) != 0 /* B/2 <= d1 < B */, _ulbn_divinv1(d1))
 /* Let B to be 2^{ULBN_LIMB_BITS}, di = (B^3-1)//(d1*B+d0) - B */
-ULBN_INTERNAL ul_constexpr ulbn_limb_t _ulbn_divinv2(ulbn_limb_t d1, ulbn_limb_t d0) {
+ULBN_INTERNAL ulbn_limb_t _ulbn_divinv2(ulbn_limb_t d1, ulbn_limb_t d0) {
   /*
    * di = (B^3-1 - <d1,d0,0>)//<d1, d0>
    * di = <B-1-d1, B-1-d0, B-1>//<d1, d0>
    */
-  ulbn_limb_t n1 UL_CONSTEXPR_INIT, n0 UL_CONSTEXPR_INIT, di UL_CONSTEXPR_INIT;
-  ulbn_limb_t p UL_CONSTEXPR_INIT, t1 UL_CONSTEXPR_INIT, t0 UL_CONSTEXPR_INIT;
+  ulbn_limb_t n1, n0, di;
+  ulbn_limb_t p, t1, t0;
 
   /*
    * di = (B^2-1)//d1 - B
@@ -2103,7 +2122,7 @@ ULBN_INTERNAL int ulbn_to_bit_info(ulbn_limb_t* limb, ulbn_usize_t n, ulbn_usize
   if(ul_unlikely(q > ULBN_USIZE_MAX))
     return ULBN_ERR_EXCEED_RANGE;
   #endif
-  *p_idx = q;
+  *p_idx = ul_static_cast(ulbn_usize_t, q);
   return ul_static_cast(int, r);
 #else
   ulbn_limb_t q[(sizeof(ulbn_usize_t) * CHAR_BIT + ULBN_LIMB_BITS - 1u) / ULBN_LIMB_BITS];
@@ -3954,7 +3973,7 @@ ULBN_PUBLIC int ulbi_fit_ssize(const ulbi_t* src) {
 }
 
 
-static ulbn_limb_t _ulbi_tostr_base(int base, unsigned* pB_pow) {
+ULBN_PRIVATE ulbn_limb_t _ulbi_tostr_base(int base, unsigned* pB_pow) {
 #if ULBN_LIMB_MAX == 0xFFu
   static const ulbn_limb_t B_TABLE[] = {0x80, 0xf3, 0x40, 0x7d, 0xd8, 0x31, 0x40, 0x51, 0x64, 0x79, 0x90, 0xa9,
                                         0xc4, 0xe1, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
@@ -3993,7 +4012,7 @@ static ulbn_limb_t _ulbi_tostr_base(int base, unsigned* pB_pow) {
                                         0x211e44f7d02c1000, 0x2ee56725f06e5c71, 0x41c21cb8e1000000};
   static const unsigned B_pow[] = {63, 40, 31, 27, 24, 22, 21, 20, 19, 18, 17, 17, 16, 16, 15, 15, 15, 15,
                                    14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12};
-  #define _ULBI_TOSTR_BASE_TABLE_DEFINED
+    #define _ULBI_TOSTR_BASE_TABLE_DEFINED
   #endif
 #endif
 
