@@ -173,6 +173,12 @@ typedef signed long ulbn_slimb_t;
     #define ulbn_limb2_t unsigned __int128
   #endif
 #endif
+#if !defined(ulbn_limb2_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
+  #define ulbn_limb2_t unsigned short
+#endif
+#if !defined(ulbn_limb2_t) && UINT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
+  #define ulbn_limb2_t unsigned int
+#endif
 #if !defined(ulbn_limb2_t) && defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
   #define ulbn_limb2_t unsigned long long
 #endif
@@ -774,7 +780,22 @@ ULBN_PUBLIC int ulbi_pow_usize(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
 ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* b);
-
+/**
+ * @brief Calculate the square root of `ao`, and store the result in `so` and the remainder in `ro`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INVALID` if `ao` < 0 (and `so` and `ro` will be set to 0);
+ * @return `ULBN_ERR_INEXACT` if `ro` == NULL and the remainder is not zero;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_sqrtrem(ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const ulbi_t* ao);
+/**
+ * @brief Calculate the square root of `ao`, and store the result in `so`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INVALID` if `ao` < 0 (and `so` and `ro` will be set to 0);
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_sqrt(ulbn_alloc_t* alloc, ulbi_t* so, const ulbi_t* ao);
 
 /**
  * @brief `ro` = `ao` & `bo`

@@ -733,6 +733,16 @@ public:
     _check(ulbi_pow(_ctx(), ret._value, _value, e._value));
     return ret;
   }
+  BigInt sqrt() const {
+    BigInt ret;
+    _check(ulbi_sqrt(_ctx(), ret._value, _value));
+    return ret;
+  }
+  std::pair<BigInt, BigInt> sqrtrem() const {
+    BigInt q, r;
+    _check(ulbi_sqrtrem(_ctx(), q._value, r._value, _value));
+    return {q, r};
+  }
 
 
   BigInt& shrink() {
@@ -1031,7 +1041,7 @@ private:
     return ctx;
   }
   static int _check(int err) {
-    if(err < 0 || err == ULBN_ERR_DIV_BY_ZERO)
+    if(err != ULBN_ERR_INEXACT && err != 0)
       throw Exception(err);
     return err;
   }
