@@ -1041,7 +1041,7 @@ private:
     return ctx;
   }
   static int _check(int err) {
-    if(err != ULBN_ERR_INEXACT && err != 0)
+    if(err != ULBN_ERR_INEXACT && err != 0 && err != 1)
       throw Exception(err);
     return err;
   }
