@@ -2103,7 +2103,7 @@ ULBN_INTERNAL ulbn_limb_t ulbn_limb(const ulbn_limb_t* p, ulbn_usize_t n, ulbn_l
   const ulbn_limb_t l = (k < n ? p[k] : 0) ^ mask;
   /* If it is a positive number, cy == 0, mask == 0, at this time i will be
     equal to ULBN_LIMB_MAX, and the loop will terminate directly */
-  ulbn_usize_t i = ~mask & ULBN_LIMB_MAX;
+  ulbn_usize_t i = ~mask & ULBN_USIZE_MAX;
 
   ulbn_assert(cy == 0 || cy == 1);
 
@@ -3679,9 +3679,9 @@ ULBN_PUBLIC int ulbi_sqrtrem(ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const 
 
   err = ulbn_sqrtrem_guard(alloc, sp, rp, _ulbi_limb(ao), n);
   if(so)
-    so->len = ulbn_normalize(sp, n - (n >> 1));
+    so->len = ulbn_cast_ssize(ulbn_normalize(sp, n - (n >> 1)));
   if(ro)
-    ro->len = ulbn_normalize(rp, (n >> 1) + 1u);
+    ro->len = ulbn_cast_ssize(ulbn_normalize(rp, (n >> 1) + 1u));
   return err;
 }
 ULBN_PUBLIC int ulbi_sqrt(ulbn_alloc_t* alloc, ulbi_t* so, const ulbi_t* ao) {
@@ -4461,8 +4461,8 @@ ULBN_PRIVATE int _ulbn_feq(double a, double b) {
   return a >= b && a <= b;
 }
 ULBN_PUBLIC int ulbi_set_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x) {
-  static const double B = ul_static_cast(double, ULBN_LIMB_SIGNBIT) * 2.0;
-  static const double Bi = 1.0 / (ul_static_cast(double, ULBN_LIMB_SIGNBIT) * 2.0);
+  static ul_constexpr const double B = ul_static_cast(double, _ULBN_LIMB_SIGNBIT) * 2.0;
+  static ul_constexpr const double Bi = 1.0 / (ul_static_cast(double, _ULBN_LIMB_SIGNBIT) * 2.0);
   ulbn_ssize_t ri, rn;
   ulbn_limb_t* rp;
   double xl;
@@ -4498,7 +4498,7 @@ ULBN_PUBLIC int ulbi_init_double(ulbn_alloc_t* alloc, ulbi_t* dst, double x) {
   return ulbi_set_double(alloc, ulbi_init(dst), x);
 }
 ULBN_PUBLIC double ulbi_to_double(const ulbi_t* src) {
-  static const double B = ul_static_cast(double, ULBN_LIMB_SIGNBIT) * 2.0;
+  static ul_constexpr const double B = ul_static_cast(double, _ULBN_LIMB_SIGNBIT) * 2.0;
   const ulbn_usize_t n = _ulbn_abs_size(src->len);
   ulbn_limb_t* p = _ulbi_limb(src);
   double r;
