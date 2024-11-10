@@ -243,7 +243,7 @@ typedef signed long ulbn_slong_t;
 
 /* <0 indicates a system error, >0 indicates a mathematical error
 This error directly corresponds to the IEEE754 error code */
-enum ULBN_MATH_ERROR_ENUM {
+enum ULBN_ERROR_ENUM {
   /**
    * @brief Unexpected out-of-bounds error (usually means the result exceeds ulbn_usize_t)
    */
@@ -281,6 +281,34 @@ enum ULBN_MATH_ERROR_ENUM {
    */
   ULBN_ERR_UNDERFLOW = 32
 };
+
+enum ULBN_ROUND_ENUM {
+  ULBN_ROUND_DOWN = 0,
+  ULBN_ROUND_UP,
+  ULBN_ROUND_FLOOR,
+  ULBN_ROUND_CEILING,
+  ULBN_ROUND_HALF_ODD,
+  ULBN_ROUND_HALF_EVEN,
+  ULBN_ROUND_HALF_DOWN,
+  ULBN_ROUND_HALF_UP,
+  ULBN_ROUND_FAIL,
+
+  ULBN_ROUND_TRUNC = ULBN_ROUND_DOWN,
+  ULBN_ROUND_TO_ZERO = ULBN_ROUND_DOWN,
+  ULBN_ROUND_AWAY_FROM_ZERO = ULBN_ROUND_UP,
+  ULBN_ROUND_TO_POSITIVE_INFINITY = ULBN_ROUND_CEILING,
+  ULBN_ROUND_TO_NEGATIVE_INFINITY = ULBN_ROUND_FLOOR,
+  ULBN_ROUND_TO_NEAREST = ULBN_ROUND_HALF_EVEN,
+
+  ULBN_RNDN = ULBN_ROUND_HALF_EVEN,
+  ULBN_RNDZ = ULBN_ROUND_TO_ZERO,
+  ULBN_RNDU = ULBN_ROUND_CEILING,
+  ULBN_RNDD = ULBN_ROUND_FLOOR,
+  ULBN_RNDA = ULBN_ROUND_AWAY_FROM_ZERO,
+  ULBN_RNDNA = ULBN_ROUND_HALF_UP,
+  ULBN_RNDF = ULBN_ROUND_FAIL
+};
+
 
 typedef void* ulbn_alloc_func_t(void* opaque, void* ptr, size_t on, size_t nn);
 typedef struct ulbn_alloc_t {
@@ -763,6 +791,46 @@ ULBN_PUBLIC int ulbi_div_slimb(ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao
  * @return `0` otherwise
  */
 ULBN_PUBLIC int ulbi_mod_slimb(ulbn_alloc_t* alloc, ulbn_slimb_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
+
+/**
+ * @brief `qo` = `ao` / `bo`, `ro` = `ao` % `bo`
+ * @note `qo` and `ro` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_divmod_ex(
+  ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
+  const ulbi_t* ao, const ulbi_t* bo,          /* */
+  enum ULBN_ROUND_ENUM round_mode              /* */
+);
+/**
+ * @brief `qo` = `ao` / `bo`
+ * @note `qo` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_div_ex(
+  ulbn_alloc_t* alloc, ulbi_t* qo,    /* */
+  const ulbi_t* ao, const ulbi_t* bo, /* */
+  enum ULBN_ROUND_ENUM round_mode     /* */
+);
+/**
+ * @brief `ro` = `ao` % `bo`
+ * @note `ro` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero and `round_mode` is `ULBN_ROUND_FAIL`;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_mod_ex(
+  ulbn_alloc_t* alloc, ulbi_t* ro,    /* */
+  const ulbi_t* ao, const ulbi_t* bo, /* */
+  enum ULBN_ROUND_ENUM round_mode     /* */
+);
 
 
 /**

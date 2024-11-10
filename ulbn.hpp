@@ -47,7 +47,7 @@ private:
       return "underflow error";
     default:
       return "<unknown error>";
-    };
+    }
   }
   int _error;
 };
@@ -522,6 +522,21 @@ public:
     _check(ulbi_divmod(_ctx(), q._value, r._value, _value, other._value));
     return {q, r};
   }
+  std::pair<BigInt, BigInt> divmod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt q, r;
+    _check(ulbi_divmod_ex(_ctx(), q._value, r._value, _value, other._value, round_mode));
+    return {q, r};
+  }
+  BigInt div(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
+    BigInt q;
+    _check(ulbi_div_ex(_ctx(), q._value, _value, other._value, round_mode));
+    return q;
+  }
+  BigInt mod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
+    BigInt r;
+    _check(ulbi_mod_ex(_ctx(), r._value, _value, other._value, round_mode));
+    return r;
+  }
 
 
   friend std::strong_ordering operator<=>(const BigInt& lhs, const BigInt& rhs) {
@@ -869,8 +884,9 @@ public:
   }
 
 
-  bool testBit(ulbn_usize_t n) const noexcept {
-    return ulbi_testbit_usize(_value, n) != 0;
+  template<FitUsize T>
+  bool testBit(T n) const noexcept {
+    return ulbi_testbit_usize(_value, static_cast<ulbn_usize_t>(n)) != 0;
   }
   bool testBit(const BigInt& n) const noexcept {
     return ulbi_testbit(_value, n._value) != 0;

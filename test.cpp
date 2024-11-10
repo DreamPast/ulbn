@@ -12,7 +12,7 @@
 using ul::bn::BigInt;
 using ul::bn::operator""_bi;
 
-void _T_assert(const char* msg, const char* file, int line) {
+[[noreturn]] void _T_assert(const char* msg, const char* file, int line) {
   std::cerr << "Assertion failed: " << msg << " at " << file << ":" << line << std::endl;
   throw "Assertion failed";
 }
@@ -31,16 +31,25 @@ int _getExceptionCode(Func&& func) {
 
 template<class To, class From>
 bool fitType(From from) {
-  if(!std::is_integral_v<To>)
+  if constexpr(!std::is_integral_v<To>)
     return static_cast<To>(from) == from;
   if(from >= 0)
     return from <= std::numeric_limits<To>::max();
   return std::is_signed_v<To> && from >= std::numeric_limits<To>::min();
 }
 
+template<class LT1, class LT2, class RT1, class RT2>
+bool pairEqual(const std::pair<LT1, LT2>& l, const std::pair<RT1, RT2>& r) {
+  return l.first == r.first && l.second == r.second;
+}
+template<class LT1, class LT2, class RT1, class RT2>
+bool pairEqual(const std::pair<LT1, LT2>& l, RT1&& rt1, RT2&& rt2) {
+  return l.first == rt1 && l.second == rt2;
+}
+
 constexpr const int LIMIT = 1024;
 constexpr const int64_t TEST = 1000000ll;
-std::mt19937_64 mt64(std::random_device{}());
+static std::mt19937_64 mt64(std::random_device{}());
 
 void testException() {
   puts("===Test Exception");
@@ -538,6 +547,79 @@ void subtestDivModOverlapRandom() {
     }
   }
 }
+void subtestDivModEx() {
+  puts("======Subtest DivMod Ex");
+
+  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_DOWN), 0, 1));
+  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_UP), 1, -3));
+  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_FLOOR), 0, 1));
+  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_CEILING), 1, -3));
+
+  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_DOWN), 0, -1));
+  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_UP), -1, 3));
+  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_FLOOR), -1, 3));
+  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_CEILING), 0, -1));
+
+  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_HALF_ODD), 0, 1));
+  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 0, 1));
+  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 0, 1));
+  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_HALF_UP), 0, 1));
+
+  T_assert(pairEqual((2_bi).divmod(4, ULBN_ROUND_HALF_ODD), 1, -2));
+  T_assert(pairEqual((2_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 0, 2));
+  T_assert(pairEqual((2_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 0, 2));
+  T_assert(pairEqual((2_bi).divmod(4, ULBN_ROUND_HALF_UP), 1, -2));
+
+  T_assert(pairEqual((3_bi).divmod(4, ULBN_ROUND_HALF_ODD), 1, -1));
+  T_assert(pairEqual((3_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 1, -1));
+  T_assert(pairEqual((3_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 1, -1));
+  T_assert(pairEqual((3_bi).divmod(4, ULBN_ROUND_HALF_UP), 1, -1));
+
+  T_assert(pairEqual((5_bi).divmod(4, ULBN_ROUND_HALF_ODD), 1, 1));
+  T_assert(pairEqual((5_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 1, 1));
+  T_assert(pairEqual((5_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 1, 1));
+  T_assert(pairEqual((5_bi).divmod(4, ULBN_ROUND_HALF_UP), 1, 1));
+
+  T_assert(pairEqual((6_bi).divmod(4, ULBN_ROUND_HALF_ODD), 1, 2));
+  T_assert(pairEqual((6_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 2, -2));
+  T_assert(pairEqual((6_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 1, 2));
+  T_assert(pairEqual((6_bi).divmod(4, ULBN_ROUND_HALF_UP), 2, -2));
+
+  T_assert(pairEqual((7_bi).divmod(4, ULBN_ROUND_HALF_ODD), 2, -1));
+  T_assert(pairEqual((7_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 2, -1));
+  T_assert(pairEqual((7_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 2, -1));
+  T_assert(pairEqual((7_bi).divmod(4, ULBN_ROUND_HALF_UP), 2, -1));
+
+  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_HALF_ODD), 0, -1));
+  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 0, -1));
+  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 0, -1));
+  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_HALF_UP), 0, -1));
+
+  T_assert(pairEqual((-2_bi).divmod(4, ULBN_ROUND_HALF_ODD), -1, 2));
+  T_assert(pairEqual((-2_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 0, -2));
+  T_assert(pairEqual((-2_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 0, -2));
+  T_assert(pairEqual((-2_bi).divmod(4, ULBN_ROUND_HALF_UP), -1, 2));
+
+  T_assert(pairEqual((-3_bi).divmod(4, ULBN_ROUND_HALF_ODD), -1, 1));
+  T_assert(pairEqual((-3_bi).divmod(4, ULBN_ROUND_HALF_EVEN), -1, 1));
+  T_assert(pairEqual((-3_bi).divmod(4, ULBN_ROUND_HALF_DOWN), -1, 1));
+  T_assert(pairEqual((-3_bi).divmod(4, ULBN_ROUND_HALF_UP), -1, 1));
+
+  T_assert(pairEqual((-5_bi).divmod(4, ULBN_ROUND_HALF_ODD), -1, -1));
+  T_assert(pairEqual((-5_bi).divmod(4, ULBN_ROUND_HALF_EVEN), -1, -1));
+  T_assert(pairEqual((-5_bi).divmod(4, ULBN_ROUND_HALF_DOWN), -1, -1));
+  T_assert(pairEqual((-5_bi).divmod(4, ULBN_ROUND_HALF_UP), -1, -1));
+
+  T_assert(pairEqual((-6_bi).divmod(4, ULBN_ROUND_HALF_ODD), -1, -2));
+  T_assert(pairEqual((-6_bi).divmod(4, ULBN_ROUND_HALF_EVEN), -2, 2));
+  T_assert(pairEqual((-6_bi).divmod(4, ULBN_ROUND_HALF_DOWN), -1, -2));
+  T_assert(pairEqual((-6_bi).divmod(4, ULBN_ROUND_HALF_UP), -2, 2));
+
+  T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_ODD), -2, 1));
+  T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_EVEN), -2, 1));
+  T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_DOWN), -2, 1));
+  T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_UP), -2, 1));
+}
 void subtestBigMulDiv() {
   puts("======Subtest Big MulDiv");
 
@@ -680,6 +762,7 @@ void testArithmeticOperation() {
   subtestDivMod();
   subtestDivModRandom();
   subtestDivModOverlapRandom();
+  subtestDivModEx();
   subtestBigMulDiv();
   subtestPower();
   subtestSqrt();
@@ -726,7 +809,7 @@ void subtestSingleBitOperation() {
   puts("======Subtest Single Bit Operation");
 
   for(int32_t a = -LIMIT; a <= LIMIT; ++a) {
-    for(int b = 0; b < 31; ++b) {
+    for(unsigned b = 0; b < 31; ++b) {
       T_assert(BigInt(a).testBit(b) == ((a >> b) & 1));
       T_assert(BigInt(a).setBit(b) == (a | (1 << b)));
       T_assert(BigInt(a).resetBit(b) == (a & ~(1 << b)));
@@ -745,7 +828,7 @@ void subtestAsInt() {
   for(int i = -LIMIT; i <= LIMIT; ++i) {
     T_assert(BigInt(i).asUint(0) == 0);
     T_assert(BigInt(i).asUint(0_bi) == 0);
-    for(int b = 1; b < INT_BITS - 1; ++b) {
+    for(unsigned b = 1; b < INT_BITS - 1; ++b) {
       T_assert(BigInt(i).asUint(b) == (static_cast<unsigned>(i) << (INT_BITS - b) >> (INT_BITS - b)));
       T_assert(BigInt(i).asInt(b) == ((i) << (INT_BITS - b) >> (INT_BITS - b)));
       T_assert(BigInt(i).asUint(BigInt(b)) == (static_cast<unsigned>(i) << (INT_BITS - b) >> (INT_BITS - b)));
@@ -765,7 +848,7 @@ void subtestBitCountInfo() {
 
   for(unsigned i = 1; i <= 1024u; ++i) {
     T_assert(BigInt(i).ctz() == static_cast<unsigned>(std::countr_zero(i)));
-    T_assert(BigInt(i).absBitWidth() == sizeof(unsigned) * CHAR_BIT - std::countl_zero(i));
+    T_assert(BigInt(i).absBitWidth() == sizeof(unsigned) * CHAR_BIT - static_cast<unsigned>(std::countl_zero(i)));
   }
   for(unsigned i = 0; i <= 1024u; ++i) {
     T_assert(BigInt(i).is2Pow() == ((i & (i - 1u)) == 0));
@@ -873,7 +956,7 @@ void testOther() {
   }
 
   {  // ulbi_init_2exp_usize
-    for(int i = 0; i <= 16; ++i) {
+    for(unsigned i = 0; i <= 16; ++i) {
       ulbi_t x[1];
       T_assert(ulbi_init_2exp_usize(ctx, x, i) == 0);
       T_assert(BigInt(x) == (1 << i));
@@ -934,10 +1017,10 @@ void testOther() {
   }
 }
 
-size_t tot_mem = 0;
-size_t max_mem = 0;
-ulbn_alloc_func_t* original_alloc_func;
-void* original_alloc_opaque;
+static size_t tot_mem = 0;
+static size_t max_mem = 0;
+static ulbn_alloc_func_t* original_alloc_func;
+static void* original_alloc_opaque;
 
 int main() {
   original_alloc_func = ulbn_default_alloc()->alloc_func;
