@@ -1993,8 +1993,8 @@ ULBN_INTERNAL ulbn_limb_t ulbn_limb(const ulbn_limb_t* p, ulbn_usize_t n, ulbn_l
   const ulbn_limb_t mask = _ulbn_neg_(cy);
   const ulbn_limb_t l = (k < n ? p[k] : 0) ^ mask;
   /* If it is a positive number, cy == 0, mask == 0, at this time i will be
-    equal to ULBN_LIMB_MAX, and the loop will terminate directly */
-  ulbn_usize_t i = ~mask & ULBN_USIZE_MAX;
+    equal to k, and the loop will terminate directly */
+  ulbn_usize_t i = ~mask & k;
 
   ulbn_assert(cy == 0 || cy == 1);
 
