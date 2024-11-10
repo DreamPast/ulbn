@@ -2445,7 +2445,7 @@ ULBN_INTERNAL int ulbn_sqrtrem_guard(
   ulbn_deallocT(ulbn_limb_t, alloc, tp, nr);
 cleanup:
   if(nrp != rp)
-    ulbn_deallocT(ulbn_limb_t, alloc, nrp, nr);
+    ulbn_deallocT(ulbn_limb_t, alloc, nrp, nh << 1);
   if(nsp != sp)
     ulbn_deallocT(ulbn_limb_t, alloc, nsp, nh);
   return err;
