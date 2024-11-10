@@ -18,6 +18,17 @@ void _T_assert(const char* msg, const char* file, int line) {
 }
 #define T_assert(cond) ((void)(!!(cond) || (_T_assert(#cond, __FILE__, __LINE__), 0)))
 
+template<class Func>
+int _getExceptionCode(Func&& func) {
+  try {
+    func();
+    return 0;
+  } catch(const ul::bn::Exception& e) {
+    return e.get_error();
+  }
+}
+#define T_assert_exception(func, expect) T_assert(_getExceptionCode(func) == (expect))
+
 template<class To, class From>
 bool fitType(From from) {
   if(!std::is_integral_v<To>)
@@ -76,9 +87,9 @@ void testCastFrom() {
   T_assert(BigInt(static_cast<ulbn_slimb_t>(12)) == 12);
 
 
-  // T_assert(BigInt(INFINITY) == 0);
-  // T_assert(BigInt(-INFINITY) == 0);
-  // T_assert(BigInt(nan("")) == 0);
+  T_assert_exception([] { BigInt(INFINITY); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { BigInt(-INFINITY); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { BigInt(nan("")); }, ULBN_ERR_INVALID);
 
   T_assert(BigInt(+0.0) == 0);
   T_assert(BigInt(-0.0) == 0);
@@ -107,12 +118,8 @@ void testCastTo() {
   T_assert(BigInt("12345678901234567890").toString() == "12345678901234567890");
   T_assert(BigInt("012").toString(8) == "12");
   T_assert(BigInt("0x12").toString(16) == "12");
-  try {
-    (12_bi).toString(0);
-    throw ul::bn::Exception(0);
-  } catch(ul::bn::Exception& e) {
-    T_assert(e == ULBN_ERR_EXCEED_RANGE);
-  }
+
+  T_assert_exception([] { (12_bi).toString(0); }, ULBN_ERR_EXCEED_RANGE);
 
   for(int i = -LIMIT; i <= LIMIT; ++i)
     T_assert(BigInt(i).toString() == std::to_string(i));
@@ -122,12 +129,7 @@ void testCastTo() {
   fprintf(stdout, "\n");
   BigInt("-12345678901234567890").print();
   fprintf(stdout, "\n");
-  try {
-    BigInt("-12345678901234567890").print(stdout, 0);
-    throw ul::bn::Exception(0);
-  } catch(ul::bn::Exception& e) {
-    T_assert(ULBN_ERR_EXCEED_RANGE == e);
-  }
+  T_assert_exception([] { BigInt("12345678901234567890").print(stdout, 0); }, ULBN_ERR_EXCEED_RANGE);
 
 
   T_assert(BigInt(0.0).toDouble() == 0.0);
@@ -572,11 +574,7 @@ void subtestPower() {
 void subtestSqrt() {
   puts("======Subtest Sqrt");
 
-  try {
-    BigInt(-1).sqrt();
-  } catch(const ul::bn::Exception& e) {
-    T_assert(e == ULBN_ERR_INVALID);
-  }
+  T_assert_exception([] { BigInt(-1).sqrt(); }, ULBN_ERR_INVALID);
 
   for(int64_t i = 0x0; i <= 0xFFFF; ++i) {
     BigInt x = i;
@@ -600,6 +598,79 @@ void subtestSqrt() {
     T_assert(x - xs * xs == xr);
   }
 }
+void subtestRoot() {
+  puts("======Subtest Root");
+  T_assert_exception([] { (0_bi).root(0); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { (0_bi).root(1); }, 0);
+  T_assert_exception([] { (0_bi).root(2); }, 0);
+  T_assert_exception([] { (0_bi).root(3); }, 0);
+  T_assert_exception([] { (0_bi).root(-1); }, ULBN_ERR_DIV_BY_ZERO);
+  T_assert_exception([] { (0_bi).root(-2); }, ULBN_ERR_DIV_BY_ZERO);
+  T_assert_exception([] { (0_bi).root(-3); }, ULBN_ERR_DIV_BY_ZERO);
+
+  T_assert_exception([] { (1_bi).root(0); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { (1_bi).root(1); }, 0);
+  T_assert_exception([] { (1_bi).root(2); }, 0);
+  T_assert_exception([] { (1_bi).root(3); }, 0);
+  T_assert_exception([] { (1_bi).root(-1); }, 0);
+  T_assert_exception([] { (1_bi).root(-2); }, 0);
+  T_assert_exception([] { (1_bi).root(-3); }, 0);
+
+  T_assert_exception([] { (2_bi).root(0); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { (2_bi).root(1); }, 0);
+  T_assert_exception([] { (2_bi).root(2); }, 0);
+  T_assert_exception([] { (2_bi).root(3); }, 0);
+  {
+    BigInt a, r;
+    a = 2;
+    T_assert(ulbi_rootrem(ulbn_default_alloc(), a.get(), r.get(), a.get(), (-1_bi).get()) == 0);
+    a = 2;
+    T_assert(ulbi_rootrem(ulbn_default_alloc(), a.get(), r.get(), a.get(), (-2_bi).get()) == 0);
+    a = 2;
+    T_assert(ulbi_rootrem(ulbn_default_alloc(), a.get(), r.get(), a.get(), (-3_bi).get()) == 0);
+  }
+
+  T_assert_exception([] { (-1_bi).root(0); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { (-1_bi).root(1); }, 0);
+  T_assert_exception([] { (-1_bi).root(2); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { (-1_bi).root(3); }, 0);
+  T_assert_exception([] { (-1_bi).root(-1); }, 0);
+  T_assert_exception([] { (-1_bi).root(-2); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { (-1_bi).root(-3); }, 0);
+
+  T_assert_exception([] { (-2_bi).root(0); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { (-2_bi).root(1); }, 0);
+  T_assert_exception([] { (-2_bi).root(2); }, ULBN_ERR_INVALID);
+  T_assert_exception([] { (-2_bi).root(3); }, 0);
+  {
+    BigInt a, r;
+    a = -2;
+    T_assert(ulbi_rootrem(ulbn_default_alloc(), a.get(), r.get(), a.get(), (-1_bi).get()) == 0);
+    a = -2;
+    T_assert(ulbi_rootrem(ulbn_default_alloc(), a.get(), r.get(), a.get(), (-2_bi).get()) == ULBN_ERR_INVALID);
+    a = -2;
+    T_assert(ulbi_rootrem(ulbn_default_alloc(), a.get(), r.get(), a.get(), (-3_bi).get()) == 0);
+  }
+
+  for(int64_t i = 1; i <= 0xFFFF; ++i) {
+    for(int e = 1; e <= 0x10; ++e) {
+      BigInt x = BigInt(i);
+      auto obj = x.rootrem(e);
+      BigInt pow = obj.first.pow(e);
+      T_assert(pow <= x && x < (obj.first + 1).pow(e));
+      T_assert(x - pow == obj.second);
+    }
+  }
+
+  for(int t = 3000; t--;) {
+    BigInt x = BigInt::from_random("0xFFF");
+    BigInt e = BigInt::from_random("0x10");
+    auto obj = x.rootrem(e);
+    BigInt pow = obj.first.pow(e);
+    T_assert(pow <= x && x < (obj.first + 1).pow(e));
+    T_assert(x - pow == obj.second);
+  }
+}
 void testArithmeticOperation() {
   puts("===Test Arithmetic Operation");
 
@@ -612,6 +683,7 @@ void testArithmeticOperation() {
   subtestBigMulDiv();
   subtestPower();
   subtestSqrt();
+  subtestRoot();
 }
 
 
@@ -653,7 +725,7 @@ void subtestBitwiseOperation() {
 void subtestSingleBitOperation() {
   puts("======Subtest Single Bit Operation");
 
-  for(int a = -LIMIT; a <= LIMIT; ++a) {
+  for(int32_t a = -LIMIT; a <= LIMIT; ++a) {
     for(int b = 0; b < 31; ++b) {
       T_assert(BigInt(a).testBit(b) == ((a >> b) & 1));
       T_assert(BigInt(a).setBit(b) == (a | (1 << b)));

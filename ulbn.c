@@ -641,72 +641,6 @@ ULBN_INTERNAL ulbn_usize_t ulbn_bit_width(const ulbn_limb_t* p, ulbn_usize_t n, 
 }
 
 
-#if 0
-ULBN_PRIVATE ulbn_limb_t _ulbn_pow_(ulbn_limb_t v, size_t e) {
-  ulbn_limb_t r = 1u;
-  for(; e; e >>= 1) {
-    if(e & 1)
-      r *= v;
-    v *= v;
-  }
-  return r;
-}
-ULBN_PRIVATE ulbn_limb_t _ulbn_pow_adjust_(ulbn_limb_t v, size_t e) {
-  ulbn_limb_t rh = 0, rl = 1;
-  ulbn_limb_t vh = 0, vl = v;
-  ulbn_limb_t th, tl;
-  while(e) {
-    if(e & 1) {
-      _ulbn_umul_(th, tl, rl, vl);
-      rh = th + rh * vl + rl * vh;
-      rl = tl;
-    }
-    _ulbn_umul_(th, tl, vl, vl);
-    vh = th + 2 * vl * vh;
-    vl = tl;
-    e >>= 1;
-  }
-  if(rh)
-    return ULBN_LIMB_MAX;
-  return rl;
-}
-ULBN_PRIVATE int _ulbn_check_root_too_small_(ulbn_limb_t x, size_t e, ulbn_limb_t v) {
-  while(e-- > 0)
-    v /= (x + 1);
-  return v == 0;
-}
-/* Ensure v != 0 and e >= 2. Time complexity is at most O(log({ULBN_LIMB_BITS}) * log(e))*/
-ULBN_PRIVATE ulbn_limb_t _ulbn_root_(ulbn_limb_t v, size_t e) {
-  ulbn_limb_t x, y = 1;
-
-  ulbn_assert(v != 0);
-  ulbn_assert(e >= 2);
-  ulbn_assert(ULBN_LIMB_BITS <= ~ul_static_cast(size_t, 0) - e + 1);
-  x = ULBN_LIMB_SHL(1, (ULBN_LIMB_BITS - ul_static_cast(unsigned, _ulbn_clz_(v)) + e - 1) / e + 1);
-
-  /*
-    Newton's method:
-    f(x) = x^e - v
-    f'(x) = e * x^(e-1)
-    x' = x - f(x)/f'(x) = x - (x^e - v)/(e * x^(e - 1)) = ((e-1)*x + v/x^(e-1)) / e
-  */
-  if(ul_unlikely(_ulbn_check_root_too_small_(x, e, v))) /* maybe overflow */
-    while(x > y) {
-      x = ul_static_cast(ulbn_limb_t, ((e - 1) * x + y) / e);
-      y = v / _ulbn_pow_adjust_(x, e - 1);
-    }
-  else
-    while(x > y) {
-      x = ul_static_cast(ulbn_limb_t, ((e - 1) * x + y) / e);
-      y = v / _ulbn_pow_(x, e - 1);
-    }
-
-  ulbn_assert(_ulbn_pow_(x, e) <= v && _ulbn_check_root_too_small_(x + 1, e, v));
-  return x;
-}
-#endif
-
-
 static const char _ULBN_UPPER_TABLE[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 static const char _ULBN_LOWER_TABLE[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 ULBN_INTERNAL const char* ulbn_string_table(int is_lower) {
@@ -727,6 +661,12 @@ ul_unused ULBN_INTERNAL void ulbn_dump(FILE* fp, const ulbn_limb_t* p, ulbn_usiz
     if(i != 1)
       fputc('_', stdout);
   }
+}
+ul_unused ULBN_INTERNAL void ulbn_dprint(FILE* fp, const char* prefix, const ulbn_limb_t* p, ulbn_usize_t n) {
+  if(prefix)
+    fputs(prefix, fp);
+  ulbn_dump(fp, p, n);
+  fputc('\n', fp);
 }
 #endif
 
@@ -1234,21 +1174,11 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   ulbn_mul(alloc, rinf, a2, am, b1, bm);
 
 #if 0
-  printf("v0 = ");
-  ulbn_dump(stdout, rp, m2);
-  putchar('\n');
-
-  printf("v1 = ");
-  ulbn_dump(stdout, v1, m2 + 1);
-  putchar('\n');
-
+  ulbn_dprint(stdout, "v0 = ", rp, m2);
+  ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
   printf("vm1 = %c", sign ? '-' : '+');
-  ulbn_dump(stdout, vm1, m2 + 1);
-  putchar('\n');
-
-  printf("vinf = ");
-  ulbn_dump(stdout, rinf, abm);
-  putchar('\n');
+  ulbn_dprint(stdout, ul_nullptr, vm1, m2 + 1);
+  ulbn_dprint(stdout, "vinf = ", rinf, abm);
 #endif
 
   /* t1 = v1 + vm1 = (0, 2, 0, 2) */
@@ -1272,21 +1202,10 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   ulbn_sub(v1, v1, m2 + 1, rinf, abm);
 
 #if 0
-  printf("v0 = ");
-  ulbn_dump(stdout, rp, m2);
-  putchar('\n');
-
-  printf("v1 = ");
-  ulbn_dump(stdout, v1, m2 + 1);
-  putchar('\n');
-
-  printf("t1 = ");
-  ulbn_dump(stdout, vm1, m2 + 1);
-  putchar('\n');
-
-  printf("vinf = ");
-  ulbn_dump(stdout, rinf, abm);
-  putchar('\n');
+  ulbn_dprint(stdout, "v0 = ", rp, m2);
+  ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
+  ulbn_dprint(stdout, "t1 = ", vm1, m2 + 1);
+  ulbn_dprint(stdout, "vinf = ", rinf, abm);
 #endif
 
   ulbn_copy(rp + m2, t1, m);
@@ -1397,25 +1316,11 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   }
 
 #if 0
-  printf("v0 = ");
-  ulbn_dump(stdout, rp, m2);
-  putchar('\n');
-
-  printf("v1 = ");
-  ulbn_dump(stdout, v1, m2 + 1);
-  putchar('\n');
-
-  printf("vm1 = ");
-  ulbn_dump(stdout, vm1, m2 + 1);
-  putchar('\n');
-
-  printf("v2 = ");
-  ulbn_dump(stdout, v2, m2 + 1);
-  putchar('\n');
-
-  printf("vinf = ");
-  ulbn_dump(stdout, rinf, abm);
-  putchar('\n');
+  ulbn_dprint(stdout, "v0 = ", rp, m2);
+  ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
+  ulbn_dprint(stdout, "vm1 = ", vm1, m2 + 1);
+  ulbn_dprint(stdout, "v2 = ", v2, m2 + 1);
+  ulbn_dprint(stdout, "vinf = ", rinf, abm);
 #endif
 
   /* v2 = v2 - vm1 = (15, 9, 3, 3, 0) */
@@ -1452,25 +1357,11 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   ulbn_sub(vm1, vm1, m2 + 1, v1, m2 + 1);
 
 #if 0
-  printf("v0 = ");
-  ulbn_dump(stdout, rp, m2);
-  putchar('\n');
-
-  printf("vm1 = ");
-  ulbn_dump(stdout, vm1, m2 + 1);
-  putchar('\n');
-
-  printf("t1 = ");
-  ulbn_dump(stdout, t1, m2 + 1);
-  putchar('\n');
-
-  printf("v1 = ");
-  ulbn_dump(stdout, v1, m2 + 1);
-  putchar('\n');
-
-  printf("vinf = ");
-  ulbn_dump(stdout, rinf, abm);
-  putchar('\n');
+  ulbn_dprint(stdout, "v0 = ", rp, m2);
+  ulbn_dprint(stdout, "vm1 = ", vm1, m2 + 1);
+  ulbn_dprint(stdout, "t1 = ", t1, m2 + 1);
+  ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
+  ulbn_dprint(stdout, "vinf = ", rinf, abm);
 #endif
 
   ulbn_copy(rp + m2, t1, m2);
@@ -2561,6 +2452,72 @@ cleanup:
 }
 
 
+#if 0
+ULBN_PRIVATE ulbn_limb_t _ulbn_pow_(ulbn_limb_t v, size_t e) {
+  ulbn_limb_t r = 1u;
+  for(; e; e >>= 1) {
+    if(e & 1)
+      r *= v;
+    v *= v;
+  }
+  return r;
+}
+ULBN_PRIVATE ulbn_limb_t _ulbn_pow_adjust_(ulbn_limb_t v, size_t e) {
+  ulbn_limb_t rh = 0, rl = 1;
+  ulbn_limb_t vh = 0, vl = v;
+  ulbn_limb_t th, tl;
+  while(e) {
+    if(e & 1) {
+      _ulbn_umul_(th, tl, rl, vl);
+      rh = th + rh * vl + rl * vh;
+      rl = tl;
+    }
+    _ulbn_umul_(th, tl, vl, vl);
+    vh = th + 2 * vl * vh;
+    vl = tl;
+    e >>= 1;
+  }
+  if(rh)
+    return ULBN_LIMB_MAX;
+  return rl;
+}
+ULBN_PRIVATE int _ulbn_check_root_too_small_(ulbn_limb_t x, size_t e, ulbn_limb_t v) {
+  while(e-- > 0)
+    v /= (x + 1);
+  return v == 0;
+}
+/* Ensure v != 0 and e >= 2. Time complexity is at most O(log({ULBN_LIMB_BITS}) * log(e))*/
+ULBN_PRIVATE ulbn_limb_t _ulbn_root_(ulbn_limb_t v, size_t e) {
+  ulbn_limb_t x, y = 1;
+
+  ulbn_assert(v != 0);
+  ulbn_assert(e >= 2);
+  ulbn_assert(ULBN_LIMB_BITS <= ~ul_static_cast(size_t, 0) - e + 1);
+  x = ULBN_LIMB_SHL(1, (ULBN_LIMB_BITS - ul_static_cast(unsigned, _ulbn_clz_(v)) + e - 1) / e + 1);
+
+  /*
+    Newton's method:
+    f(x) = x^e - v
+    f'(x) = e * x^(e-1)
+    x' = x - f(x)/f'(x) = x - (x^e - v)/(e * x^(e - 1)) = ((e-1)*x + v/x^(e-1)) / e
+  */
+  if(ul_unlikely(_ulbn_check_root_too_small_(x, e, v))) /* maybe overflow */
+    while(x > y) {
+      x = ul_static_cast(ulbn_limb_t, ((e - 1) * x + y) / e);
+      y = v / _ulbn_pow_adjust_(x, e - 1);
+    }
+  else
+    while(x > y) {
+      x = ul_static_cast(ulbn_limb_t, ((e - 1) * x + y) / e);
+      y = v / _ulbn_pow_(x, e - 1);
+    }
+
+  ulbn_assert(_ulbn_pow_(x, e) <= v && _ulbn_check_root_too_small_(x + 1, e, v));
+  return x;
+}
+#endif
+
+
 ULBN_PRIVATE ulbn_limb_t _ulbn_gcd_(ulbn_limb_t a, ulbn_limb_t b) {
   int shift = 0, a_shift, b_shift;
   ulbn_assert(a > 0 && b > 0);
@@ -3415,9 +3372,13 @@ ULBN_PUBLIC int ulbi_mul(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, cons
 }
 
 
-ULBN_PUBLIC int ulbi_divmod(ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo) {
-  int positive = _ulbn_same_sign(ao->len, bo->len), a_positive = (ao->len >= 0), err = 0;
-  ulbn_usize_t an = _ulbn_abs_size(ao->len), bn = _ulbn_abs_size(bo->len);
+ULBN_PRIVATE int _ulbi_divmod(
+  ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro,       /* */
+  const ulbi_t* ao, ulbn_usize_t an, int a_positive, /* */
+  const ulbi_t* bo, ulbn_usize_t bn, int b_positive  /* */
+) {
+  const int positive = (a_positive == b_positive);
+  int err = 0;
   ulbn_limb_t *qp = ul_nullptr, *rp = ul_nullptr;
 
   if(ul_unlikely(bn == 0)) {
@@ -3446,8 +3407,7 @@ ULBN_PUBLIC int ulbi_divmod(ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const u
     ULBN_RETURN_IF_ALLOC_FAILED(rp, ULBN_ERR_NOMEM);
   }
 
-  err =
-    ulbn_divmod_guard(alloc, qp, rp, _ulbi_limb(ao), _ulbn_abs_size(ao->len), _ulbi_limb(bo), _ulbn_abs_size(bo->len));
+  err = ulbn_divmod_guard(alloc, qp, rp, _ulbi_limb(ao), an, _ulbi_limb(bo), bn);
   ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
   if(qo) {
     qo->len = ulbn_cast_ssize(ulbn_normalize(qp, an - bn + 1));
@@ -3458,6 +3418,13 @@ ULBN_PUBLIC int ulbi_divmod(ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const u
     ro->len = _ulbn_to_ssize(a_positive, ro->len);
   }
   return err;
+}
+ULBN_PUBLIC int ulbi_divmod(ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo) {
+  return _ulbi_divmod(
+    alloc, qo, ro,                             /* */
+    ao, _ulbn_abs_size(ao->len), ao->len >= 0, /* */
+    bo, _ulbn_abs_size(bo->len), bo->len >= 0  /* */
+  );
 }
 ULBN_PUBLIC int ulbi_div(ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, const ulbi_t* bo) {
   return ulbi_divmod(alloc, qo, ul_nullptr, ao, bo);
@@ -3611,6 +3578,7 @@ ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, cons
   int err;
   ulbn_limb_t l, *p;
   ulbn_usize_t i = 0, n;
+  unsigned j;
 
   if(ul_unlikely(b->len < 0)) {
     ro->len = 0;
@@ -3629,7 +3597,20 @@ ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, cons
 
   n = ulbn_cast_usize(b->len);
   p = _ulbi_limb(b);
-  while(i < n) {
+  if(ul_likely(n)) {
+    while(i + 1 < n) {
+      l = p[i++];
+      j = ul_static_cast(unsigned, ULBN_LIMB_BITS);
+      while(j--) {
+        if(l & 1) {
+          err = ulbi_mul(alloc, ro, ro, &B);
+          ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+        }
+        err = ulbi_mul(alloc, &B, &B, &B);
+        ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+        l >>= 1;
+      }
+    }
     l = p[i++];
     while(l) {
       if(l & 1) {
@@ -3686,6 +3667,143 @@ ULBN_PUBLIC int ulbi_sqrtrem(ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const 
 }
 ULBN_PUBLIC int ulbi_sqrt(ulbn_alloc_t* alloc, ulbi_t* so, const ulbi_t* ao) {
   return ulbi_sqrtrem(alloc, so, ul_nullptr, ao);
+}
+ULBN_PUBLIC int ulbi_rootrem(ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* eo) {
+  ulbi_t eo_n1[1] = {ULBI_INIT};
+  ulbi_t xo[1] = {ULBI_INIT}, yo[1] = {ULBI_INIT}, to[1] = {ULBI_INIT};
+  int err, cy;
+  const int sign = ao->len < 0;
+
+  /*
+    Newton's method:
+    f(x) = x^e - a
+    f'(x) = e * x^(e-1)
+    x' = x - f(x)/f'(x) = x - (x^e - a)/(e * x^(e - 1)) = ((e-1)*x + a/x^(e-1)) / e
+  */
+
+  if(eo->len == 0) {
+    if(so)
+      so->len = 0;
+    if(ro)
+      ro->len = 0;
+    return ULBN_ERR_INVALID;
+  }
+  if(ao->len == 0) {
+    if(so)
+      so->len = 0;
+    if(ro)
+      ro->len = 0;
+    return eo->len > 0 ? 0 : ULBN_ERR_DIV_BY_ZERO;
+  }
+  if(ao->len < 0 && ulbi_is_even(eo)) {
+    if(so)
+      so->len = 0;
+    if(ro)
+      ro->len = 0;
+    return ULBN_ERR_INVALID;
+  }
+  if(ao->len == 1 && _ulbi_limb(ao)[0] == 1) {
+    if(so)
+      err = ulbi_set_slimb(alloc, so, ao->len > 0 ? 1 : -1);
+    else
+      err = 0;
+    if(ro)
+      ro->len = 0;
+    return err;
+  }
+  if(eo->len == 1) {
+    if(_ulbi_limb(eo)[0] == 1) {
+      if(so)
+        err = ulbi_set_copy(alloc, so, ao);
+      else
+        err = 0;
+      if(ro)
+        ro->len = 0;
+      return err;
+    }
+    if(_ulbi_limb(eo)[0] == 2)
+      return ulbi_sqrtrem(alloc, so, ro, ao);
+  }
+  if(eo->len < 0) {
+    if(so)
+      so->len = 0;
+    if(ro)
+      err = ulbi_set_copy(alloc, so, ao);
+    else
+      err = ULBN_ERR_INEXACT;
+    return err;
+  }
+
+  /* e_n1 = e - 1, x = 2 ** ceil(bits_width(a) / e) + 1 */
+  err = ulbi_sub_limb(alloc, eo_n1, eo, 1);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  err = ulbi_abs_bit_width(alloc, yo, ao);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  cy = ulbi_div(alloc, yo, yo, eo);
+  ULBN_DO_IF_ALLOC_COND(cy < 0, goto cleanup;);
+  err = ulbi_add_limb(alloc, yo, yo, 1 + (cy == ULBN_ERR_INEXACT));
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  err = ulbi_set_2exp(alloc, xo, yo);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+#if 0
+  printf("bits = ");
+  ulbi_print(alloc, yo, stdout, 10);
+  putchar('\n');
+
+  printf("e - 1 = ");
+  ulbi_print(alloc, eo_n1, stdout, 10);
+  putchar('\n');
+#endif
+
+  err = ulbi_set_limb(alloc, yo, 1);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  while(ulbi_comp(xo, yo) > 0) {
+#if 0
+    printf("x = ");
+    ulbi_print(alloc, xo, stdout, 10);
+    putchar('\t');
+
+    printf("y = ");
+    ulbi_print(alloc, yo, stdout, 10);
+    putchar('\n');
+#endif
+
+    /* x = (x * (e - 1) + y) / e */
+    /* y = abs(a) / (x ** (e - 1)) */
+    err = ulbi_mul(alloc, xo, xo, eo_n1);
+    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+    err = ulbi_add(alloc, xo, xo, yo);
+    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+    err = ulbi_div(alloc, xo, xo, eo);
+    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+    err = ulbi_pow(alloc, to, xo, eo_n1);
+    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+    err = _ulbi_divmod(alloc, yo, ul_nullptr, ao, _ulbn_abs_size(ao->len), 1, to, ulbn_cast_usize(to->len), 1);
+    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  }
+
+  ulbn_assert(!ulbi_eq_limb(xo, 0));
+  if(sign)
+    xo->len = -xo->len;
+  err = ulbi_mul(alloc, to, to, xo);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  if(ro) {
+    err = ulbi_sub(alloc, ro, ao, to);
+    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  } else
+    err = ulbi_eq(to, ao) ? 0 : ULBN_ERR_INEXACT;
+  if(so)
+    ulbi_swap(so, xo);
+
+cleanup:
+  ulbi_deinit(alloc, eo_n1);
+  ulbi_deinit(alloc, xo);
+  ulbi_deinit(alloc, yo);
+  ulbi_deinit(alloc, to);
+  return err;
+}
+ULBN_PUBLIC int ulbi_root(ulbn_alloc_t* alloc, ulbi_t* so, const ulbi_t* ao, const ulbi_t* eo) {
+  return ulbi_rootrem(alloc, so, ul_nullptr, ao, eo);
 }
 
 
@@ -4336,40 +4454,40 @@ ULBN_PUBLIC int ulbi_fit_ssize(const ulbi_t* src) {
 
 ULBN_PRIVATE ulbn_limb_t _ulbi_tostr_base(int base, unsigned* pB_pow) {
 #if ULBN_LIMB_MAX == 0xFFu
-  static const ulbn_limb_t B_TABLE[] = {0x80, 0xf3, 0x40, 0x7d, 0xd8, 0x31, 0x40, 0x51, 0x64, 0x79, 0x90, 0xa9,
-                                        0xc4, 0xe1, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
-                                        0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24};
+  static const ulbn_limb_t B_TABLE[] = {0x80, 0xF3, 0x40, 0x7D, 0xD8, 0x31, 0x40, 0x51, 0x64, 0x79, 0x90, 0xa9,
+                                        0xC4, 0xE1, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+                                        0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24};
   static const unsigned B_pow[] = {7, 5, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
                                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
   #define _ULBI_TOSTR_BASE_TABLE_DEFINED
 #elif ULBN_LIMB_MAX == 0xFFFFu
-  static const ulbn_limb_t B_TABLE[] = {0x8000, 0xe6a9, 0x4000, 0x3d09, 0xb640, 0x41a7, 0x8000, 0xe6a9, 0x2710,
-                                        0x3931, 0x5100, 0x6f91, 0x9610, 0xc5c1, 0x1000, 0x1331, 0x16c8, 0x1acb,
-                                        0x1f40, 0x242d, 0x2998, 0x2f87, 0x3600, 0x3d09, 0x44a8, 0x4ce3, 0x55c0,
-                                        0x5f45, 0x6978, 0x745f, 0x8000, 0x8c61, 0x9988, 0xa77b, 0xb640};
+  static const ulbn_limb_t B_TABLE[] = {0x8000, 0xE6A9, 0x4000, 0x3D09, 0xB640, 0x41A7, 0x8000, 0xE6A9, 0x2710,
+                                        0x3931, 0x5100, 0x6F91, 0x9610, 0xC5C1, 0x1000, 0x1331, 0x16C8, 0x1ACB,
+                                        0x1F40, 0x242D, 0x2998, 0x2F87, 0x3600, 0x3D09, 0x44A8, 0x4CE3, 0x55C0,
+                                        0x5F45, 0x6978, 0x745F, 0x8000, 0x8C61, 0x9988, 0xA77B, 0xB640};
   static const unsigned B_pow[] = {15, 10, 7, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3,
                                    3,  3,  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
   #define _ULBI_TOSTR_BASE_TABLE_DEFINED
 #elif ULBN_LIMB_MAX == 0xFFFFFFFFu
-  static const ulbn_limb_t B_TABLE[] = {0x80000000, 0xcfd41b91, 0x40000000, 0x48c27395, 0x81bf1000, 0x75db9c97,
-                                        0x40000000, 0xcfd41b91, 0x3b9aca00, 0x8c8b6d2b, 0x19a10000, 0x309f1021,
-                                        0x57f6c100, 0x98c29b81, 0x10000000, 0x18754571, 0x247dbc80, 0x3547667b,
-                                        0x4c4b4000, 0x6b5a6e1d, 0x94ace180, 0xcaf18367, 0xb640000,  0xe8d4a51,
-                                        0x1269ae40, 0x17179149, 0x1cb91000, 0x23744899, 0x2b73a840, 0x34e63b41,
-                                        0x40000000, 0x4cfa3cc1, 0x5c13d840, 0x6d91b519, 0x81bf1000};
+  static const ulbn_limb_t B_TABLE[] = {0x80000000, 0xCFD41B91, 0x40000000, 0x48C27395, 0x81BF1000, 0x75DB9C97,
+                                        0x40000000, 0xCFD41B91, 0x3B9ACA00, 0x8C8B6D2B, 0x19A10000, 0x309F1021,
+                                        0x57F6C100, 0x98C29B81, 0x10000000, 0x18754571, 0x247DBC80, 0x3547667B,
+                                        0x4C4B4000, 0x6B5A6E1D, 0x94ACE180, 0xCAF18367, 0x0B640000, 0x0E8D4A51,
+                                        0x1269AE40, 0x17179149, 0x1CB91000, 0x23744899, 0x2B73A840, 0x34E63B41,
+                                        0x40000000, 0x4CFA3CC1, 0x5C13D840, 0x6D91B519, 0x81BF1000};
   static const unsigned B_pow[] = {31, 20, 15, 13, 12, 11, 10, 10, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7,
                                    7,  7,  7,  7,  6,  6,  6,  6,  6, 6, 6, 6, 6, 6, 6, 6, 6};
   #define _ULBI_TOSTR_BASE_TABLE_DEFINED
 #elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
-  static const ulbn_limb_t B_TABLE[] = {0x8000000000000000, 0xa8b8b452291fe821, 0x4000000000000000, 0x6765c793fa10079d,
-                                        0x41c21cb8e1000000, 0x3642798750226111, 0x8000000000000000, 0xa8b8b452291fe821,
-                                        0x8ac7230489e80000, 0x4d28cb56c33fa539, 0x1eca170c00000000, 0x780c7372621bd74d,
-                                        0x1e39a5057d810000, 0x5b27ac993df97701, 0x1000000000000000, 0x27b95e997e21d9f1,
-                                        0x5da0e1e53c5c8000, 0xd2ae3299c1c4aedb, 0x16bcc41e90000000, 0x2d04b7fdd9c0ef49,
-                                        0x5658597bcaa24000, 0xa0e2073737609371, 0xc29e98000000000,  0x14adf4b7320334b9,
-                                        0x226ed36478bfa000, 0x383d9170b85ff80b, 0x5a3c23e39c000000, 0x8e65137388122bcd,
-                                        0xdd41bb36d259e000, 0xaee5720ee830681,  0x1000000000000000, 0x172588ad4f5f0981,
-                                        0x211e44f7d02c1000, 0x2ee56725f06e5c71, 0x41c21cb8e1000000};
+  static const ulbn_limb_t B_TABLE[] = {0x8000000000000000, 0xA8B8B452291FE821, 0x4000000000000000, 0x6765C793FA10079D,
+                                        0x41C21CB8E1000000, 0x3642798750226111, 0x8000000000000000, 0xA8B8B452291FE821,
+                                        0x8AC7230489E80000, 0x4D28CB56C33FA539, 0x1ECA170C00000000, 0x780C7372621BD74D,
+                                        0x1E39A5057D810000, 0x5B27AC993DF97701, 0x1000000000000000, 0x27B95E997E21D9F1,
+                                        0x5DA0E1E53C5C8000, 0xD2AE3299C1C4AEDB, 0x16BCC41E90000000, 0x2D04B7FDD9C0EF49,
+                                        0x5658597BCAA24000, 0xA0E2073737609371, 0x0C29E98000000000, 0x14ADF4B7320334B9,
+                                        0x226ED36478BFA000, 0x383D9170B85FF80B, 0x5A3C23E39C000000, 0x8E65137388122BCD,
+                                        0xDD41BB36D259E000, 0x0AEE5720EE830681, 0x1000000000000000, 0x172588AD4F5F0981,
+                                        0x211E44F7D02C1000, 0x2EE56725F06E5C71, 0x41C21CB8E1000000};
   static const unsigned B_pow[] = {63, 40, 31, 27, 24, 22, 21, 20, 19, 18, 17, 17, 16, 16, 15, 15, 15, 15,
                                    14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12};
   #define _ULBI_TOSTR_BASE_TABLE_DEFINED

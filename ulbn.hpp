@@ -743,6 +743,16 @@ public:
     _check(ulbi_sqrtrem(_ctx(), q._value, r._value, _value));
     return {q, r};
   }
+  BigInt root(const BigInt& e) const {
+    BigInt ret;
+    _check(ulbi_root(_ctx(), ret._value, _value, e._value));
+    return ret;
+  }
+  std::pair<BigInt, BigInt> rootrem(const BigInt& e) const {
+    BigInt q, r;
+    _check(ulbi_rootrem(_ctx(), q._value, r._value, _value, e._value));
+    return {q, r};
+  }
 
 
   BigInt& shrink() {

@@ -796,6 +796,26 @@ ULBN_PUBLIC int ulbi_sqrtrem(ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const 
  * @return `0` otherwise
  */
 ULBN_PUBLIC int ulbi_sqrt(ulbn_alloc_t* alloc, ulbi_t* so, const ulbi_t* ao);
+/**
+ * @brief Calculate the k-th root of `ao` (round to zero), and store the result in `so` and the remainder in `ro`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INVALID` if `eo` = 0 (and `so` and `ro` will be set to 0);
+ * @return `ULBN_ERR_DIV_BY_ZERO` if `ao` = 0 and `eo` < 0 (and `so` and `ro` will be set to 0);
+ * @return `ULBN_ERR_INVALID` if `ao` < 0 and `eo` is even (and `so` and `ro` will be set to 0);
+ * @return `ULBN_ERR_INEXACT` if `ao` - trunc(rootn(`ao`, `eo`)) ** `eo` != 0 and `ro` is NULL;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_rootrem(ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* eo);
+/**
+ * @brief Calculate the k-th root of `ao` (round to zero), and store the result in `so`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INVALID` if `eo` = 0 (and `so` will be set to 0);
+ * @return `ULBN_ERR_DIV_BY_ZERO` if `ao` = 0 and `eo` < 0 (and `so` will be set to 0);
+ * @return `ULBN_ERR_INVALID` if `ao` < 0 and `eo` is even (and `so` will be set to 0);
+ * @return `ULBN_ERR_INEXACT` if `ao` - trunc(rootn(`ao`, `eo`)) ** `eo` != ;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_root(ulbn_alloc_t* alloc, ulbi_t* so, const ulbi_t* ao, const ulbi_t* eo);
 
 /**
  * @brief `ro` = `ao` & `bo`
