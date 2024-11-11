@@ -1820,9 +1820,9 @@ ULBN_INTERNAL ulbn_usize_t ulbn_convbase(
  * \return If op[0:on] is not enough to hold the string, do not write and return required length.
  */
 ULBN_INTERNAL ulbn_usize_t ulbn_conv2str(
-  ulbn_usize_t ci, ulbn_limb_t* cp,                     /* */
-  char* op, ulbn_usize_t on,                            /* */
-  ulbn_limb_t b, unsigned B_pow, const char* char_table /* */
+  ulbn_usize_t ci, const ulbn_limb_t* ul_restrict cp,               /* */
+  char* ul_restrict op, ulbn_usize_t on,                            /* */
+  ulbn_limb_t b, unsigned B_pow, const char* ul_restrict char_table /* */
 ) {
   ulbn_usize_t i, n;
   ulbn_limb_t t;
@@ -1842,14 +1842,120 @@ ULBN_INTERNAL ulbn_usize_t ulbn_conv2str(
   for(i = 0; i < ci; ++i) {
     t = cp[i];
     for(j = 0; j < B_pow; ++j) {
-      *--op = char_table[cp[i] % b];
-      cp[i] /= b;
+      *--op = char_table[t % b];
+      t /= b;
     }
   }
   for(t = cp[ci]; t; t /= b)
     *--op = char_table[t % b];
   return n;
 }
+/**
+ * Convert the base-b representation from `ulbn_convbase` to a string.
+ *
+ * \note To boost conversion speed, `ulbn_convbase` can use {b^B_pow} as the base.
+ *=
+ * \param ci The length of the base-b representation. (Return value of `ulbn_convbase`)
+ * \param cp The base-b representation. (Alloced by `ulbn_convbase`)
+ * \param b The base casted to string.
+ * \param B_pow The value that {B=b^B_pow}.
+ * \param char_table The character table.
+ *
+ * \return `ULBN_ERR_EXTERNAL` if printer returns non-zero;
+ * \return `0` otherwise.
+ */
+ULBN_INTERNAL int ulbn_conv2print(
+  ulbn_usize_t ci, ulbn_limb_t* ul_restrict cp,                     /* */
+  ulbi_printer_t* printer, void* opaque,                            /* */
+  ulbn_limb_t b, unsigned B_pow, const char* ul_restrict char_table /* */
+) {
+  ulbn_usize_t i = 0;
+  ulbn_limb_t t;
+  unsigned j;
+  char buf[ULBN_LIMB_BITS];
+  char* op;
+
+  for(t = cp[ci - 1]; t; t /= b)
+    ++i;
+  op = buf + i;
+  for(t = cp[ci - 1]; t; t /= b)
+    *--op = char_table[t % b];
+  if(ul_unlikely(printer(opaque, buf, i)))
+    return ULBN_ERR_EXTERNAL;
+
+  --ci;
+  while(ci) {
+    t = cp[--ci];
+    op += B_pow;
+    for(j = 0; j < B_pow; ++j) {
+      *--op = char_table[t % b];
+      t /= b;
+    }
+    if(ul_unlikely(printer(opaque, buf, B_pow)))
+      return ULBN_ERR_EXTERNAL;
+  }
+  return 0;
+}
+ULBN_INTERNAL ulbn_limb_t ulbn_conv2str_base(int base, unsigned* pB_pow) {
+#if ULBN_LIMB_MAX == 0xFFu
+  static const ulbn_limb_t B_TABLE[] = {0x80, 0xF3, 0x40, 0x7D, 0xD8, 0x31, 0x40, 0x51, 0x64, 0x79, 0x90, 0xa9,
+                                        0xC4, 0xE1, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+                                        0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24};
+  static const unsigned B_pow[] = {7, 5, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
+                                   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  #define ULBN_CONV2STR_BASE_TABLE_DEFINED
+#elif ULBN_LIMB_MAX == 0xFFFFu
+  static const ulbn_limb_t B_TABLE[] = {0x8000, 0xE6A9, 0x4000, 0x3D09, 0xB640, 0x41A7, 0x8000, 0xE6A9, 0x2710,
+                                        0x3931, 0x5100, 0x6F91, 0x9610, 0xC5C1, 0x1000, 0x1331, 0x16C8, 0x1ACB,
+                                        0x1F40, 0x242D, 0x2998, 0x2F87, 0x3600, 0x3D09, 0x44A8, 0x4CE3, 0x55C0,
+                                        0x5F45, 0x6978, 0x745F, 0x8000, 0x8C61, 0x9988, 0xA77B, 0xB640};
+  static const unsigned B_pow[] = {15, 10, 7, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3,
+                                   3,  3,  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
+  #define ULBN_CONV2STR_BASE_TABLE_DEFINED
+#elif ULBN_LIMB_MAX == 0xFFFFFFFFu
+  static const ulbn_limb_t B_TABLE[] = {0x80000000, 0xCFD41B91, 0x40000000, 0x48C27395, 0x81BF1000, 0x75DB9C97,
+                                        0x40000000, 0xCFD41B91, 0x3B9ACA00, 0x8C8B6D2B, 0x19A10000, 0x309F1021,
+                                        0x57F6C100, 0x98C29B81, 0x10000000, 0x18754571, 0x247DBC80, 0x3547667B,
+                                        0x4C4B4000, 0x6B5A6E1D, 0x94ACE180, 0xCAF18367, 0x0B640000, 0x0E8D4A51,
+                                        0x1269AE40, 0x17179149, 0x1CB91000, 0x23744899, 0x2B73A840, 0x34E63B41,
+                                        0x40000000, 0x4CFA3CC1, 0x5C13D840, 0x6D91B519, 0x81BF1000};
+  static const unsigned B_pow[] = {31, 20, 15, 13, 12, 11, 10, 10, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7,
+                                   7,  7,  7,  7,  6,  6,  6,  6,  6, 6, 6, 6, 6, 6, 6, 6, 6};
+  #define ULBN_CONV2STR_BASE_TABLE_DEFINED
+#elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
+  static const ulbn_limb_t B_TABLE[] = {0x8000000000000000, 0xA8B8B452291FE821, 0x4000000000000000, 0x6765C793FA10079D,
+                                        0x41C21CB8E1000000, 0x3642798750226111, 0x8000000000000000, 0xA8B8B452291FE821,
+                                        0x8AC7230489E80000, 0x4D28CB56C33FA539, 0x1ECA170C00000000, 0x780C7372621BD74D,
+                                        0x1E39A5057D810000, 0x5B27AC993DF97701, 0x1000000000000000, 0x27B95E997E21D9F1,
+                                        0x5DA0E1E53C5C8000, 0xD2AE3299C1C4AEDB, 0x16BCC41E90000000, 0x2D04B7FDD9C0EF49,
+                                        0x5658597BCAA24000, 0xA0E2073737609371, 0x0C29E98000000000, 0x14ADF4B7320334B9,
+                                        0x226ED36478BFA000, 0x383D9170B85FF80B, 0x5A3C23E39C000000, 0x8E65137388122BCD,
+                                        0xDD41BB36D259E000, 0x0AEE5720EE830681, 0x1000000000000000, 0x172588AD4F5F0981,
+                                        0x211E44F7D02C1000, 0x2EE56725F06E5C71, 0x41C21CB8E1000000};
+  static const unsigned B_pow[] = {63, 40, 31, 27, 24, 22, 21, 20, 19, 18, 17, 17, 16, 16, 15, 15, 15, 15,
+                                   14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12};
+  #define ULBN_CONV2STR_BASE_TABLE_DEFINED
+#endif
+
+#ifdef ULBN_CONV2STR_BASE_TABLE_DEFINED
+  *pB_pow = B_pow[base - 2];
+  return B_TABLE[base - 2];
+  #undef ULBN_CONV2STR_BASE_TABLE_DEFINED
+#else
+  ulbn_limb_t B_guard, B;
+  unsigned B_pow;
+  B_guard = ul_static_cast(ulbn_limb_t, ULBN_LIMB_MAX / ul_static_cast(unsigned, base));
+  B_pow = 1;
+  for(B = ul_static_cast(ulbn_limb_t, base); B <= B_guard; B *= ul_static_cast(ulbn_limb_t, base))
+    ++B_pow;
+  *pB_pow = B_pow;
+  return B;
+#endif
+}
+ULBN_PRIVATE int _ulbn_cfile_print(void* file, const char* buf, size_t len) {
+  return fwrite(buf, 1, len, ul_reinterpret_cast(FILE*, file)) != len;
+}
+
 
 
 /* In 2's complement, rp[0:an] = ap[0:an] & bp[0:bn], return carry (do not write to rp[an]).
@@ -2559,7 +2665,7 @@ ULBN_INTERNAL ulbn_usize_t ulbn_gcd(
 
 /* return ap[0:an]*2 <=> mp[0:mn] */
 ULBN_INTERNAL int ulbn_check_round(const ulbn_limb_t* ap, ulbn_usize_t an, const ulbn_limb_t* mp, ulbn_usize_t mn) {
-  static ul_constexpr const int b = 1, br = ul_static_cast(int, ULBN_LIMB_BITS) - 1;
+  static ul_constexpr const int b = 1, br = ul_static_cast(int, _ULBN_LIMB_BITS) - 1;
   ulbn_limb_t ah, al;
   ulbn_limb_t m0;
   ulbn_usize_t i;
@@ -4461,61 +4567,6 @@ ULBN_PUBLIC int ulbi_fit_ssize(const ulbi_t* src) {
 }
 
 
-ULBN_PRIVATE ulbn_limb_t _ulbi_tostr_base(int base, unsigned* pB_pow) {
-#if ULBN_LIMB_MAX == 0xFFu
-  static const ulbn_limb_t B_TABLE[] = {0x80, 0xF3, 0x40, 0x7D, 0xD8, 0x31, 0x40, 0x51, 0x64, 0x79, 0x90, 0xa9,
-                                        0xC4, 0xE1, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
-                                        0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24};
-  static const unsigned B_pow[] = {7, 5, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
-                                   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-  #define _ULBI_TOSTR_BASE_TABLE_DEFINED
-#elif ULBN_LIMB_MAX == 0xFFFFu
-  static const ulbn_limb_t B_TABLE[] = {0x8000, 0xE6A9, 0x4000, 0x3D09, 0xB640, 0x41A7, 0x8000, 0xE6A9, 0x2710,
-                                        0x3931, 0x5100, 0x6F91, 0x9610, 0xC5C1, 0x1000, 0x1331, 0x16C8, 0x1ACB,
-                                        0x1F40, 0x242D, 0x2998, 0x2F87, 0x3600, 0x3D09, 0x44A8, 0x4CE3, 0x55C0,
-                                        0x5F45, 0x6978, 0x745F, 0x8000, 0x8C61, 0x9988, 0xA77B, 0xB640};
-  static const unsigned B_pow[] = {15, 10, 7, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3,
-                                   3,  3,  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
-  #define _ULBI_TOSTR_BASE_TABLE_DEFINED
-#elif ULBN_LIMB_MAX == 0xFFFFFFFFu
-  static const ulbn_limb_t B_TABLE[] = {0x80000000, 0xCFD41B91, 0x40000000, 0x48C27395, 0x81BF1000, 0x75DB9C97,
-                                        0x40000000, 0xCFD41B91, 0x3B9ACA00, 0x8C8B6D2B, 0x19A10000, 0x309F1021,
-                                        0x57F6C100, 0x98C29B81, 0x10000000, 0x18754571, 0x247DBC80, 0x3547667B,
-                                        0x4C4B4000, 0x6B5A6E1D, 0x94ACE180, 0xCAF18367, 0x0B640000, 0x0E8D4A51,
-                                        0x1269AE40, 0x17179149, 0x1CB91000, 0x23744899, 0x2B73A840, 0x34E63B41,
-                                        0x40000000, 0x4CFA3CC1, 0x5C13D840, 0x6D91B519, 0x81BF1000};
-  static const unsigned B_pow[] = {31, 20, 15, 13, 12, 11, 10, 10, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7,
-                                   7,  7,  7,  7,  6,  6,  6,  6,  6, 6, 6, 6, 6, 6, 6, 6, 6};
-  #define _ULBI_TOSTR_BASE_TABLE_DEFINED
-#elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
-  static const ulbn_limb_t B_TABLE[] = {0x8000000000000000, 0xA8B8B452291FE821, 0x4000000000000000, 0x6765C793FA10079D,
-                                        0x41C21CB8E1000000, 0x3642798750226111, 0x8000000000000000, 0xA8B8B452291FE821,
-                                        0x8AC7230489E80000, 0x4D28CB56C33FA539, 0x1ECA170C00000000, 0x780C7372621BD74D,
-                                        0x1E39A5057D810000, 0x5B27AC993DF97701, 0x1000000000000000, 0x27B95E997E21D9F1,
-                                        0x5DA0E1E53C5C8000, 0xD2AE3299C1C4AEDB, 0x16BCC41E90000000, 0x2D04B7FDD9C0EF49,
-                                        0x5658597BCAA24000, 0xA0E2073737609371, 0x0C29E98000000000, 0x14ADF4B7320334B9,
-                                        0x226ED36478BFA000, 0x383D9170B85FF80B, 0x5A3C23E39C000000, 0x8E65137388122BCD,
-                                        0xDD41BB36D259E000, 0x0AEE5720EE830681, 0x1000000000000000, 0x172588AD4F5F0981,
-                                        0x211E44F7D02C1000, 0x2EE56725F06E5C71, 0x41C21CB8E1000000};
-  static const unsigned B_pow[] = {63, 40, 31, 27, 24, 22, 21, 20, 19, 18, 17, 17, 16, 16, 15, 15, 15, 15,
-                                   14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12};
-  #define _ULBI_TOSTR_BASE_TABLE_DEFINED
-#endif
-
-#ifdef _ULBI_TOSTR_BASE_TABLE_DEFINED
-  *pB_pow = B_pow[base - 2];
-  return B_TABLE[base - 2];
-#else
-  ulbn_limb_t B_guard, B;
-  unsigned B_pow;
-  B_guard = ul_static_cast(ulbn_limb_t, ULBN_LIMB_MAX / ul_static_cast(unsigned, base));
-  B_pow = 1;
-  for(B = ul_static_cast(ulbn_limb_t, base); B <= B_guard; B *= ul_static_cast(ulbn_limb_t, base))
-    ++B_pow;
-  *pB_pow = B_pow;
-  return B;
-#endif
-}
 ULBN_PUBLIC char* ulbi_tostr_alloc(
   ulbn_alloc_t* alloc, ulbn_usize_t* p_len,          /* */
   ulbn_alloc_func_t* alloc_func, void* alloc_opaque, /* */
@@ -4544,12 +4595,16 @@ ULBN_PUBLIC char* ulbi_tostr_alloc(
       *p_len = 1;
     return buf;
   }
+  if(alloc_func == ul_nullptr) {
+    alloc_func = alloc->alloc_func;
+    alloc_opaque = alloc->alloc_opaque;
+  }
 
   rp = ulbn_allocT(ulbn_limb_t, alloc, an);
   ULBN_RETURN_IF_ALLOC_FAILED(rp, ul_nullptr);
   ulbn_copy(rp, _ulbi_limb(ao), an);
 
-  B = _ulbi_tostr_base(base, &B_pow);
+  B = ulbn_conv2str_base(base, &B_pow);
   ci = ulbn_convbase(alloc, &cp, &c_alloc, rp, an, B);
   ULBN_DO_IF_ALLOC_COND(ci == 0, { goto done; });
 
@@ -4570,16 +4625,47 @@ done:
     *p_len = on;
   return buf;
 }
-ULBN_PUBLIC int ulbi_print(ulbn_alloc_t* alloc, const ulbi_t* o, FILE* fp, int base) {
-  char* str;
-  ulbn_usize_t len;
+ULBN_PUBLIC int ulbi_print_ex(ulbn_alloc_t* alloc, const ulbi_t* ao, int base, ulbi_printer_t* printer, void* opaque) {
+  const ulbn_usize_t an = _ulbn_abs_size(ao->len);
+  ulbn_limb_t* rp;
+
+  ulbn_limb_t B;
+  unsigned B_pow;
+
+  ulbn_limb_t* cp = ul_nullptr;
+  ulbn_usize_t ci, c_alloc = 0;
+  int ret = ULBN_ERR_NOMEM;
+
   if(base < 2 || base > 36)
     return ULBN_ERR_EXCEED_RANGE;
-  str = ulbi_tostr_alloc(alloc, &len, alloc->alloc_func, alloc->alloc_opaque, o, base);
-  ULBN_RETURN_IF_ALLOC_FAILED(str, ULBN_ERR_NOMEM);
-  fwrite(str, 1, len, fp);
-  ulbn_deallocT(char, alloc, str, len + 1);
-  return 0;
+  if(printer == ul_nullptr) {
+    printer = _ulbn_cfile_print;
+    opaque = stdout;
+  }
+  if(an == 0)
+    return printer(opaque, "0", 1) ? ULBN_ERR_EXTERNAL : 0;
+  if(ao->len < 0) {
+    if(ul_unlikely(printer(opaque, "-", 1)))
+      return ULBN_ERR_EXTERNAL;
+  }
+
+  rp = ulbn_allocT(ulbn_limb_t, alloc, an);
+  ULBN_RETURN_IF_ALLOC_FAILED(rp, ULBN_ERR_NOMEM);
+  ulbn_copy(rp, _ulbi_limb(ao), an);
+
+  B = ulbn_conv2str_base(base, &B_pow);
+  ci = ulbn_convbase(alloc, &cp, &c_alloc, rp, an, B);
+  ULBN_DO_IF_ALLOC_COND(ci == 0, { goto done; });
+
+  ret = ulbn_conv2print(ci, cp, printer, opaque, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
+
+done:
+  ulbn_deallocT(ulbn_limb_t, alloc, cp, c_alloc);
+  ulbn_deallocT(ulbn_limb_t, alloc, rp, an);
+  return ret ? ULBN_ERR_EXTERNAL : 0;
+}
+ULBN_PUBLIC int ulbi_print(ulbn_alloc_t* alloc, const ulbi_t* o, FILE* fp, int base) {
+  return ulbi_print_ex(alloc, o, base, _ulbn_cfile_print, fp);
 }
 
 

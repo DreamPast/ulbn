@@ -245,6 +245,10 @@ typedef signed long ulbn_slong_t;
 This error directly corresponds to the IEEE754 error code */
 enum ULBN_ERROR_ENUM {
   /**
+   * @brief External error
+   */
+  ULBN_ERR_EXTERNAL = -3,
+  /**
    * @brief Unexpected out-of-bounds error (usually means the result exceeds ulbn_usize_t)
    */
   ULBN_ERR_EXCEED_RANGE = -2,
@@ -316,6 +320,8 @@ typedef struct ulbn_alloc_t {
   void* alloc_opaque;
 } ulbn_alloc_t;
 ULBN_PUBLIC ulbn_alloc_t* ulbn_default_alloc(void);
+
+typedef int ulbi_printer_t(void* opaque, const char* str, size_t len);
 
 
 #if UINT_MAX >= 0xFFFFFFFFu
@@ -1186,12 +1192,24 @@ ULBN_PUBLIC char* ulbi_tostr_alloc(
   const ulbi_t* ao, int base
 );
 /**
+ * @brief Print `o` with `printer`
+ *
+ * @param base String base (2 <= base <= 36)
+ *
+ * @return `ULBN_ERR_NOMEM` if memory is insufficient;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_EXTERNAL` if `printer` returns non-zero;
+ * @return `0` if successful
+ */
+ULBN_PUBLIC int ulbi_print_ex(ulbn_alloc_t* alloc, const ulbi_t* ao, int base, ulbi_printer_t* printer, void* opaque);
+/**
  * @brief Print `o` to `fp`
  *
  * @param base String base (2 <= base <= 36)
  *
  * @return `ULBN_ERR_NOMEM` if memory is insufficient;
  * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_EXTERNAL` if write to `fp` failed;
  * @return `0` if successful
  */
 ULBN_PUBLIC int ulbi_print(ulbn_alloc_t* alloc, const ulbi_t* o, FILE* fp, int base);

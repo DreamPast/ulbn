@@ -870,11 +870,64 @@ public:
     return ret;
   }
   friend std::ostream& operator<<(std::ostream& ost, const BigInt& value) {
-    return ost << value.toString();
+    value.print(ost);
+    return ost;
   }
-  void print(FILE* fp = stdout, int base = 10) {
+  void print(FILE* fp, int base = 10) const {
     _check(ulbi_print(_ctx(), _value, fp, base));
   }
+  void print(std::ostream& ost, int base = 10) const {
+    struct OstreamWrapper {
+      std::exception_ptr exception;
+      std::ostream& ost;
+    };
+    OstreamWrapper wrapper = {{}, ost};
+    int err = ulbi_print_ex(
+      _ctx(), _value, base,
+      [](void* opaque, const char* ptr, size_t len) -> int {
+        OstreamWrapper* o = reinterpret_cast<OstreamWrapper*>(opaque);
+        try {
+          o->ost.write(ptr, len);
+        } catch(...) {
+          o->exception = std::current_exception();
+          return 1;
+        }
+        return 0;
+      },
+      &wrapper
+    );
+    if(err == ULBN_ERR_EXTERNAL)
+      std::rethrow_exception(wrapper.exception);
+    _check(err);
+  }
+  template<class Iter>
+    requires std::output_iterator<Iter, char>
+  void print(Iter& iter, int base = 10) const {
+    struct IterWrapper {
+      std::exception_ptr exception;
+      Iter& iter;
+    };
+    IterWrapper wrapper = {{}, iter};
+    int err = ulbi_print_ex(
+      _ctx(), _value, base,
+      [](void* opaque, const char* ptr, size_t len) -> int {
+        IterWrapper* o = reinterpret_cast<IterWrapper*>(opaque);
+        try {
+          for(size_t i = 0; i < len; ++i)
+            *o->iter++ = ptr[i];
+        } catch(...) {
+          o->exception = std::current_exception();
+          return 1;
+        }
+        return 0;
+      },
+      &wrapper
+    );
+    if(err == ULBN_ERR_EXTERNAL)
+      std::rethrow_exception(wrapper.exception);
+    _check(err);
+  }
+
 
   ulbi_t* get() noexcept {
     return _value;

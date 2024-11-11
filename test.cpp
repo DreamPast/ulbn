@@ -134,9 +134,9 @@ void testCastTo() {
     T_assert(BigInt(i).toString() == std::to_string(i));
 
 
-  BigInt("12345678901234567890").print();
+  BigInt("12345678901234567890").print(std::cout);
   fprintf(stdout, "\n");
-  BigInt("-12345678901234567890").print();
+  BigInt("-12345678901234567890").print(std::cout);
   fprintf(stdout, "\n");
   T_assert_exception([] { BigInt("12345678901234567890").print(stdout, 0); }, ULBN_ERR_EXCEED_RANGE);
 
