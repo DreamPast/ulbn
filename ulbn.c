@@ -864,6 +864,85 @@ ULBN_INTERNAL ulbn_limb_t ulbn_shr(ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_
   return ret;
 }
 
+/* rp[0:n] = ap[0:n] + (bp[0:n] << b), return overflow part (do not write to rp[n]), ensure 0 < b < {ULBN_LIMB_BITS} */
+ULBN_INTERNAL ulbn_limb_t ulbn_addshln(
+  ulbn_limb_t* rp, const ulbn_limb_t* ap,      /* */
+  const ulbn_limb_t* bp, ulbn_usize_t n, int b /* */
+) {
+  ulbn_usize_t i;
+  ulbn_limb_t bl, r, limb = 0, cy = 0;
+  const int br = ul_static_cast(int, ULBN_LIMB_BITS) - b;
+
+  ulbn_assert(n > 0);
+  ulbn_assert(0 < b && ul_static_cast(unsigned, b) < ULBN_LIMB_BITS);
+  ulbn_assert_forward_overlap(rp, n, bp, n);
+
+  for(i = 0; i < n; ++i) {
+    bl = bp[i];
+    limb |= bl << b;
+    cy = ((r = ap[i] + cy) < cy);
+    cy += ((r += limb) < limb);
+    ulbn_assert(cy <= 1u);
+    rp[i] = r;
+    limb = bl >> br;
+  }
+  return limb + cy;
+}
+/* rp[0:an] = ap[0:an] + (bp[0:bn] << b), return overflow part (do not write to rp[n]),
+  ensure 0 < b < {ULBN_LIMB_BITS} */
+ULBN_INTERNAL ulbn_limb_t ulbn_addshl(
+  ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t an, /* */
+  const ulbn_limb_t* bp, ulbn_usize_t bn, int b            /* */
+) {
+  ulbn_limb_t cy;
+
+  ulbn_assert(an >= bn);
+  ulbn_assert_forward_overlap(rp, an, ap, an);
+  ulbn_assert_forward_overlap(rp, an, bp, bn);
+
+  cy = ulbn_addshln(rp, ap, bp, bn, b);
+  return ulbn_add1(rp + bn, ap + bn, an - bn, cy);
+}
+/* rp[0:n] = ap[0:n] - (bp[0:n] << b), return overflow part (do not write to rp[n]), ensure 0 < b < {ULBN_LIMB_BITS} */
+ULBN_INTERNAL ulbn_limb_t ulbn_subshln(
+  ulbn_limb_t* rp, const ulbn_limb_t* ap,      /* */
+  const ulbn_limb_t* bp, ulbn_usize_t n, int b /* */
+) {
+  ulbn_usize_t i;
+  ulbn_limb_t bl, limb = 0, cy = 0;
+  const int br = ul_static_cast(int, ULBN_LIMB_BITS) - b;
+
+  ulbn_assert(n > 0);
+  ulbn_assert(0 < b && ul_static_cast(unsigned, b) < ULBN_LIMB_BITS);
+  ulbn_assert_forward_overlap(rp, n, bp, n);
+
+  for(i = 0; i < n; ++i) {
+    bl = bp[i];
+    limb |= bl << b;
+    cy = ((limb += cy) < cy);
+    cy += (ap[i] < limb);
+    ulbn_assert(cy <= 1u);
+    rp[i] = ap[i] - limb;
+    limb = bl >> br;
+  }
+  return limb + cy;
+}
+/* rp[0:an] = ap[0:an] - (bp[0:bn] << b), return overflow part (do not write to rp[n]),
+  ensure 0 < b < {ULBN_LIMB_BITS} */
+ULBN_INTERNAL ulbn_limb_t ulbn_subshl(
+  ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t an, /* */
+  const ulbn_limb_t* bp, ulbn_usize_t bn, int b            /* */
+) {
+  ulbn_limb_t cy;
+
+  ulbn_assert(an >= bn);
+  ulbn_assert_forward_overlap(rp, an, ap, an);
+  ulbn_assert_forward_overlap(rp, an, bp, bn);
+
+  cy = ulbn_subshln(rp, ap, bp, bn, b);
+  return ulbn_sub1(rp + bn, ap + bn, an - bn, cy);
+}
+
 
 /* rp[0:an] = ap[0:an] * b, return carry (do not write to rp[an]) */
 ULBN_INTERNAL ulbn_limb_t ulbn_mul1(ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t an, ulbn_limb_t b) {
@@ -940,6 +1019,21 @@ ULBN_INTERNAL void ulbn_mul_school(
 
 #define _ULBN_TOOM_1_THRESHOLD 48
 #define _ULBN_TOOM_2_THRESHOLD 128
+#define _ULBN_TOOM_3_THRESHOLD 1024
+
+#define _ULBN_TOOM_1_MIN_THRESHOLD 2
+#define _ULBN_TOOM_2_MIN_THRESHOLD 4
+#define _ULBN_TOOM_3_MIN_THRESHOLD 9
+#if _ULBN_TOOM_1_THRESHOLD < _ULBN_TOOM_1_MIN_THRESHOLD
+  #error "ulbn: toom-2 and toom-1.5 thresholds must be at least 2"
+#endif
+#if _ULBN_TOOM_2_THRESHOLD < _ULBN_TOOM_2_MIN_THRESHOLD
+  #error "ulbn: toom-3 and toom-2.5 thresholds must be at least 4"
+#endif
+#if _ULBN_TOOM_3_THRESHOLD < _ULBN_TOOM_3_MIN_THRESHOLD
+  #error "ulbn: toom-4 and toom-3.5 thresholds must be at least 9"
+#endif
+
 ULBN_INTERNAL void ulbn_divmod_inv1(
   ulbn_limb_t* qp, ulbn_limb_t* rp,        /* */
   const ulbn_limb_t* ap, ulbn_usize_t an,  /* */
@@ -961,37 +1055,75 @@ ULBN_PRIVATE void ulbn_mul(
   const ulbn_limb_t* bp, ulbn_usize_t bn            /* */
 );
 
-ULBN_PRIVATE void _ulbn_divby3(ulbn_limb_t* qp, const ulbn_limb_t* ap, ulbn_usize_t an) {
 #if ULBN_LIMB_MAX == 0xFFu
-  static ul_constexpr const int D3_SHIFT = 6;
-  static ul_constexpr const ulbn_limb_t D3_NORM = 0xC0u;
-  static ul_constexpr const ulbn_limb_t D3_INV = 0x55u;
+  #define _ULBN_DEF_SHORT_DIV(prefix, a, b, c) 0x##prefix##a##u
 #elif ULBN_LIMB_MAX == 0xFFFFu
-  static ul_constexpr const int D3_SHIFT = 14;
-  static ul_constexpr const ulbn_limb_t D3_NORM = 0xC000u;
-  static ul_constexpr const ulbn_limb_t D3_INV = 0x5555u;
+  #define _ULBN_DEF_SHORT_DIV(prefix, a, b, c) 0x##prefix##a##b##c##u
 #elif ULBN_LIMB_MAX == 0xFFFFFFFFu
-  static ul_constexpr const int D3_SHIFT = 30;
-  static ul_constexpr const ulbn_limb_t D3_NORM = 0xC0000000u;
-  static ul_constexpr const ulbn_limb_t D3_INV = 0x55555555u;
+  #define _ULBN_DEF_SHORT_DIV(prefix, a, b, c) 0x##prefix##a##b##c##a##b##c##a##u
 #elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
-  static ul_constexpr const int D3_SHIFT = 62;
-  static ul_constexpr const ulbn_limb_t D3_NORM = 0xC000000000000000ull;
-  static ul_constexpr const ulbn_limb_t D3_INV = 0x5555555555555555ull;
-#else
-  #ifdef __cplusplus
-  static const int D3_SHIFT = _ulbn_clz_(3);
-  static const ulbn_limb_t D3_NORM = ULBN_LIMB_SHL(3, D3_SHIFT);
-  static const ulbn_limb_t D3_INV = _ulbn_divinv1(D3_NORM);
-  #else
-  const int D3_SHIFT = _ulbn_clz_(3);
-  const ulbn_limb_t D3_NORM = ULBN_LIMB_SHL(3, D3_SHIFT);
-  const ulbn_limb_t D3_INV = _ulbn_divinv1(D3_NORM);
-  #endif
+  #define _ULBN_DEF_SHORT_DIV(prefix, a, b, c) 0x##prefix##a##b##c##a##b##c##a##b##c##a##b##c##a##b##c##u
 #endif
-  static ulbn_limb_t R_POLYFILL;
-  ulbn_divmod_inv1(qp, &R_POLYFILL, ap, an, D3_NORM, D3_INV, D3_SHIFT);
+#ifdef __cplusplus
+  #define ulbn_may_static static
+#else
+  #define ulbn_may_static
+#endif
+
+static ulbn_limb_t _ULBN_SHORT_DIV_R; /* write-only variable */
+ULBN_PRIVATE void _ulbn_divby3(ulbn_limb_t* qp, const ulbn_limb_t* ap, ulbn_usize_t an, int dshift) {
+#ifdef _ULBN_DEF_SHORT_DIV
+  static ul_constexpr const int SHIFT = ul_static_cast(int, _ULBN_LIMB_BITS) - 2;
+  static ul_constexpr const ulbn_limb_t NORM = _ULBN_DEF_SHORT_DIV(C, 0, 0, 0);
+  static ul_constexpr const ulbn_limb_t INV = _ULBN_DEF_SHORT_DIV(5, 5, 5, 5);
+#else
+  ulbn_may_static const int SHIFT = _ulbn_clz_(3);
+  ulbn_may_static const ulbn_limb_t NORM = ULBN_LIMB_SHL(3, SHIFT);
+  ulbn_may_static const ulbn_limb_t INV = _ulbn_divinv1(NORM);
+#endif
+  ulbn_divmod_inv1(qp, &_ULBN_SHORT_DIV_R, ap, an, NORM, INV, SHIFT - dshift);
 }
+#if 0
+ULBN_PRIVATE void _ulbn_divby5(ulbn_limb_t* qp, const ulbn_limb_t* ap, ulbn_usize_t an, int dshift) {
+  #ifdef _ULBN_DEF_SHORT_DIV
+  static ul_constexpr const int SHIFT = ul_static_cast(int, ULBN_LIMB_BITS) - 3;
+  static ul_constexpr const ulbn_limb_t NORM = _ULBN_DEF_SHORT_DIV(A, 0, 0, 0);
+  static ul_constexpr const ulbn_limb_t INV = _ULBN_DEF_SHORT_DIV(9, 9, 9, 9);
+  #else
+  ulbn_may_static const int SHIFT = _ulbn_clz_(5);
+  ulbn_may_static const ulbn_limb_t NORM = ULBN_LIMB_SHL(5, SHIFT);
+  ulbn_may_static const ulbn_limb_t INV = _ulbn_divinv1(NORM);
+  #endif
+  ulbn_divmod_inv1(qp, &_ULBN_SHORT_DIV_R, ap, an, NORM, INV, SHIFT - dshift);
+}
+#endif
+ULBN_PRIVATE void _ulbn_divby9(ulbn_limb_t* qp, const ulbn_limb_t* ap, ulbn_usize_t an, int dshift) {
+#ifdef _ULBN_DEF_SHORT_DIV
+  static ul_constexpr const int SHIFT = ul_static_cast(int, _ULBN_LIMB_BITS) - 4;
+  static ul_constexpr const ulbn_limb_t NORM = _ULBN_DEF_SHORT_DIV(9, 0, 0, 0);
+  static ul_constexpr const ulbn_limb_t INV = _ULBN_DEF_SHORT_DIV(C, 7, 1, C);
+#else
+  ulbn_may_static const int SHIFT = _ulbn_clz_(15);
+  ulbn_may_static const ulbn_limb_t NORM = ULBN_LIMB_SHL(15, SHIFT);
+  ulbn_may_static const ulbn_limb_t INV = _ulbn_divinv1(NORM);
+#endif
+  ulbn_divmod_inv1(qp, &_ULBN_SHORT_DIV_R, ap, an, NORM, INV, SHIFT - dshift);
+}
+ULBN_PRIVATE void _ulbn_divby15(ulbn_limb_t* qp, const ulbn_limb_t* ap, ulbn_usize_t an, int dshift) {
+#ifdef _ULBN_DEF_SHORT_DIV
+  static ul_constexpr const int SHIFT = ul_static_cast(int, _ULBN_LIMB_BITS) - 4;
+  static ul_constexpr const ulbn_limb_t NORM = _ULBN_DEF_SHORT_DIV(F, 0, 0, 0);
+  static ul_constexpr const ulbn_limb_t INV = _ULBN_DEF_SHORT_DIV(1, 1, 1, 1);
+#else
+  ulbn_may_static const int SHIFT = _ulbn_clz_(15);
+  ulbn_may_static const ulbn_limb_t NORM = ULBN_LIMB_SHL(15, SHIFT);
+  ulbn_may_static const ulbn_limb_t INV = _ulbn_divinv1(NORM);
+#endif
+  ulbn_divmod_inv1(qp, &_ULBN_SHORT_DIV_R, ap, an, NORM, INV, SHIFT - dshift);
+}
+#ifdef _ULBN_DEF_SHORT_DIV
+  #undef _ULBN_DEF_SHORT_DIV
+#endif
 
 ULBN_PRIVATE int _ulbn_mul_toom_21(
   ulbn_alloc_t* alloc,                               /* */
@@ -1000,7 +1132,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_21(
   const ulbn_limb_t* bp, ulbn_usize_t bn             /* */
 ) {
   /**
-   * Toom-2/1
+   * Toom-1.5
    * Note: This function is designed to handle cases where `ap` is extremely large but `bp` is not small enough.
    * It will split `ap` in half and expect to trigger a more efficient algorithm.
    *
@@ -1104,7 +1236,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   const ulbn_limb_t* bp, ulbn_usize_t bn             /* */
 ) {
   /*
-    Toom-3/2
+    Toom-2.5
 
     v(  0) = (   0   0   0   1)
     v(  1) = (   1   1   1   1)
@@ -1112,16 +1244,20 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
     v(inf) = (   1   0   0   0)
   */
 
+  /*************
+   * splitting *
+   *************/
+
   const ulbn_usize_t m2 = m << 1, am = an - m2, bm = bn - m, abm = am + bm;
   const ulbn_limb_t *const a0 = ap, *const a1 = ap + m, *const a2 = ap + m2;
   const ulbn_limb_t *const b0 = bp, *const b1 = bp + m;
-  ulbn_limb_t* rinf = rp + m2 + m;
+  ulbn_limb_t* const rinf = rp + m2 + m;
 
   ulbn_limb_t *ul_restrict v1, *ul_restrict vm1;
   ulbn_limb_t* ul_restrict t1;
 
   ulbn_usize_t n1, n2, nt;
-  int sign;
+  int vm1_sign;
   int err = ULBN_ERR_NOMEM;
 
   ulbn_assert(an >= bn);
@@ -1136,23 +1272,33 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   t1 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
   ULBN_DO_IF_ALLOC_FAILED(t1, goto cleanup_t1;);
 
+  /*******************************************
+   * evaluation and pointwise multiplication *
+   *******************************************/
+
+  /* t1 = a0 + a2 */
   t1[m] = ulbn_add(t1, a0, m, a2, am);
+  /* rp = t1 + a1 = a0 + a1 + a2 */
   rp[m] = t1[m] + ulbn_add(rp, t1, m, a1, m);
+  /* vm1 = b0 + b1 */
   vm1[m] = ulbn_add(vm1, b0, m, b1, bm);
+  /* v1 = rp * vm1 = (a0 + a1 + a2) * (b0 + b1) */
   ulbn_mul(alloc, v1, rp, m + 1, vm1, m + 1);
 
+  /* t1 = t1 - a1 = a0 - a1 + a2 */
   n1 = ulbn_normalize(t1, m + 1);
   nt = ulbn_normalize(a1, m);
   if(ulbn_cmp(t1, n1, a1, nt) >= 0) {
     ulbn_sub(t1, t1, n1, a1, nt);
     n1 = ulbn_normalize(t1, n1);
-    sign = 0;
+    vm1_sign = 0;
   } else {
     ulbn_sub(t1, a1, nt, t1, n1);
     n1 = ulbn_normalize(t1, nt);
-    sign = 1;
+    vm1_sign = 1;
   }
 
+  /* rp = b0 - b1 */
   n2 = ulbn_normalize(b0, m);
   nt = ulbn_normalize(b1, bm);
   if(ulbn_cmp(b0, n2, b1, nt) >= 0) {
@@ -1161,9 +1307,10 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   } else {
     ulbn_sub(rp, b1, nt, b0, n2);
     n2 = ulbn_normalize(rp, nt);
-    sign ^= 1;
+    vm1_sign ^= 1;
   }
 
+  /* vm1 = t1 * rp = (a0 - a1 + a2) * (b0 - b1) */
   if(n1 && n2) {
     ulbn_mul(alloc, vm1, t1, n1, rp, n2);
     ulbn_fill0(vm1 + n1 + n2, (m2 + 2) - (n1 + n2));
@@ -1173,17 +1320,21 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   ulbn_mul(alloc, rp, a0, m, b0, m);
   ulbn_mul(alloc, rinf, a2, am, b1, bm);
 
+  /*****************
+   * interpolation *
+   *****************/
+
 #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
-  printf("vm1 = %c", sign ? '-' : '+');
+  printf("vm1 = %c", vm1_sign ? '-' : '+');
   ulbn_dprint(stdout, ul_nullptr, vm1, m2 + 1);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
 #endif
 
   /* t1 = v1 + vm1 = (0, 2, 0, 2) */
   /* v1 = v1 - vm1 = (2, 0, 2, 0) */
-  if(sign == 0) {
+  if(vm1_sign == 0) {
     ulbn_add(t1, v1, m2 + 1, vm1, m2 + 1);
     ulbn_sub(v1, v1, m2 + 1, vm1, m2 + 1);
   } else {
@@ -1200,6 +1351,10 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   /* v1 = v1 - vinf = (0, 0, 1, 0) */
   ulbn_shr(v1, v1, m2 + 1, 1);
   ulbn_sub(v1, v1, m2 + 1, rinf, abm);
+
+  /*****************
+   * recomposition *
+   *****************/
 
 #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
@@ -1238,16 +1393,20 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
     v(inf) = (  1   0   0   0   0)
   */
 
+  /*************
+   * splitting *
+   *************/
+
   const ulbn_usize_t m2 = m << 1, am = an - m2, bm = bn - m2, abm = am + bm;
   const ulbn_limb_t *const a0 = ap, *const a1 = ap + m, *const a2 = ap + m2;
   const ulbn_limb_t *const b0 = bp, *const b1 = bp + m, *const b2 = bp + m2;
-  ulbn_limb_t* rinf = rp + m2 + m2;
+  ulbn_limb_t* const rinf = rp + m2 + m2;
 
   ulbn_limb_t *ul_restrict v1, *ul_restrict vm1, *ul_restrict v2;
   ulbn_limb_t *ul_restrict t1, *ul_restrict t2;
 
   ulbn_usize_t n1, n2, nt;
-  int sign;
+  int vm1_sign;
   int err = ULBN_ERR_NOMEM;
 
   ulbn_assert(an >= bn);
@@ -1269,34 +1428,54 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   t2 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 1);
   ULBN_DO_IF_ALLOC_FAILED(t2, goto cleanup_t2;);
 
+  /*******************************************
+   * evaluation and pointwise multiplication *
+   *******************************************/
+
+  /* t1 = a1 + a2 */
   t1[m] = ulbn_add(t1, a1, m, a2, am);
+  /* vm1 = t1 + a0 = a0 + a1 + a2 */
   vm1[m] = t1[m] + ulbn_add(vm1, t1, m, a0, m);
+  /* t2 = b1 + b2 */
   t2[m] = ulbn_add(t2, b1, m, b2, bm);
+  /* v2 = t2 + b0 = b0 + b1 + b2 */
   v2[m] = t2[m] + ulbn_add(v2, t2, m, b0, m);
+  /* v1 = vm1 * v2 = (a0 + a1 + a2) * (b0 + b1 + b2) */
   ulbn_mul(alloc, v1, vm1, m + 1, v2, m + 1);
 
+  /* t1 = t1 + a2 = a1 + 2*a2 */
   t1[m] += ulbn_add(t1, t1, m, a2, am);
+  /* t1 = t1 << 1 = 2*a1 + 4*a2 */
   t1[m] = ul_static_cast(ulbn_limb_t, (t1[m] << 1) | ulbn_shl(t1, t1, m, 1));
+  /* t1 = t1 + a0 = a0 + 2*a1 + 4*a2 */
   t1[m] += ulbn_add(t1, t1, m, a0, m);
+  /* t2 = t2 + b2 = b1 + 2*b2 */
   t2[m] += ulbn_add(t2, t2, m, b2, bm);
+  /* t2 = t2 << 1 = 2*b1 + 4*b2 */
   t2[m] = ul_static_cast(ulbn_limb_t, (t2[m] << 1) | ulbn_shl(t2, t2, m, 1));
+  /* t2 = t2 + b0 = b0 + 2*b1 + 4*b2 */
   t2[m] += ulbn_add(t2, t2, m, b0, m);
+  /* v2 = t1 * t2 = (a0 + 2*a1 + 4*a2) * (b0 + 2*b1 + 4*b2) */
   ulbn_mul(alloc, v2, t1, m + 1, t2, m + 1);
 
+  /* t1 = a0 + a2 */
   t1[m] = ulbn_add(t1, a0, m, a2, am);
+  /* t1 = t1 - a1 = (a0 - a1 + a2) */
   n1 = ulbn_normalize(t1, m + 1);
   nt = ulbn_normalize(a1, m);
   if(ulbn_cmp(t1, n1, a1, nt) >= 0) {
     ulbn_sub(t1, t1, n1, a1, nt);
     n1 = ulbn_normalize(t1, n1);
-    sign = 0;
+    vm1_sign = 0;
   } else {
     ulbn_sub(t1, a1, nt, t1, n1);
     n1 = ulbn_normalize(t1, nt);
-    sign = 1;
+    vm1_sign = 1;
   }
 
+  /* t2 = b0 + b2 */
   t2[m] = ulbn_add(t2, b0, m, b2, bm);
+  /* t2 = t2 - b1 = (b0 - b1 + b2) */
   n2 = ulbn_normalize(t2, m + 1);
   nt = ulbn_normalize(b1, m);
   if(ulbn_cmp(t2, n2, b1, nt) >= 0) {
@@ -1305,27 +1484,32 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   } else {
     ulbn_sub(t2, b1, nt, t2, n2);
     n2 = ulbn_normalize(t2, nt);
-    sign ^= 1;
+    vm1_sign ^= 1;
   }
 
+  /* vm1 = t1 * t2 = (a0 - a1 + a2) * (b0 - b1 + b2) */
   if(n1 && n2) {
     ulbn_mul(alloc, vm1, t1, n1, t2, n2);
     ulbn_fill0(vm1 + n1 + n2, (m2 + 2) - (n1 + n2));
-  } else {
+  } else
     ulbn_fill0(vm1, m2 + 2);
-  }
+
+    /*****************
+     * interpolation *
+     *****************/
 
 #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
-  ulbn_dprint(stdout, "vm1 = ", vm1, m2 + 1);
+  printf("vm1 = %c", vm1_sign ? '-' : '+');
+  ulbn_dprint(stdout, ul_nullptr, vm1, m2 + 1);
   ulbn_dprint(stdout, "v2 = ", v2, m2 + 1);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
 #endif
 
   /* v2 = v2 - vm1 = (15, 9, 3, 3, 0) */
   /* vm1 = v1 - vm1 = (0, 2, 0, 2, 0) */
-  if(sign == 0) {
+  if(vm1_sign == 0) {
     ulbn_sub(v2, v2, m2 + 1, vm1, m2 + 1);
     ulbn_sub(vm1, v1, m2 + 1, vm1, m2 + 1);
   } else {
@@ -1333,7 +1517,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
     ulbn_add(vm1, v1, m2 + 1, vm1, m2 + 1);
   }
   /* v2 = v2 / 3 = (5, 3, 1, 1, 0) */
-  _ulbn_divby3(v2, v2, m2 + 1);
+  _ulbn_divby3(v2, v2, m2 + 1, 0);
   /* vm1 = vm1 / 2 = (0, 1, 0, 1, 0) */
   ulbn_shr(vm1, vm1, m2 + 1, 1);
 
@@ -1355,6 +1539,10 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   t2[abm] = ulbn_add(t2, rinf, abm, rinf, abm);
   ulbn_sub(v1, v1, m2 + 1, t2, abm + 1);
   ulbn_sub(vm1, vm1, m2 + 1, v1, m2 + 1);
+
+  /*****************
+   * recomposition *
+   *****************/
 
 #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
@@ -1381,6 +1569,560 @@ cleanup_vm1:
   ulbn_deallocT(ulbn_limb_t, alloc, v1, m2 + 2);
 cleanup_v1:
   return err;
+}
+
+ULBN_INTERNAL ulbn_limb_t ulbn_com(ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t an, ulbn_limb_t cy);
+ULBN_PRIVATE int _ulbn_mul_toom_43(
+  ulbn_alloc_t* alloc,                               /* */
+  ulbn_limb_t* ul_restrict rp, const ulbn_usize_t m, /* */
+  const ulbn_limb_t* ap, ulbn_usize_t an,            /* */
+  const ulbn_limb_t* bp, ulbn_usize_t bn             /* */
+) {
+  /*
+    Toom-3.5
+                                         |     a(x)      |   |    b(x)   |
+    v(  0) = (  0   0   0   0   0   1)   (  0   0   0   1) * (  0   0   1)
+    v(  1) = (  1   1   1   1   1   1)   (  1   1   1   1) * (  1   1   1)
+    v( -1) = ( -1   1  -1   1  -1   1)   ( -1   1  -1   1) * (  1  -1   1)
+    v(  2) = ( 32  16   8   4   2   1)   (  8   4   2   1) * (  4   2   1)
+    v( -2) = (-32  16  -8   4  -2   1)   ( -8   4  -2   1) * (  4  -2   1)
+    v(inf) = (  1   0   0   0   0   0)   (  1   0   0   0) * (  1   0   0)
+
+    32 * C(5,0) + 16 * C(5,1) + 8 * C(5,2) + 4 * C(5,3) + 2 * C(5,4) + 1 * C(5,5) = 243 < 2**8
+    64 * C(5,0) + 0 * C(5,1) + 16 * C(5,2) + 0 * C(5,3) + 4 * C(5,4) + 0 * C(5,5) = 244 < 2**8
+    0 * C(5,0) + 32 * C(5,1) + 0 * C(5,2) + 8 * C(5,3) + 0 * C(5,4) + 2 * C(5,5) = 242 < 2**8
+  */
+
+  /*************
+   * splitting *
+   *************/
+
+  const ulbn_usize_t m2 = m << 1, m3 = m2 + m, am = an - m3, bm = bn - m2, abm = am + bm;
+  const ulbn_limb_t *const a0 = ap, *const a1 = ap + m, *const a2 = ap + m2, *const a3 = ap + m3;
+  const ulbn_limb_t *const b0 = bp, *const b1 = bp + m, *const b2 = bp + m2;
+  ulbn_limb_t *const rinf = rp + m3 + m2, *const v1 = rp + m2;
+
+  ulbn_limb_t *ul_restrict vm1, *ul_restrict v2, *ul_restrict vm2;
+  ulbn_limb_t *ul_restrict t1, *ul_restrict t2, *ul_restrict t3;
+
+  ulbn_usize_t n1, n2, nt;
+  int vm1_sign, vm2_sign;
+  int err = ULBN_ERR_NOMEM;
+
+  vm1 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(vm1, goto cleanup_vm1;);
+  v2 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(v2, goto cleanup_v2;);
+  vm2 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(vm2, goto cleanup_vm2;);
+  t1 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(t1, goto cleanup_t1;);
+  t2 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(t2, goto cleanup_t2;);
+  t3 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(t3, goto cleanup_t3;);
+
+  /*******************************************
+   * evaluation and pointwise multiplication *
+   *******************************************/
+
+  /* t1 = a0 + a2 */
+  t1[m] = ulbn_add(t1, a0, m, a2, m);
+  /* t2 = a1 + a3 */
+  t2[m] = ulbn_add(t2, a1, m, a3, am);
+  /* t3 = b0 + b2 */
+  t3[m] = ulbn_add(t3, b0, m, b2, bm);
+
+  /* vm1 = t1 + t2 = a0 + a1 + a2 + a3 */
+  vm1[m] = t1[m] + t2[m] + ulbn_add(vm1, t1, m, t2, m);
+  /* vm2 = t3 + b1 = b0 + b1 + b2 */
+  vm2[m] = t3[m] + ulbn_add(vm2, t3, m, b1, m);
+  /* v1 = vm1 * vm2 = (a0 + a1 + a2 + a3) * (b0 + b1 + b2) */
+  ulbn_mul(alloc, v1, vm1, m + 1, vm2, m + 1);
+
+  /* t1 = t1 - t2 = a0 - a1 + a2 - a3 */
+  n1 = ulbn_normalize(t1, m + 1);
+  nt = ulbn_normalize(t2, m + 1);
+  if(ulbn_cmp(t1, n1, t2, nt) >= 0) {
+    ulbn_sub(t1, t1, n1, t2, nt);
+    n1 = ulbn_normalize(t1, n1);
+    vm1_sign = 0;
+  } else {
+    ulbn_sub(t1, t2, nt, t1, n1);
+    n1 = ulbn_normalize(t1, nt);
+    vm1_sign = 1;
+  }
+
+  /* t3 = t3 - b1 = b0 - b1 + b2 */
+  n2 = ulbn_normalize(t3, m + 1);
+  nt = ulbn_normalize(b1, m);
+  if(ulbn_cmp(t3, n2, b1, nt) >= 0) {
+    ulbn_sub(t3, t3, n2, b1, nt);
+    n2 = ulbn_normalize(t3, n2);
+  } else {
+    ulbn_sub(t3, b1, nt, t3, n2);
+    n2 = ulbn_normalize(t3, nt);
+    vm1_sign ^= 1;
+  }
+
+  /* vm1 = t1 * t3 = (a0 - a1 + a2 - a3) * (b0 - b1 + b2) */
+  if(n1 && n2) {
+    ulbn_mul(alloc, vm1, t1, n1, t3, n2);
+    ulbn_fill0(vm1 + n1 + n2, (m2 + 2) - (n1 + n2));
+  } else
+    ulbn_fill0(vm1, m2 + 2);
+
+  /* t1 = a0 + (a2 << 2) = a0 + 4*a2 */
+  t1[m] = ulbn_addshl(t1, a0, m, a2, m, 2);
+  /* t2 = a1 << 1 = 2*a1 */
+  t2[m] = ulbn_shl(t2, a1, m, 1);
+  /* t2 = t2 + (a3 << 3) = 2*a1 + 8*a3 */
+  t2[m] += ulbn_addshl(t2, t2, m, a3, am, 3);
+  /* t3 = b0 + (b2 << 2) = b0 + 4*b2 */
+  t3[m] = ulbn_addshl(t3, b0, m, b2, bm, 2);
+  /* t3 = t3 + (b1 << 1) = b0 + 2*b1 + 4*b2 */
+  t3[m] += ulbn_addshl(t3, t3, m, b1, m, 1);
+
+  /* vm2 = t1 + t2 = a0 + 2*a1 + 4*a2 + 8*a3 */
+  vm2[m] = t1[m] + t2[m] + ulbn_add(vm2, t1, m, t2, m);
+  /* v2 = vm2 * t3 = (a0 + 2*a1 + 4*a2 + 8*a3) * (b0 + 2*b1 + 4*b2) */
+  ulbn_mul(alloc, v2, vm2, m + 1, t3, m + 1);
+
+  /* t1 = t1 - t2 = a0 - 2*a1 + 4*a2 - 8*a3 */
+  n1 = ulbn_normalize(t1, m + 1);
+  nt = ulbn_normalize(t2, m + 1);
+  if(ulbn_cmp(t1, n1, t2, nt) >= 0) {
+    ulbn_sub(t1, t1, n1, t2, nt);
+    n1 = ulbn_normalize(t1, n1);
+    vm2_sign = 0;
+  } else {
+    ulbn_sub(t1, t2, nt, t1, n1);
+    n1 = ulbn_normalize(t1, nt);
+    vm2_sign = 1;
+  }
+  /* t2 = b1 << 2 = 4*b1 */
+  t2[m] = ulbn_shl(t2, b1, m, 2);
+  /* t3 = t3 - t2 = b0 - 2*b1 + 4*b2 */
+  n2 = ulbn_normalize(t3, m + 1);
+  nt = ulbn_normalize(t2, m + 1);
+  if(ulbn_cmp(t3, n2, t2, nt) >= 0) {
+    ulbn_sub(t3, t3, n2, t2, nt);
+    n2 = ulbn_normalize(t3, n2);
+  } else {
+    ulbn_sub(t3, t2, nt, t3, n2);
+    n2 = ulbn_normalize(t3, nt);
+    vm2_sign ^= 1;
+  }
+
+  /* vm2 = t1 * t3 = (a0 - 2*a1 + 4*a2 - 8*a3) * (b0 - 2*b1 + 4*b2) */
+  if(n1 && n2) {
+    ulbn_mul(alloc, vm2, t1, n1, t3, n2);
+    ulbn_fill0(vm2 + n1 + n2, (m2 + 2) - (n1 + n2));
+  } else
+    ulbn_fill0(vm2, m2 + 2);
+
+  /* v0 = a0 * b0 */
+  ulbn_mul(alloc, rp, a0, m, b0, m);
+  /* vinf = a4 * b3 */
+  ulbn_mul(alloc, rinf, a3, am, b2, bm);
+
+  /*****************
+   * interpolation *
+   *****************/
+
+#if 0
+  ulbn_dprint(stdout, "v0 = ", rp, m2);
+  ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
+  printf("vm1 = %c", vm1_sign ? '-' : '+');
+  ulbn_dprint(stdout, ul_nullptr, vm1, m2 + 1);
+  ulbn_dprint(stdout, "v2 = ", v2, m2 + 1);
+  printf("vm2 = %c", vm2_sign ? '-' : '+');
+  ulbn_dprint(stdout, ul_nullptr, vm2, m2 + 1);
+  ulbn_dprint(stdout, "vinf = ", rinf, abm);
+#endif
+
+  /* t1 = v1 - vm1 = (2, 0, 2, 0, 2, 0) */
+  /* v1 = v1 + vm1 = (0, 2, 0, 2, 0, 2) */
+  if(!vm1_sign) {
+    ulbn_sub(t1, v1, m2 + 1, vm1, m2 + 1);
+    ulbn_add(v1, v1, m2 + 1, vm1, m2 + 1);
+  } else {
+    ulbn_add(t1, v1, m2 + 1, vm1, m2 + 1);
+    ulbn_sub(v1, v1, m2 + 1, vm1, m2 + 1);
+  }
+  /* t2 = v2 - vm2 = (64, 0, 16, 0, 4, 0) */
+  /* v2 = v2 + vm2 = (0, 32, 0, 8, 0, 2) */
+  if(!vm2_sign) {
+    ulbn_sub(t2, v2, m2 + 1, vm2, m2 + 1);
+    ulbn_add(v2, v2, m2 + 1, vm2, m2 + 1);
+  } else {
+    ulbn_add(t2, v2, m2 + 1, vm2, m2 + 1);
+    ulbn_sub(v2, v2, m2 + 1, vm2, m2 + 1);
+  }
+
+  /* v2 = v2 - v1 = (0, 30, 0, 6, 0, 0) */
+  ulbn_sub(v2, v2, m2 + 1, v1, m2 + 1);
+  /* v2 = v2 / 6 = (0, 5, 0, 1, 0, 0) */
+  _ulbn_divby3(v2, v2, m2 + 1, 1);
+  /* v1 = v1 / 2 = (0, 1, 0, 1, 0, 1) */
+  ulbn_shr(v1, v1, m2 + 1, 1);
+  /* v1 = v1 - v0 = (0, 1, 0, 1, 0, 0) */
+  ulbn_sub(v1, v1, m2 + 1, rp, m2);
+  /* v2 = v2 - v1 = (0, 4, 0, 0, 0, 0) */
+  ulbn_sub(v2, v2, m2 + 1, v1, m2 + 1);
+  /* v2 = v2 / 4 = (0, 1, 0, 0, 0, 0) */
+  ulbn_shr(v2, v2, m2 + 1, 2);
+  /* v1 = v1 - v2 = (0, 0, 0, 1, 0, 0) */
+  ulbn_sub(v1, v1, m2 + 1, v2, m2 + 1);
+
+  /* t1 = t1 / 2 = (1, 0, 1, 0, 1, 0) */
+  ulbn_shr(t1, t1, m2 + 1, 1);
+  /* t1 = t1 - vinf = (0, 0, 1, 0, 1, 0) */
+  ulbn_sub(t1, t1, m2 + 1, rinf, abm);
+  /* t2 = t2 - (vinf << 6) = (0, 0, 16, 0, 4, 0) */
+  ulbn_subshl(t2, t2, m2 + 1, rinf, abm, 6);
+  /* t2 = t2 / 4 = (0, 0, 4, 0, 1, 0) */
+  ulbn_shr(t2, t2, m2 + 1, 2);
+  /* t2 = t2 - t1 = (0, 0, 3, 0, 0, 0) */
+  ulbn_sub(t2, t2, m2 + 1, t1, m2 + 1);
+  /* t2 = t2 / 3 = (0, 0, 1, 0, 0, 0) */
+  _ulbn_divby3(t2, t2, m2 + 1, 0);
+  /* t1 = t1 - t2 = (0, 0, 0, 0, 1, 0) */
+  ulbn_sub(t1, t1, m2 + 1, t2, m2 + 1);
+
+  /*****************
+   * recomposition *
+   *****************/
+
+#if 0
+  ulbn_dprint(stdout, "v0 = ", rp, m2);
+  ulbn_dprint(stdout, "t1 = ", t1, m2 + 1);
+  ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
+  ulbn_dprint(stdout, "t2 = ", t2, m2 + 1);
+  ulbn_dprint(stdout, "v2 = ", v2, m2 + 1);
+  ulbn_dprint(stdout, "vinf = ", rinf, abm);
+#endif
+
+  ulbn_fill0(rinf - m + 1, m - 1);
+  ulbn_add(rp + m, rp + m, an + bn - m, t1, m2 + 1);
+  ulbn_add(rp + m3, rp + m3, an + bn - m3, t2, m2 + 1);
+  ulbn_add(rinf - m, rinf - m, abm + m, v2, _ulbn_min_(m2 + 1, abm + m));
+  err = 0;
+
+  ulbn_deallocT(ulbn_limb_t, alloc, t3, m2 + 2);
+cleanup_t3:
+  ulbn_deallocT(ulbn_limb_t, alloc, t2, m2 + 2);
+cleanup_t2:
+  ulbn_deallocT(ulbn_limb_t, alloc, t1, m2 + 2);
+cleanup_t1:
+  ulbn_deallocT(ulbn_limb_t, alloc, vm2, m2 + 2);
+cleanup_vm2:
+  ulbn_deallocT(ulbn_limb_t, alloc, v2, m2 + 2);
+cleanup_v2:
+  ulbn_deallocT(ulbn_limb_t, alloc, vm1, m2 + 2);
+cleanup_vm1:
+  return err;
+}
+ULBN_PRIVATE int _ulbn_mul_toom_44(
+  ulbn_alloc_t* alloc,                               /* */
+  ulbn_limb_t* ul_restrict rp, const ulbn_usize_t m, /* */
+  const ulbn_limb_t* ap, ulbn_usize_t an,            /* */
+  const ulbn_limb_t* bp, ulbn_usize_t bn             /* */
+) {
+  /*
+    Toom-4
+
+                                                  |     a(x)      |   |     b(x)      |
+    v(  0) = (  0   0   0   0   0   0   1)        (  0   0   0   1) * (  0   0   0   1)   ranging [0, 1)
+    v(  1) = (  1   1   1   1   1   1   1)        (  1   1   1   1) * (  1   1   1   1)   ranging [0, 64)
+    v( -1) = (  1  -1   1  -1   1  -1   1)        ( -1   1  -1   1) * ( -1   1  -1   1)   ranging (-32, 32)
+    v(  2) = ( 64  32  16   8   4   2   1)        (  8   4   2   1) * (  8   4   2   1)   ranging [0, 729)
+    v( -2) = ( 64 -32  16  -8   4  -2   1)        ( -8   4  -2   1) * ( -8   4  -2   1)   ranging (-364, 365)
+    v(1/2) = (  1   2   4   8  16  32  64) / 64   (  1   2   4   8) * (  1   2   4   8)   ranging [0, 729)
+    v(inf) = (  1   0   0   0   0   0   0)        (  1   0   0   0) * (  1   0   0   0)   ranging [0, 1)
+  */
+
+  /*************
+   * splitting *
+   *************/
+
+#if ULBN_LIMB_MAX <= 0xFF
+  #define _ULBN_FLEN 2
+#else
+  #define _ULBN_FLEN 1
+#endif
+  const ulbn_usize_t m2 = m << 1, m3 = m2 + m, m4 = m2 + m2, am = an - m3, bm = bn - m3, abm = am + bm;
+  const ulbn_limb_t *const a0 = ap, *const a1 = ap + m, *const a2 = ap + m2, *const a3 = ap + m3;
+  const ulbn_limb_t *const b0 = bp, *const b1 = bp + m, *const b2 = bp + m2, *const b3 = bp + m3;
+  ulbn_limb_t *const rinf = rp + m3 + m3, *const v1 = rp + m2;
+
+  ulbn_limb_t *ul_restrict v2, *ul_restrict vm1, *ul_restrict vm2, *ul_restrict vh;
+  ulbn_limb_t *ul_restrict t1, *ul_restrict t2, *ul_restrict t3, *ul_restrict t4;
+
+  ulbn_usize_t n1, n2, nt;
+  unsigned vm1_sign, vm2_sign;
+  int err = ULBN_ERR_NOMEM;
+
+  /*******************************************
+   * evaluation and pointwise multiplication *
+   *******************************************/
+
+  v2 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(v2, goto cleanup_v2;);
+  vm1 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(vm1, goto cleanup_vm1;);
+  vm2 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(vm2, goto cleanup_vm2;);
+  vh = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(vh, goto cleanup_vh;);
+  t1 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(t1, goto cleanup_t1;);
+  t2 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(t2, goto cleanup_t2;);
+  t3 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(t3, goto cleanup_t3;);
+  t4 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
+  ULBN_DO_IF_ALLOC_FAILED(t4, goto cleanup_t4;);
+
+  /* t1 = a0 + a2 */
+  t1[m] = ulbn_add(t1, a0, m, a2, m);
+  /* t2 = a1 + a3 */
+  t2[m] = ulbn_add(t2, a1, m, a3, am);
+  /* t3 = b0 + b2 */
+  t3[m] = ulbn_add(t3, b0, m, b2, m);
+  /* t4 = b1 + b3 */
+  t4[m] = ulbn_add(t4, b1, m, b3, am);
+
+  /* vm1 = t1 + t2 = a0 + a1 + a2 + a3 */
+  ulbn_add(vm1, t1, m + 1, t2, m + 1);
+  /* vm2 = t3 + t4 = b0 + b1 + b2 + b3 */
+  ulbn_add(vm2, t3, m + 1, t4, m + 1);
+  /* v1 = vm1 * vm2 = (a0 + a1 + a2 + a3) * (b0 + b1 + b2 + b3) */
+  ulbn_mul(alloc, v1, vm1, m + 1, vm2, m + 1);
+
+  /* t1 = a0 - a1 + a2 - a3 */
+  n1 = ulbn_normalize(t1, m + 1);
+  nt = ulbn_normalize(t2, m + 1);
+  if(ulbn_cmp(t1, n1, t2, nt) >= 0) {
+    ulbn_sub(t1, t1, n1, t2, nt);
+    n1 = ulbn_normalize(t1, n1);
+    vm1_sign = 0;
+  } else {
+    ulbn_sub(t1, t2, nt, t1, n1);
+    n1 = ulbn_normalize(t1, nt);
+    vm1_sign = 1;
+  }
+
+  /* t3 = b0 - b1 + b2 - b3 */
+  n2 = ulbn_normalize(t3, m + 1);
+  nt = ulbn_normalize(t4, m + 1);
+  if(ulbn_cmp(t3, n2, t4, nt) >= 0) {
+    ulbn_sub(t3, t3, n2, t4, nt);
+    n2 = ulbn_normalize(t3, n2);
+  } else {
+    ulbn_sub(t3, t4, nt, t3, n2);
+    n2 = ulbn_normalize(t3, nt);
+    vm1_sign ^= 1;
+  }
+
+  /* vm1 = t1 * t3 = (a0 - a1 + a2 - a3) * (b0 - b1 + b2 - b3) */
+  if(n1 && n2) {
+    ulbn_mul(alloc, vm1, t1, n1, t3, n2);
+    ulbn_fill0(vm1 + n1 + n2, (m2 + 2) - (n1 + n2));
+    ulbn_com(vm1, vm1, m2 + 2, ul_static_cast(ulbn_limb_t, vm1_sign));
+  } else {
+    if(!vm1_sign)
+      ulbn_fill0(vm1, m2 + 2);
+    else
+      ulbn_fill1(vm1, m2 + 2);
+  }
+
+  /* t1 = a0 + 4*a2 */
+  t1[m] = ulbn_addshl(t1, a0, m, a2, m, 2);
+  /* t2 = 2*a1 */
+  t2[m] = ulbn_shl(t2, a1, m, 1);
+  /* t2 = t2 + 8*a3 */
+  t2[m] += ulbn_addshl(t2, t2, m, a3, am, 3);
+  /* t3 = b0 + 4*b2 */
+  t3[m] = ulbn_addshl(t3, b0, m, b2, m, 2);
+  /* t4 = 2*b1 */
+  t4[m] = ulbn_shl(t4, b1, m, 1);
+  /* t4 = t4 + 8*b3 */
+  t4[m] += ulbn_addshl(t4, t4, m, b3, am, 3);
+
+  /* vm2 = t1 + t2 = a0 + 2*a1 + 4*a2 + 8*a3 */
+  ulbn_add(vm2, t1, m + 1, t2, m + 1);
+  /* vh = t3 + t4 = b0 + 2*b1 + 4*b2 + 8*b3 */
+  ulbn_add(vh, t3, m + 1, t4, m + 1);
+  /* v2 = vm2 * vh = (a0 + 2*a1 + 4*a2 + 8*a3) * (b0 + 2*b1 + 4*b2 + 8*b3) */
+  ulbn_mul(alloc, v2, vm2, m + 1, vh, m + 1);
+
+  /* t1 = a0 - 2*a1 + 4*a2 - 8*a3 */
+  n1 = ulbn_normalize(t1, m + 1);
+  nt = ulbn_normalize(t2, m + 1);
+  if(ulbn_cmp(t1, n1, t2, nt) >= 0) {
+    ulbn_sub(t1, t1, n1, t2, nt);
+    n1 = ulbn_normalize(t1, n1);
+    vm2_sign = 0u;
+  } else {
+    ulbn_sub(t1, t2, nt, t1, n1);
+    n1 = ulbn_normalize(t1, nt);
+    vm2_sign = 1u;
+  }
+
+  /* t3 = b0 - 2*b1 + 4*b2 - 8*b3 */
+  n2 = ulbn_normalize(t3, m + 1);
+  nt = ulbn_normalize(t4, m + 1);
+  if(ulbn_cmp(t3, n2, t4, nt) >= 0) {
+    ulbn_sub(t3, t3, n2, t4, nt);
+    n2 = ulbn_normalize(t3, n2);
+  } else {
+    ulbn_sub(t3, t4, nt, t3, n2);
+    n2 = ulbn_normalize(t3, nt);
+    vm2_sign ^= 1u;
+  }
+
+  /* vm2 = t1 * t3 = (a0 - 2*a1 + 4*a2 - 8*a3) * (b0 - 2*b1 + 4*b2 - 8*b3) */
+  if(n1 && n2) {
+    ulbn_mul(alloc, vm2, t1, n1, t3, n2);
+    ulbn_fill0(vm2 + n1 + n2, (m2 + 2) - (n1 + n2));
+    ulbn_com(vm2, vm2, m2 + 2, ul_static_cast(ulbn_limb_t, vm2_sign));
+  } else {
+    if(!vm2_sign)
+      ulbn_fill0(vm2, m2 + 2);
+    else
+      ulbn_fill1(vm2, m2 + 2);
+  }
+
+  /* t1 = a3 + a2 */
+  t1[m] = ulbn_add(t1, a2, m, a3, am);
+  /* t1 += t1 + a2 */
+  t1[m] += ulbn_add(t1, t1, m, a2, m);
+  /* t1 += 4*a1 */
+  t1[m] += ulbn_addshl(t1, t1, m, a1, m, 2);
+  /* t1 += 8*a0 */
+  t1[m] += ulbn_addshl(t1, t1, m, a0, m, 3);
+  /* t2 = b3 + b2 */
+  t2[m] = ulbn_add(t2, b2, m, b3, bm);
+  /* t2 += t2 + b2 */
+  t2[m] += ulbn_add(t2, t2, m, b2, m);
+  /* t2 += 4*b1 */
+  t2[m] += ulbn_addshl(t2, t2, m, b1, m, 2);
+  /* t2 += 8*b0 */
+  t2[m] += ulbn_addshl(t2, t2, m, b0, m, 3);
+
+  /* vh = t1 * t2 = (8*a0 + 4*a1 + 2*a2 + a3) * (8*b0 + 4*b1 + 2*b2 + b3) */
+  ulbn_mul(alloc, vh, t1, m + 1, t2, m + 1);
+
+  /* v0 = a0 * b0 */
+  ulbn_mul(alloc, rp, a0, m, b0, m);
+  /* vinf = a4 * b4 */
+  ulbn_mul(alloc, rinf, a3, am, b3, bm);
+
+  /*****************
+   * interpolation *
+   *****************/
+
+#if 0
+  ulbn_dprint(stdout, "v0 = ", rp, m2);
+  ulbn_dprint(stdout, "v1 = ", v1, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "vm1 = ", vm1, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "v2 = ", v2, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "vm2 = ", vm2, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "vh = ", vh, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "vinf = ", rinf, abm);
+#endif
+
+  /* vh = vh + v2 = (65, 34, 20, 16, 20, 34, 65)        ranging [0, 1458) */
+  ulbn_add(vh, vh, m2 + _ULBN_FLEN, v2, m2 + _ULBN_FLEN);
+  /* vm2 = (v2 - vm2) / 2 = (0, 32, 0, 8, 0, 2, 0)      ranging [0, 364) */
+  ulbn_sub(vm2, v2, m2 + _ULBN_FLEN, vm2, m2 + _ULBN_FLEN);
+  ulbn_shr(vm2, vm2, m2 + _ULBN_FLEN, 1);
+  /* v2 = v2 - v0 = (64, 32, 16, 8, 4, 2, 0)            ranging [0, 728) */
+  ulbn_sub(v2, v2, m2 + _ULBN_FLEN, rp, m2);
+  /* v2 = (v2 - vm2 - vinf * 64) / 4 = (0, 0, 4, 0, 1, 0, 0)       ranging [0, 75) */
+  ulbn_sub(v2, v2, m2 + _ULBN_FLEN, vm2, m2 + _ULBN_FLEN);
+  ulbn_subshl(v2, v2, m2 + _ULBN_FLEN, rinf, abm, 6);
+  ulbn_shr(v2, v2, m2 + _ULBN_FLEN, 2);
+  /* vm1 = (v1 - vm1) / 2 = (0, 1, 0, 1, 0, 1, 0)       ranging [0, 32) */
+  ulbn_sub(vm1, v1, m2 + _ULBN_FLEN, vm1, m2 + _ULBN_FLEN);
+  ulbn_shr(vm1, vm1, m2 + _ULBN_FLEN, 1);
+  /* v1 = v1 - vm1 = (1, 0, 1, 0, 1, 0, 1)              ranging [0, 32) */
+  ulbn_sub(v1, v1, m2 + _ULBN_FLEN, vm1, m2 + _ULBN_FLEN);
+
+  /* vh = vh - v1 * 65 = (0, 34, -45, 16, -45, 34, 0)   ranging (-1350, 728) */
+  ulbn_submul1(vh, v1, m2 + _ULBN_FLEN, 65);
+  /* v1 = v1 - vinf - v0 = (0, 0, 1, 0, 1, 0, 0)        ranging [0, 30) */
+  ulbn_sub(v1, v1, m2 + _ULBN_FLEN, rinf, am + bm);
+  ulbn_sub(v1, v1, m2 + _ULBN_FLEN, rp, m2);
+  /* vh = (vh + v1 * 45) / 2 = (0, 17, 0, 8, 0, 17, 0)  ranging [0, 364) */
+  ulbn_addmul1(vh, v1, m2 + _ULBN_FLEN, 45);
+  ulbn_shr(vh, vh, m2 + _ULBN_FLEN, 1);
+  /* v2 = (v2 - v1) / 3 = (0, 0, 1, 0, 0, 0, 0)         ranging [0, 15) */
+  ulbn_sub(v2, v2, m2 + _ULBN_FLEN, v1, m2 + _ULBN_FLEN);
+  _ulbn_divby3(v2, v2, m2 + _ULBN_FLEN, 0);
+  /* v1 = v1 - v2 = (0, 0, 0, 0, 1, 0, 0)               ranging [0, 15) */
+  ulbn_sub(v1, v1, m2 + _ULBN_FLEN, v2, m2 + _ULBN_FLEN);
+
+  /* vm2 = vh - vm2 = (0, -15, 0, 0, 0, 15, 0)          ranging (-90, 90) */
+  ulbn_sub(vm2, vh, m2 + _ULBN_FLEN, vm2, m2 + _ULBN_FLEN);
+  /* vh = (vh - vm1 * 8) / 9 = (0, 1, 0, 0, 0, 1, 0)    ranging [0, 12) */
+  ulbn_subshln(vh, vh, vm1, m2 + _ULBN_FLEN, 3);
+  _ulbn_divby9(vh, vh, m2 + _ULBN_FLEN, 0);
+  /* vm1 = vm1 - vh = (0, 0, 0, 1, 0, 0, 0)             ranging [0, 20) */
+  ulbn_sub(vm1, vm1, m2 + _ULBN_FLEN, vh, m2 + _ULBN_FLEN);
+  /* vm2 = (vm2 / 15 + vh) / 2 = (0, 0, 0, 0, 0, 1, 0)  ranging [0, 6) */
+  if(vm2[m2 + _ULBN_FLEN - 1] & ULBN_LIMB_SIGNBIT) {
+    ulbn_com(vm2, vm2, m2 + _ULBN_FLEN, 1);
+    _ulbn_divby15(vm2, vm2, m2 + _ULBN_FLEN, 0);
+    ulbn_com(vm2, vm2, m2 + _ULBN_FLEN, 1);
+  } else {
+    _ulbn_divby15(vm2, vm2, m2 + _ULBN_FLEN, 0);
+  }
+  ulbn_add(vm2, vm2, m2 + _ULBN_FLEN, vh, m2 + _ULBN_FLEN);
+  ulbn_shr(vm2, vm2, m2 + _ULBN_FLEN, 1);
+  /* vh = vh - vm2 = (0, 1, 0, 0, 0, 0, 0)              ranging [0, 6) */
+  ulbn_sub(vh, vh, m2 + _ULBN_FLEN, vm2, m2 + _ULBN_FLEN);
+
+  /*****************
+   * recomposition *
+   *****************/
+
+#if 0
+  ulbn_dprint(stdout, "v0 = ", rp, m2);
+  ulbn_dprint(stdout, "vm2 = ", vm2, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "v1 = ", v1, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "vm1 = ", vm1, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "v2 = ", v2, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "vh = ", vh, m2 + _ULBN_FLEN);
+  ulbn_dprint(stdout, "vinf = ", rinf, abm);
+#endif
+
+  ulbn_fill0(rinf - m2 + _ULBN_FLEN, m2 - _ULBN_FLEN);
+  ulbn_add(rp + m, rp + m, an + bn - m, vm2, m2 + _ULBN_FLEN);
+  ulbn_add(rp + m3, rp + m3, an + bn - m3, vm1, m2 + _ULBN_FLEN);
+  ulbn_add(rp + m4, rp + m4, an + bn - m4, v2, m2 + _ULBN_FLEN);
+  ulbn_add(rinf - m, rinf - m, abm + m, vh, _ulbn_min_(m2 + _ULBN_FLEN, abm + m));
+  err = 0;
+
+  ulbn_deallocT(ulbn_limb_t, alloc, t4, m2 + 2);
+cleanup_t4:
+  ulbn_deallocT(ulbn_limb_t, alloc, t3, m2 + 2);
+cleanup_t3:
+  ulbn_deallocT(ulbn_limb_t, alloc, t2, m2 + 2);
+cleanup_t2:
+  ulbn_deallocT(ulbn_limb_t, alloc, t1, m2 + 2);
+cleanup_t1:
+  ulbn_deallocT(ulbn_limb_t, alloc, vh, m2 + 2);
+cleanup_vh:
+  ulbn_deallocT(ulbn_limb_t, alloc, vm2, m2 + 2);
+cleanup_vm2:
+  ulbn_deallocT(ulbn_limb_t, alloc, vm1, m2 + 2);
+cleanup_vm1:
+  ulbn_deallocT(ulbn_limb_t, alloc, v2, m2 + 2);
+cleanup_v2:
+  return err;
+#undef _ULBN_FLEN
 }
 
 /* Note: If allocation fails, it falls back to using a version with less cache,
@@ -1411,25 +2153,39 @@ ULBN_PRIVATE void ulbn_mul(
 
   m2 = m = (an + 1) >> 1;
   if(bn <= m) {
-    _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_21(alloc, rp, m, ap, an, bp, bn), goto fallback_school;);
+    _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_21(alloc, rp, m2, ap, an, bp, bn), goto fallback_school;);
     return;
   }
 
   if(an <= _ULBN_TOOM_2_THRESHOLD) {
-  fallback_toom22:
+  fallback_toom2:
     /* if(bn > m) */
     _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_22(alloc, rp, m2, ap, an, bp, bn), goto fallback_school;);
     return;
   }
 
-  m = (an + 2) / 3;
-  if(bn > m + m) {
-    _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_33(alloc, rp, m, ap, an, bp, bn), goto fallback_toom22;);
+  if(an <= _ULBN_TOOM_3_THRESHOLD) {
+  fallback_toom3:
+    m = (an + 2) / 3;
+    if(bn > m + m) {
+      _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_33(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
+      return;
+    }
+    /* if(bn > m) */
+    _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_32(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
     return;
   }
-  /* if(bn > m) */
-  _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_32(alloc, rp, m, ap, an, bp, bn), goto fallback_toom22;);
-  return;
+
+  m = (an + 3) >> 2;
+  if(bn > m * 3) {
+    _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_44(alloc, rp, m, ap, an, bp, bn), goto fallback_toom3;);
+    return;
+  }
+  if(ul_likely(bn > m * 2)) {
+    _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_43(alloc, rp, m, ap, an, bp, bn), goto fallback_toom3;);
+    return;
+  }
+  goto fallback_toom3;
 #undef _ULBN_DO_IF_MUL_FAILED
 }
 
@@ -1872,7 +2628,7 @@ ULBN_INTERNAL int ulbn_conv2print(
   ulbn_usize_t i = 0;
   ulbn_limb_t t;
   unsigned j;
-  char buf[ULBN_LIMB_BITS];
+  char buf[_ULBN_LIMB_BITS];
   char* op;
 
   for(t = cp[ci - 1]; t; t /= b)
