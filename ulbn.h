@@ -147,25 +147,26 @@
 extern "C" {
 #endif
 
-
-#if defined(_ULBN_DEBUG_LIMB)
+#if !defined(ULBN_LIMB_MAX) || !defined(ULBN_SLIMB_MAX) || !defined(ULBN_SLIMB_MIN)
+  #if defined(_ULBN_DEBUG_LIMB)
 typedef unsigned char ulbn_limb_t;
 typedef signed char ulbn_slimb_t;
-  #define ULBN_LIMB_MAX UCHAR_MAX
-  #define ULBN_SLIMB_MAX SCHAR_MAX
-  #define ULBN_SLIMB_MIN SCHAR_MIN
-#elif defined(LLONG_MAX)
+    #define ULBN_LIMB_MAX UCHAR_MAX
+    #define ULBN_SLIMB_MAX SCHAR_MAX
+    #define ULBN_SLIMB_MIN SCHAR_MIN
+  #elif defined(LLONG_MAX)
 typedef unsigned long long ulbn_limb_t;
 typedef signed long long ulbn_slimb_t;
-  #define ULBN_LIMB_MAX ULLONG_MAX
-  #define ULBN_SLIMB_MAX LLONG_MAX
-  #define ULBN_SLIMB_MIN LLONG_MIN
-#else
+    #define ULBN_LIMB_MAX ULLONG_MAX
+    #define ULBN_SLIMB_MAX LLONG_MAX
+    #define ULBN_SLIMB_MIN LLONG_MIN
+  #else
 typedef unsigned long ulbn_limb_t;
 typedef signed long ulbn_slimb_t;
-  #define ULBN_LIMB_MAX ULONG_MAX
-  #define ULBN_SLIMB_MAX LONG_MAX
-  #define ULBN_SLIMB_MIN LONG_MIN
+    #define ULBN_LIMB_MAX ULONG_MAX
+    #define ULBN_SLIMB_MAX LONG_MAX
+    #define ULBN_SLIMB_MIN LONG_MIN
+  #endif
 #endif
 
 #if !defined(ulbn_limb2_t) && defined(__SIZEOF_INT128__) && defined(__GNUC__)
@@ -184,38 +185,47 @@ typedef signed long ulbn_slimb_t;
 #endif
 
 
-#if !defined(_ULBN_DEBUG_USIZE)
+#if !defined(ULBN_USIZE_MAX) || !defined(ULBN_SSIZE_MAX) || !defined(ULBN_SSIZE_MIN)
+  #if !defined(_ULBN_DEBUG_USIZE)
 typedef signed ulbn_ssize_t;
 typedef unsigned ulbn_usize_t;
-  #define ULBN_USIZE_MAX UINT_MAX
-  #define ULBN_SSIZE_MAX INT_MAX
-  #define ULBN_SSIZE_MIN INT_MIN
-#else
+    #define ULBN_USIZE_MAX UINT_MAX
+    #define ULBN_SSIZE_MAX INT_MAX
+    #define ULBN_SSIZE_MIN INT_MIN
+  #else
 typedef signed char ulbn_ssize_t;
 typedef unsigned char ulbn_usize_t;
-  #define ULBN_USIZE_MAX UCHAR_MAX
-  #define ULBN_SSIZE_MAX CHAR_MAX
-  #define ULBN_SSIZE_MIN CHAR_MIN
+    #define ULBN_USIZE_MAX UCHAR_MAX
+    #define ULBN_SSIZE_MAX CHAR_MAX
+    #define ULBN_SSIZE_MIN CHAR_MIN
+  #endif
 #endif
 
 #define ulbn_cast_usize(n) ul_static_cast(ulbn_usize_t, (n))
 #define ulbn_cast_ssize(n) ul_static_cast(ulbn_ssize_t, (n))
 
 
-#if defined(ULLONG_MAX)
+#if !defined(ULBN_ULONG_MAX) || !defined(ULBN_SLONG_MAX) || !defined(ULBN_SLONG_MIN)
+  #if defined(ULLONG_MAX)
 typedef unsigned long long ulbn_ulong_t;
 typedef signed long long ulbn_slong_t;
-  #define ULBN_ULONG_BITS (sizeof(ulbn_ulong_t) * CHAR_BIT)
-  #define ULBN_ULONG_MAX ULLONG_MAX
-  #define ULBN_SLONG_MAX LLONG_MAX
-  #define ULBN_SLONG_MIN LLONG_MIN
-#else
+    #define ULBN_ULONG_MAX ULLONG_MAX
+    #define ULBN_SLONG_MAX LLONG_MAX
+    #define ULBN_SLONG_MIN LLONG_MIN
+  #else
 typedef unsigned long ulbn_ulong_t;
 typedef signed long ulbn_slong_t;
-  #define ULBN_ULONG_BITS (sizeof(ulbn_ulong_t) * CHAR_BIT)
-  #define ULBN_ULONG_MAX ULONG_MAX
-  #define ULBN_SLONG_MAX LONG_MAX
-  #define ULBN_SLONG_MIN LONG_MIN
+    #define ULBN_ULONG_MAX ULONG_MAX
+    #define ULBN_SLONG_MAX LONG_MAX
+    #define ULBN_SLONG_MIN LONG_MIN
+  #endif
+#endif
+
+#define ULBN_ULONG_BITS (sizeof(ulbn_ulong_t) * CHAR_BIT)
+
+
+#if ULBN_LIMB_MAX > ULBN_ULONG_MAX
+  #error "ulbn: ulbn_limb_t cannot be larger than ulbn_ulong_t"
 #endif
 
 
@@ -1325,10 +1335,10 @@ ULBN_PUBLIC int ulbi_lcm(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, cons
 
 /**
  * @brief A big integer that can fit ulbn_slong_t on the stack
- * 
+ *
  * @details In some cases, a full allocation of a big integer is not needed,
  * and only a temporary big integer is required. This struct provides that functionality.
- * 
+ *
  * @note No ulbi_* API other than `ulbi_set_stack_slong` should be used to modify this struct;
  * no function call is needed to free this struct.
  */
