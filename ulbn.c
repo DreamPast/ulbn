@@ -1,4 +1,7 @@
-#ifndef ULBN_H
+#ifndef ULBN_SOURCE
+#define ULBN_SOURCE
+
+#ifndef ULBN_HEADER
   #include "ulbn.h"
 #endif
 
@@ -3466,6 +3469,7 @@ ULBN_INTERNAL int ulbn_check_round(const ulbn_limb_t* ap, ulbn_usize_t an, const
  * Big Integer *
  ***************/
 
+
 ULBN_PUBLIC ulbi_t* ulbi_init(ulbi_t* o) {
   o->len = 0;
   o->cap = 0;
@@ -5789,3 +5793,16 @@ ULBN_PUBLIC int ulbi_lcm(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, cons
   ro->len = _ulbn_abs_(ro->len);
   return err;
 }
+
+
+ULBN_PUBLIC const ulbi_t* ulbi_set_stack_slong(ulbi_stack_slong_t* dst, ulbn_slong_t l) {
+  dst->o->limb = dst->l;
+  dst->o->cap = sizeof(dst->l) / sizeof(ulbn_limb_t);
+  ulbi_set_slong(ul_nullptr, dst->o, l);
+  return dst->o;
+}
+ULBN_PUBLIC const ulbi_t* ulbi_get_stack_slong(const ulbi_stack_slong_t* dst) {
+  return dst->o;
+}
+
+#endif /* ULBN_SOURCE */

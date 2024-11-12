@@ -1,3 +1,4 @@
+#pragma once
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -1144,6 +1145,46 @@ private:
   }
 
   ulbi_t _value[1];
+};
+
+class BigIntStackSlong {
+public:
+  BigIntStackSlong(ulbn_slong_t val) noexcept {
+    ulbi_set_stack_slong(&u.hold, val);
+  }
+  BigIntStackSlong(const BigIntStackSlong& other) noexcept {
+    u.hold = other.u.hold;
+  }
+
+  BigIntStackSlong& operator=(const BigIntStackSlong& other) noexcept {
+    u.hold = other.u.hold;
+    return *this;
+  }
+  BigIntStackSlong& operator=(ulbn_slong_t val) noexcept {
+    ulbi_set_stack_slong(&u.hold, val);
+    return *this;
+  }
+
+  operator const BigInt&() const{
+    return u.value;
+  }
+
+  const BigInt& ref() const{
+    return u.value;
+  }
+  const ulbi_t* get() const{
+    return ulbi_get_stack_slong(&u.hold);
+  }
+  
+private:
+  static_assert(std::is_standard_layout_v<BigInt>);
+  // this code depends on UB of C++.
+  union Union {
+    ulbi_stack_slong_t hold;
+    BigInt value;
+    Union() noexcept : hold() {}
+    ~Union() {}
+  } u;
 };
 
 BigInt operator""_bi(const char* str) {

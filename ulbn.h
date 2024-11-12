@@ -1,5 +1,5 @@
-#ifndef ULBN_H
-#define ULBN_H
+#ifndef ULBN_HEADER
+#define ULBN_HEADER
 
 #if !defined(ul_unused) && defined(__has_attribute)
   #if __has_attribute(unused)
@@ -1323,8 +1323,31 @@ ULBN_PUBLIC int ulbi_gcd_slimb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
 ULBN_PUBLIC int ulbi_lcm(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 
 
+/**
+ * @brief A big integer that can fit ulbn_slong_t on the stack
+ * 
+ * @details In some cases, a full allocation of a big integer is not needed,
+ * and only a temporary big integer is required. This struct provides that functionality.
+ * 
+ * @note No ulbi_* API other than `ulbi_set_stack_slong` should be used to modify this struct;
+ * no function call is needed to free this struct.
+ */
+typedef struct ulbi_stack_slong_t {
+  ulbi_t o[1];
+  ulbn_limb_t l[(sizeof(ulbn_slong_t) + sizeof(ulbn_limb_t) - 1) / sizeof(ulbn_limb_t)];
+} ulbi_stack_slong_t;
+/**
+ * @brief Set `ulbi_stack_slong_t` to `l` and return `const ulbi_t*`
+ * @note This function never fails
+ */
+ULBN_PUBLIC const ulbi_t* ulbi_set_stack_slong(ulbi_stack_slong_t* dst, ulbn_slong_t l);
+/**
+ * @brief Get `const ulbi_t*` from `ulbi_stack_slong_t`
+ */
+ULBN_PUBLIC const ulbi_t* ulbi_get_stack_slong(const ulbi_stack_slong_t* dst);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ULBN_H */
+#endif /* ULBN_HEADER */
