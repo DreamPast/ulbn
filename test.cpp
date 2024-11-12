@@ -116,6 +116,19 @@ void testCastFrom() {
     T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +0.5) == ULBN_ERR_INEXACT);
     T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +1.0) == 0);
   }
+
+  for(int t = TEST; t--;) {
+    int64_t x = static_cast<int64_t>(mt64()), y;
+    T_assert(BigInt::from_data(&x, sizeof(x)).asInt(64) == x);
+    T_assert(BigInt::from_data(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
+    std::reverse_copy(
+      reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
+    );
+    T_assert(BigInt::from_data(&x, sizeof(x), std::endian::native != std::endian::big).asInt(64) == y);
+    T_assert(
+      BigInt::from_data(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64) == static_cast<uint64_t>(y)
+    );
+  }
 }
 
 void testCastTo() {

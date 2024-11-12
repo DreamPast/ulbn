@@ -480,6 +480,13 @@ ULBN_PUBLIC int ulbi_set_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n)
  * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid
  */
 ULBN_PUBLIC int ulbi_set_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base);
+/**
+ * @brief Set `dst` to the unsigned integer represented by `limbs`
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large
+ */
+ULBN_PUBLIC int ulbi_set_data(ulbn_alloc_t* alloc, ulbi_t* dst, const void* limbs, size_t len, int is_big_endian);
 
 
 /**
@@ -554,6 +561,13 @@ ULBN_PUBLIC int ulbi_init_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n
  * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid
  */
 ULBN_PUBLIC int ulbi_init_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base);
+/**
+ * @brief Initialize `dst` with the unsigned integer represented by `limbs`
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large
+ */
+ULBN_PUBLIC int ulbi_init_data(ulbn_alloc_t* alloc, ulbi_t* dst, const void* limbs, size_t len, int is_big_endian);
 
 
 /**

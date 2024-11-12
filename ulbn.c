@@ -3787,6 +3787,78 @@ ULBN_PUBLIC int ulbi_set_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* st
   return err;
 }
 
+ULBN_PUBLIC int ulbi_set_data(ulbn_alloc_t* alloc, ulbi_t* dst, const void* limbs, size_t len, int is_big_endian) {
+  const unsigned char* p = ul_reinterpret_cast(const unsigned char*, limbs);
+  ulbn_limb_t* dp;
+  size_t wlen;
+
+#if ULBN_LIMB_MAX / UCHAR_MAX != 1u
+  const unsigned char* q;
+  unsigned sz;
+  ulbn_limb_t limb = 0;
+#endif
+
+  if(!is_big_endian)
+    while(len > 0 && p[len - 1] == 0)
+      --len;
+  else
+    while(len > 0 && p[0] == 0) {
+      ++p;
+      --len;
+    }
+#if ULBN_LIMB_MAX / UCHAR_MAX == 1u
+  wlen = len;
+#else
+  wlen = len / sizeof(ulbn_limb_t) + (len % sizeof(ulbn_limb_t) != 0);
+#endif
+  if(wlen > ULBN_SSIZE_LIMIT)
+    return ULBN_ERR_EXCEED_RANGE;
+  dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
+  ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
+
+
+#if ULBN_LIMB_MAX / UCHAR_MAX == 1u
+  if(!is_big_endian)
+    memcpy(dp, p, len);
+  else
+    for(p += len; len--;)
+      *dp++ = *--p;
+#else
+  if(!is_big_endian) {
+    limb = 0;
+    while(len >= sizeof(ulbn_limb_t)) {
+      q = p + sizeof(ulbn_limb_t);
+      for(sz = sizeof(ulbn_limb_t); sz--;)
+        limb = (limb << CHAR_BIT) | *--q;
+      *dp++ = limb;
+      len -= sizeof(ulbn_limb_t);
+    }
+    limb = 0;
+    p += len;
+    while(len--)
+      limb = (limb << CHAR_BIT) | *p++;
+    if(limb)
+      *dp++ = limb;
+  } else {
+    p += len;
+    while(len >= sizeof(ulbn_limb_t)) {
+      for(sz = sizeof(ulbn_limb_t); sz--;)
+        limb = (limb << CHAR_BIT) | *--p;
+      *dp++ = limb;
+      len -= sizeof(ulbn_limb_t);
+    }
+    limb = 0;
+    while(len--)
+      limb = (limb << CHAR_BIT) | *--p;
+    if(limb)
+      *dp++ = limb;
+  }
+#endif
+
+  dst->len = ulbn_cast_ssize(ulbn_normalize(_ulbi_limb(dst), ulbn_cast_usize(wlen)));
+  return 0;
+}
+
 
 ULBN_PUBLIC int ulbi_init_copy(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* src) {
   return ulbi_set_copy(alloc, ulbi_init(dst), src);
@@ -3822,6 +3894,9 @@ ULBN_PUBLIC int ulbi_init_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n
 }
 ULBN_PUBLIC int ulbi_init_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base) {
   return ulbi_set_string(alloc, ulbi_init(dst), str, base);
+}
+ULBN_PUBLIC int ulbi_init_data(ulbn_alloc_t* alloc, ulbi_t* dst, const void* limbs, size_t len, int is_big_endian) {
+  return ulbi_set_data(alloc, ulbi_init(dst), limbs, len, is_big_endian);
 }
 
 

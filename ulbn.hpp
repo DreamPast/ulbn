@@ -302,6 +302,22 @@ public:
   }
 
 
+  static BigInt from_data(const void* ptr, size_t n, bool is_big_endian) {
+    BigInt ret;
+    _check(ulbi_set_data(_ctx(), ret._value, ptr, n, is_big_endian));
+    return ret;
+  }
+  static BigInt from_data(const void* ptr, size_t n) {
+    if constexpr(std::endian::little == std::endian::native) {
+      return from_data(ptr, n, false);
+    } else if constexpr(std::endian::big == std::endian::native) {
+      return from_data(ptr, n, true);
+    } else {
+      static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big);
+    }
+  }
+
+
   BigInt& operator+=(const BigInt& other) {
     _check(ulbi_add(_ctx(), _value, _value, other._value));
     return *this;
