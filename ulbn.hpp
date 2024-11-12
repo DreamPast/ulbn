@@ -10,7 +10,7 @@ namespace bn {
 
 class Exception: public std::runtime_error {
 public:
-  explicit Exception(int err): std::runtime_error(_make_message(err)), _error(err) { }
+  explicit Exception(int err): std::runtime_error(_makeMessage(err)), _error(err) { }
 
   int get_error() const {
     return _error;
@@ -27,7 +27,7 @@ public:
   }
 
 private:
-  static std::string _make_message(int err) {
+  static std::string _makeMessage(int err) {
     switch(err) {
     case ULBN_ERR_EXCEED_RANGE:
       return "unexpected out-of-bounds error";
@@ -222,24 +222,24 @@ public:
   }
 
 
-  BigInt& move_from(ulbi_t* src) noexcept {
+  BigInt& moveFrom(ulbi_t* src) noexcept {
     if(src)
       ulbi_set_move(_ctx(), _value, src);
     else
       ulbi_init(_value);
     return *this;
   }
-  BigInt& move_from(ulbi_t& src) noexcept {
+  BigInt& moveFrom(ulbi_t& src) noexcept {
     ulbi_set_move(_ctx(), _value, &src);
     return *this;
   }
-  BigInt& move_from(BigInt& src) noexcept {
+  BigInt& moveFrom(BigInt& src) noexcept {
     ulbi_set_move(_ctx(), _value, src._value);
     return *this;
   }
 
 
-  static BigInt from_reserve(ulbn_usize_t n) {
+  static BigInt fromReserve(ulbn_usize_t n) {
     BigInt ret;
     _check(ulbi_reserve(_ctx(), ret._value, n) ? 0 : ULBN_ERR_NOMEM);
     return ret;
@@ -247,19 +247,19 @@ public:
 
 
   template<FitUsize T>
-  static BigInt from_2exp(T n) {
+  static BigInt from2Exp(T n) {
     BigInt ret;
     _check(ulbi_set_2exp_usize(_ctx(), ret._value, static_cast<ulbn_usize_t>(n)));
     return ret;
   }
   template<FitSsize T>
-  static BigInt from_2exp(T n) {
+  static BigInt from2Exp(T n) {
     BigInt ret;
     if(n >= 0)
       _check(ulbi_set_2exp_usize(_ctx(), ret._value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))));
     return ret;
   }
-  static BigInt from_2exp(const BigInt& n) {
+  static BigInt from2Exp(const BigInt& n) {
     BigInt ret;
     _check(ulbi_set_2exp(_ctx(), ret._value, n._value));
     return ret;
@@ -267,13 +267,13 @@ public:
 
 
   template<FitUsize T>
-  static BigInt from_random(T n) {
+  static BigInt fromRandom(T n) {
     BigInt ret;
     _check(ulbi_set_rand_usize(_ctx(), getCurrentRand(), ret._value, static_cast<ulbn_usize_t>(n)));
     return ret;
   }
   template<FitSsize T>
-  static BigInt from_random(T n) {
+  static BigInt fromRandom(T n) {
     BigInt ret;
     if(n >= 0)
       _check(ulbi_set_rand_usize(
@@ -283,35 +283,35 @@ public:
       _check(ULBN_ERR_EXCEED_RANGE);
     return ret;
   }
-  static BigInt from_random(const BigInt& n) {
+  static BigInt fromRandom(const BigInt& n) {
     BigInt ret;
     _check(ulbi_set_rand(_ctx(), getCurrentRand(), ret._value, n._value));
     return ret;
   }
 
 
-  static BigInt from_random_range(const BigInt& limit) {
+  static BigInt fromRandomRange(const BigInt& limit) {
     BigInt ret;
     _check(ulbi_set_rand_range(_ctx(), getCurrentRand(), ret._value, limit._value));
     return ret;
   }
-  static BigInt from_random_range(const BigInt& lo, const BigInt& hi) {
+  static BigInt fromRandomRange(const BigInt& lo, const BigInt& hi) {
     BigInt ret;
     _check(ulbi_set_rand_range2(_ctx(), getCurrentRand(), ret._value, lo._value, hi._value));
     return ret;
   }
 
 
-  static BigInt from_data(const void* ptr, size_t n, bool is_big_endian) {
+  static BigInt fromData(const void* ptr, size_t n, bool is_big_endian) {
     BigInt ret;
     _check(ulbi_set_data(_ctx(), ret._value, ptr, n, is_big_endian));
     return ret;
   }
-  static BigInt from_data(const void* ptr, size_t n) {
+  static BigInt fromData(const void* ptr, size_t n) {
     if constexpr(std::endian::little == std::endian::native) {
-      return from_data(ptr, n, false);
+      return fromData(ptr, n, false);
     } else if constexpr(std::endian::big == std::endian::native) {
-      return from_data(ptr, n, true);
+      return fromData(ptr, n, true);
     } else {
       static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big);
     }

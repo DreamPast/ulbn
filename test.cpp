@@ -107,8 +107,8 @@ void testCastFrom() {
   T_assert(BigInt(0.5) == 0);
   T_assert(BigInt(-1.0) == -1);
   T_assert(BigInt(-0.5) == 0);
-  T_assert(BigInt(ldexp(1.0, 51) + 0.5) == BigInt::from_2exp(51));
-  T_assert(BigInt(ldexp(1.0, 52) + 0.5) == BigInt::from_2exp(52));
+  T_assert(BigInt(ldexp(1.0, 51) + 0.5) == BigInt::from2Exp(51));
+  T_assert(BigInt(ldexp(1.0, 52) + 0.5) == BigInt::from2Exp(52));
 
   {
     BigInt tmp;
@@ -119,14 +119,14 @@ void testCastFrom() {
 
   for(int t = TEST; t--;) {
     int64_t x = static_cast<int64_t>(mt64()), y;
-    T_assert(BigInt::from_data(&x, sizeof(x)).asInt(64) == x);
-    T_assert(BigInt::from_data(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
+    T_assert(BigInt::fromData(&x, sizeof(x)).asInt(64) == x);
+    T_assert(BigInt::fromData(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
     std::reverse_copy(
       reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
     );
-    T_assert(BigInt::from_data(&x, sizeof(x), std::endian::native != std::endian::big).asInt(64) == y);
+    T_assert(BigInt::fromData(&x, sizeof(x), std::endian::native != std::endian::big).asInt(64) == y);
     T_assert(
-      BigInt::from_data(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64) == static_cast<uint64_t>(y)
+      BigInt::fromData(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64) == static_cast<uint64_t>(y)
     );
   }
 }
@@ -305,20 +305,20 @@ void testRandom() {
 
   for(int t = TEST; t--;) {
     for(int i = 0; i < 16; ++i)
-      T_assert(BigInt::from_random(i) <= BigInt::from_2exp(i));
+      T_assert(BigInt::fromRandom(i) <= BigInt::from2Exp(i));
   }
 
   for(int t = TEST; t--;) {
     for(int i = 0; i < 16; ++i)
-      T_assert(BigInt::from_random(BigInt(i)) <= BigInt::from_2exp(BigInt(i)));
+      T_assert(BigInt::fromRandom(BigInt(i)) <= BigInt::from2Exp(BigInt(i)));
   }
 
   for(int tt = 1; tt <= 100; ++tt) {
-    BigInt lbound = BigInt::from_random(100), rbound = BigInt::from_random(100);
+    BigInt lbound = BigInt::fromRandom(100), rbound = BigInt::fromRandom(100);
     for(int t = (TEST + 99) / 100; t--;) {
       if(lbound == rbound)
         continue;
-      BigInt g = BigInt::from_random_range(lbound, rbound);
+      BigInt g = BigInt::fromRandomRange(lbound, rbound);
       T_assert(g >= std::min(lbound, rbound) && g < std::max(lbound, rbound));
     }
   }
@@ -396,17 +396,17 @@ void subtestMul() {
     BigInt r = 1, a = 0x100;
     for(int t = 1; t <= 0xFF; ++t) {
       r *= a;
-      T_assert(r == BigInt::from_2exp(8 * t));
-      T_assert(r == BigInt::from_2exp(BigInt(8 * t)));
+      T_assert(r == BigInt::from2Exp(8 * t));
+      T_assert(r == BigInt::from2Exp(BigInt(8 * t)));
     }
   }
 
   {
-    BigInt r = 1, a = BigInt::from_2exp(1000);
+    BigInt r = 1, a = BigInt::from2Exp(1000);
     for(int t = 1; t <= 0xFF; ++t) {
       r *= a;
-      T_assert(r == BigInt::from_2exp(1000 * t));
-      T_assert(r == BigInt::from_2exp(BigInt(1000 * t)));
+      T_assert(r == BigInt::from2Exp(1000 * t));
+      T_assert(r == BigInt::from2Exp(BigInt(1000 * t)));
     }
   }
 }
@@ -429,10 +429,10 @@ void subtestDivMod() {
   T_assert(a2 / 12 == "1028806575102880657"_bi && a2 % 12 == 6);
 
   for(unsigned i = 64; i < 256; ++i) {
-    BigInt d = BigInt::from_2exp(i);
+    BigInt d = BigInt::from2Exp(i);
     T_assert((a2 / d) * d + (a2 % d) == a2);
     T_assert((a2 * d) / d == a2 && (a2 * d) % d == 0);
-    d = BigInt::from_2exp(BigInt(i));
+    d = BigInt::from2Exp(BigInt(i));
     T_assert((a2 / d) * d + (a2 % d) == a2);
     T_assert((a2 * d) / d == a2 && (a2 * d) % d == 0);
   }
@@ -638,8 +638,8 @@ void subtestBigMulDiv() {
 
   for(int t = 3000; t--;) {
     BigInt x, y, z;
-    x = 1 + BigInt::from_random("0xFFF");
-    y = 1 + BigInt::from_random("0xFFF");
+    x = 1 + BigInt::fromRandom("0xFFF");
+    y = 1 + BigInt::fromRandom("0xFFF");
     z = x * y;
     T_assert(z / x == y && z % x == 0);
     T_assert(z / y == x && z % y == 0);
@@ -664,7 +664,7 @@ void subtestPower() {
     }
   }
 
-  T_assert(BigInt("0x100").pow(0xFFFF) == BigInt::from_2exp(0xFFFF * 8));
+  T_assert(BigInt("0x100").pow(0xFFFF) == BigInt::from2Exp(0xFFFF * 8));
 }
 void subtestSqrt() {
   puts("======Subtest Sqrt");
@@ -679,7 +679,7 @@ void subtestSqrt() {
   }
 
   for(int t = 3000; t--;) {
-    BigInt x = BigInt::from_random("0xFFF");
+    BigInt x = BigInt::fromRandom("0xFFF");
 
     auto ret = x.sqrtrem();
     T_assert(ret.first * ret.first <= x && x < (ret.first + 1) * (ret.first + 1));
@@ -758,8 +758,8 @@ void subtestRoot() {
   }
 
   for(int t = 300; t--;) {
-    BigInt x = BigInt::from_random("0xFFF");
-    BigInt e = BigInt::from_random("0x10");
+    BigInt x = BigInt::fromRandom("0xFFF");
+    BigInt e = BigInt::fromRandom("0x10");
     auto obj = x.rootrem(e);
     BigInt pow = obj.first.pow(e);
     T_assert(pow <= x && x < (obj.first + 1).pow(e));
@@ -1005,7 +1005,7 @@ void testOther() {
   }
 
   {  // ulbi_reserve, ulbi_shrink, ulbi_set_zero
-    BigInt x = BigInt::from_reserve(12);
+    BigInt x = BigInt::fromReserve(12);
     T_assert(x == 0);
     x.shrink();
     T_assert(x == 0);
