@@ -1852,7 +1852,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_44(
    * splitting *
    *************/
 
-#if ULBN_LIMB_MAX <= 0xFF
+#if ULBN_LIMB_MAX < 1458
   #define _ULBN_FLEN 2
 #else
   #define _ULBN_FLEN 1
