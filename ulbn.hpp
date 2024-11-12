@@ -2,6 +2,8 @@
 #include <string>
 #include <unordered_map>
 #include <limits>
+#include <bit>
+#include <iostream>
 
 #include "ulbn.h"
 
