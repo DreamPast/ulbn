@@ -10,6 +10,8 @@ No external dependencies needed.
 
 Minimum C89/C++98, with macros to suggest optimizations for some code.
 
+`CHAR_BIT` need to be even.
+
 ### ulbn.hpp
 
 Depends on the following C++20 features:
@@ -27,18 +29,27 @@ Depends on the following assumptions for modern platforms:
 
 Depends on the following C++20 features:
 
-- `<bit` header file
+- `<bit>` header file
 
 ## Roadmap
 
 - [ ] High-precision integers
   - [x] Arithmetic
     - [ ] Faster multiplicatin
+      - [x] Karatsuba algorithm (Toom-2)
+      - [x] Toom-3 algorithm
+      - [x] Toom-4 algorithm
+      - [ ] FFT
     - [ ] Faster base conversion
   - [x] Comparison
   - [x] Bitwise Operation
-  - [ ] Square root
+  - [x] Root
   - [ ] Number theory functions
+    - [x] GCD/LCM
+    - [ ] Extended GCD
+    - [ ] Prime number determination
+    - [ ] Prime number search
+    - [ ] Factorization
 - [ ] High-precision fractions
 - [ ] High-precision floating point number
 - [ ] High-precision decimal floating point number
