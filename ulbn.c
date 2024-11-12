@@ -1609,6 +1609,16 @@ ULBN_PRIVATE int _ulbn_mul_toom_43(
   int vm1_sign, vm2_sign;
   int err = ULBN_ERR_NOMEM;
 
+  ulbn_assert(an >= bn);
+  ulbn_assert(an >= 4 && an <= 4 * m && an >= 4 * m - 3);
+  ulbn_assert(bn > m * 2);
+  ulbn_assert(an + bn >= an);
+  ulbn_assert(m > 0);
+
+  /*******************************************
+   * evaluation and pointwise multiplication *
+   *******************************************/
+
   vm1 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
   ULBN_DO_IF_ALLOC_FAILED(vm1, goto cleanup_vm1;);
   v2 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
@@ -1621,10 +1631,6 @@ ULBN_PRIVATE int _ulbn_mul_toom_43(
   ULBN_DO_IF_ALLOC_FAILED(t2, goto cleanup_t2;);
   t3 = ulbn_allocT(ulbn_limb_t, alloc, m2 + 2);
   ULBN_DO_IF_ALLOC_FAILED(t3, goto cleanup_t3;);
-
-  /*******************************************
-   * evaluation and pointwise multiplication *
-   *******************************************/
 
   /* t1 = a0 + a2 */
   t1[m] = ulbn_add(t1, a0, m, a2, m);
@@ -1863,6 +1869,12 @@ ULBN_PRIVATE int _ulbn_mul_toom_44(
   unsigned vm1_sign, vm2_sign;
   int err = ULBN_ERR_NOMEM;
 
+  ulbn_assert(an >= bn);
+  ulbn_assert(an >= 4 && an <= 4 * m && an >= 4 * m - 3);
+  ulbn_assert(bn > m * 3);
+  ulbn_assert(an + bn >= an);
+  ulbn_assert(m > 1);
+
   /*******************************************
    * evaluation and pointwise multiplication *
    *******************************************/
@@ -1891,7 +1903,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_44(
   /* t3 = b0 + b2 */
   t3[m] = ulbn_add(t3, b0, m, b2, m);
   /* t4 = b1 + b3 */
-  t4[m] = ulbn_add(t4, b1, m, b3, am);
+  t4[m] = ulbn_add(t4, b1, m, b3, bm);
 
   /* vm1 = t1 + t2 = a0 + a1 + a2 + a3 */
   ulbn_add(vm1, t1, m + 1, t2, m + 1);
@@ -1948,7 +1960,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_44(
   /* t4 = 2*b1 */
   t4[m] = ulbn_shl(t4, b1, m, 1);
   /* t4 = t4 + 8*b3 */
-  t4[m] += ulbn_addshl(t4, t4, m, b3, am, 3);
+  t4[m] += ulbn_addshl(t4, t4, m, b3, bm, 3);
 
   /* vm2 = t1 + t2 = a0 + 2*a1 + 4*a2 + 8*a3 */
   ulbn_add(vm2, t1, m + 1, t2, m + 1);
