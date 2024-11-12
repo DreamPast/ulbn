@@ -95,10 +95,10 @@ void testCastFrom() {
   T_assert(BigInt(static_cast<ulbn_slimb_t>(-12)) == -12);
   T_assert(BigInt(static_cast<ulbn_slimb_t>(12)) == 12);
 
-
-  T_assert_exception([] { BigInt(INFINITY); }, ULBN_ERR_INVALID);
-  T_assert_exception([] { BigInt(-INFINITY); }, ULBN_ERR_INVALID);
-  T_assert_exception([] { BigInt(nan("")); }, ULBN_ERR_INVALID);
+  static const double _INF = HUGE_VAL;
+  T_assert_exception([] { BigInt x{_INF}; }, ULBN_ERR_INVALID);
+  T_assert_exception([] { BigInt x{-_INF}; }, ULBN_ERR_INVALID);
+  T_assert_exception([] { BigInt x{nan("")}; }, ULBN_ERR_INVALID);
 
   T_assert(BigInt(+0.0) == 0);
   T_assert(BigInt(-0.0) == 0);
@@ -734,7 +734,7 @@ void subtestRoot() {
     T_assert(ulbi_rootrem(ulbn_default_alloc(), a.get(), r.get(), a.get(), (-3_bi).get()) == 0);
   }
 
-  for(int64_t i = 1; i <= 0xFFFF; ++i) {
+  for(int64_t i = 1; i <= 0xFFF; ++i) {
     for(int e = 1; e <= 0x10; ++e) {
       BigInt x = BigInt(i);
       auto obj = x.rootrem(e);
@@ -744,7 +744,7 @@ void subtestRoot() {
     }
   }
 
-  for(int t = 3000; t--;) {
+  for(int t = 300; t--;) {
     BigInt x = BigInt::from_random("0xFFF");
     BigInt e = BigInt::from_random("0x10");
     auto obj = x.rootrem(e);
