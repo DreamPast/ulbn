@@ -227,6 +227,9 @@ typedef signed long ulbn_slong_t;
 #if ULBN_LIMB_MAX > ULBN_ULONG_MAX
   #error "ulbn: ulbn_limb_t cannot be larger than ulbn_ulong_t"
 #endif
+#if ULBN_USIZE_MAX > ULBN_ULONG_MAX
+  #error "ulbn: ulbn_limb_t cannot be larger than ulbn_usize_t"
+#endif
 
 
 /**
@@ -823,6 +826,88 @@ ULBN_PUBLIC int ulbi_div_slimb(ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao
 ULBN_PUBLIC int ulbi_mod_slimb(ulbn_alloc_t* alloc, ulbn_slimb_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
 
 /**
+ * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`)
+ * @note `qo` and `ro` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_divmod_2exp_usize(ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t e);
+/**
+ * @brief `qo` = `ao` / (2**`e`)
+ * @note `qo` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_div_2exp_usize(ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, ulbn_usize_t e);
+/**
+ * @brief `ro` = `ao` % (2**`e`)
+ * @note `ro` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_mod_2exp_usize(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_usize_t e);
+
+/**
+ * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`)
+ * @note `qo` and `ro` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_divmod_2exp_ssize(ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, ulbn_ssize_t e);
+/**
+ * @brief `qo` = `ao` / (2**`e`)
+ * @note `qo` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_div_2exp_ssize(ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, ulbn_ssize_t e);
+/**
+ * @brief `ro` = `ao` % (2**`e`)
+ * @note `ro` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_mod_2exp_ssize(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_ssize_t e);
+
+/**
+ * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`)
+ * @note `qo` and `ro` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_divmod_2exp(ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* eo);
+/**
+ * @brief `qo` = `ao` / (2**`e`)
+ * @note `qo` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_div_2exp(ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, const ulbi_t* eo);
+/**
+ * @brief `ro` = `ao` % (2**`e`)
+ * @note `ro` is allowed to be `NULL`
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
+ * @return `0` otherwise
+ */
+ULBN_PUBLIC int ulbi_mod_2exp(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* eo);
+
+
+/**
  * @brief `qo` = `ao` / `bo`, `ro` = `ao` % `bo`
  * @note `qo` and `ro` is allowed to be `NULL`
  * @return `ULBN_ERR_NOMEM` if out of memory;
@@ -1210,7 +1295,7 @@ ULBN_PUBLIC int ulbi_fit_ssize(const ulbi_t* src);
  * @return `NULL` if out of insufficient (considered as `ULBN_ERR_NOMEM`);
  * @return `NULL` if the base is invalid (considered as `ULBN_ERR_EXCEED_RANGE`)
  */
-ULBN_PUBLIC char* ulbi_tostr_alloc(
+ULBN_PUBLIC char* ulbi_to_string_alloc(
   ulbn_alloc_t* alloc, ulbn_usize_t* p_len,          /* */
   ulbn_alloc_func_t* alloc_func, void* alloc_opaque, /* */
   const ulbi_t* ao, int base

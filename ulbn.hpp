@@ -558,6 +558,61 @@ public:
   }
 
 
+  template<FitUsize T>
+  std::pair<BigInt, BigInt> divmod2Exp(T n) {
+    BigInt q, r;
+    _check(ulbi_divmod_2exp_usize(_ctx(), q._value, r._value, _value, static_cast<ulbn_usize_t>(n)));
+    return {q, r};
+  }
+  template<FitSsize T>
+  std::pair<BigInt, BigInt> divmod2Exp(T n) {
+    BigInt q, r;
+    _check(ulbi_divmod_2exp_ssize(_ctx(), q._value, r._value, _value, static_cast<ulbn_ssize_t>(n)));
+    return {q, r};
+  }
+  std::pair<BigInt, BigInt> divmod2Exp(const BigInt& other) {
+    BigInt q, r;
+    _check(ulbi_divmod_2exp(_ctx(), q._value, r._value, _value, other._value));
+    return {q, r};
+  }
+
+  template<FitUsize T>
+  std::pair<BigInt, BigInt> div2Exp(T n) {
+    BigInt q, r;
+    _check(ulbi_div_2exp_usize(_ctx(), q._value, _value, static_cast<ulbn_usize_t>(n)));
+    return {q, r};
+  }
+  template<FitSsize T>
+  std::pair<BigInt, BigInt> div2Exp(T n) {
+    BigInt q, r;
+    _check(ulbi_div_2exp_ssize(_ctx(), q._value, _value, static_cast<ulbn_ssize_t>(n)));
+    return {q, r};
+  }
+  std::pair<BigInt, BigInt> div2Exp(const BigInt& other) {
+    BigInt q, r;
+    _check(ulbi_div_2exp(_ctx(), q._value, _value, other._value));
+    return {q, r};
+  }
+
+  template<FitUsize T>
+  std::pair<BigInt, BigInt> mod2Exp(T n) {
+    BigInt q, r;
+    _check(ulbi_mod_2exp_usize(_ctx(), q._value, _value, static_cast<ulbn_usize_t>(n)));
+    return {q, r};
+  }
+  template<FitSsize T>
+  std::pair<BigInt, BigInt> mod2Exp(T n) {
+    BigInt q, r;
+    _check(ulbi_mod_2exp_ssize(_ctx(), q._value, _value, static_cast<ulbn_ssize_t>(n)));
+    return {q, r};
+  }
+  std::pair<BigInt, BigInt> mod2Exp(const BigInt& other) {
+    BigInt q, r;
+    _check(ulbi_mod_2exp(_ctx(), q._value, _value, other._value));
+    return {q, r};
+  }
+
+
   friend std::strong_ordering operator<=>(const BigInt& lhs, const BigInt& rhs) {
     return ulbi_comp(lhs._value, rhs._value) <=> 0;
   }
@@ -806,13 +861,13 @@ public:
 
 
   bool isZero() const noexcept {
-    return ulbi_is_zero(_value);
+    return ulbi_is_zero(_value) != 0;
   }
   bool isOdd() const noexcept {
-    return ulbi_is_odd(_value);
+    return ulbi_is_odd(_value) != 0;
   }
   bool isEven() const noexcept {
-    return ulbi_is_even(_value);
+    return ulbi_is_even(_value) != 0;
   }
   int sign() const noexcept {
     return ulbi_sign(_value);
@@ -820,22 +875,22 @@ public:
 
 
   bool fitUlong() const noexcept {
-    return ulbi_fit_ulong(_value);
+    return ulbi_fit_ulong(_value) != 0;
   }
   bool fitSlong() const noexcept {
-    return ulbi_fit_slong(_value);
+    return ulbi_fit_slong(_value) != 0;
   }
   bool fitLimb() const noexcept {
-    return ulbi_fit_limb(_value);
+    return ulbi_fit_limb(_value) != 0;
   }
   bool fitSlimb() const noexcept {
-    return ulbi_fit_slimb(_value);
+    return ulbi_fit_slimb(_value) != 0;
   }
   bool fitUsize() const noexcept {
-    return ulbi_fit_usize(_value);
+    return ulbi_fit_usize(_value) != 0;
   }
   bool fitSsize() const noexcept {
-    return ulbi_fit_ssize(_value);
+    return ulbi_fit_ssize(_value) != 0;
   }
 
 
@@ -872,7 +927,7 @@ public:
     ulbn_usize_t len;
     char* ret_ptr;
 
-    ret_ptr = ulbi_tostr_alloc(
+    ret_ptr = ulbi_to_string_alloc(
       _ctx(), &len,
       [](void* opaque, void* ptr, size_t on, size_t nn) -> void* {
         (void)on;
@@ -1063,7 +1118,7 @@ public:
 
 
   bool is2Pow() const {
-    return ulbi_is_2pow(_value);
+    return ulbi_is_2pow(_value) != 0;
   }
   BigInt ctz() const {
     BigInt ret;
@@ -1101,7 +1156,7 @@ public:
     return ulbi_to_double(_value);
   }
   bool fitDouble() const noexcept {
-    return ulbi_fit_double(_value);
+    return ulbi_fit_double(_value) != 0;
   }
   explicit operator double() const noexcept {
     return toDouble();
@@ -1165,25 +1220,25 @@ public:
     return *this;
   }
 
-  operator const BigInt&() const{
+  operator const BigInt&() const {
     return u.value;
   }
 
-  const BigInt& ref() const{
+  const BigInt& ref() const {
     return u.value;
   }
-  const ulbi_t* get() const{
+  const ulbi_t* get() const {
     return ulbi_get_stack_slong(&u.hold);
   }
-  
+
 private:
   static_assert(std::is_standard_layout_v<BigInt>);
   // this code depends on UB of C++.
   union Union {
     ulbi_stack_slong_t hold;
     BigInt value;
-    Union() noexcept : hold() {}
-    ~Union() {}
+    Union() noexcept: hold() { }
+    ~Union() { }
   } u;
 };
 

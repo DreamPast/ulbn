@@ -48,7 +48,8 @@ bool pairEqual(const std::pair<LT1, LT2>& l, RT1&& rt1, RT2&& rt2) {
 }
 
 constexpr const int LIMIT = 1024;
-constexpr const int64_t TEST = 1000000ll;
+constexpr const int64_t TEST_BIG = 1000000ll;
+constexpr const int64_t TEST_SMALL = 3000;
 static std::mt19937_64 mt64(std::random_device{}());
 
 void testException() {
@@ -117,7 +118,7 @@ void testCastFrom() {
     T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +1.0) == 0);
   }
 
-  for(int t = TEST; t--;) {
+  for(auto t = TEST_BIG; t--;) {
     int64_t x = static_cast<int64_t>(mt64()), y;
     T_assert(BigInt::fromData(&x, sizeof(x)).asInt(64) == x);
     T_assert(BigInt::fromData(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
@@ -303,19 +304,19 @@ void testCompare() {
 void testRandom() {
   puts("===Test Random");
 
-  for(int t = TEST; t--;) {
+  for(auto t = TEST_BIG; t--;) {
     for(int i = 0; i < 16; ++i)
       T_assert(BigInt::fromRandom(i) <= BigInt::from2Exp(i));
   }
 
-  for(int t = TEST; t--;) {
+  for(auto t = TEST_BIG; t--;) {
     for(int i = 0; i < 16; ++i)
       T_assert(BigInt::fromRandom(BigInt(i)) <= BigInt::from2Exp(BigInt(i)));
   }
 
   for(int tt = 1; tt <= 100; ++tt) {
     BigInt lbound = BigInt::fromRandom(100), rbound = BigInt::fromRandom(100);
-    for(int t = (TEST + 99) / 100; t--;) {
+    for(auto t = (TEST_BIG + 99) / 100; t--;) {
       if(lbound == rbound)
         continue;
       BigInt g = BigInt::fromRandomRange(lbound, rbound);
@@ -413,7 +414,7 @@ void subtestMul() {
 void subtestMulRandom() {
   puts("======Subtest Mul (Random)");
   std::uniform_int_distribution<uint32_t> dist;
-  for(int t = TEST; t--;) {
+  for(auto t = TEST_BIG; t--;) {
     const uint32_t a = dist(mt64);
     const uint32_t b = dist(mt64);
     T_assert(BigInt(a) * BigInt(b) == static_cast<uint64_t>(a) * b);
@@ -467,7 +468,7 @@ void subtestDivModRandom() {
   {
     std::uniform_int_distribution<uint64_t> ud1;
     std::uniform_int_distribution<uint64_t> ud2(1, 1ll << 8);
-    for(int64_t t = 0; t <= TEST; ++t) {
+    for(auto t = TEST_BIG; t--;) {
       const uint64_t a = ud1(mt64);
       const uint64_t b = ud2(mt64);
 
@@ -479,7 +480,7 @@ void subtestDivModRandom() {
   {
     std::uniform_int_distribution<uint64_t> ud1;
     std::uniform_int_distribution<uint64_t> ud2(1, 1ll << 16);
-    for(int64_t t = 0; t <= TEST; ++t) {
+    for(auto t = TEST_BIG; t--;) {
       const uint64_t a = ud1(mt64);
       const uint64_t b = ud2(mt64);
 
@@ -491,7 +492,7 @@ void subtestDivModRandom() {
   {
     std::uniform_int_distribution<uint64_t> ud1(1ll << 48);
     std::uniform_int_distribution<uint64_t> ud2(1ll << 32, (1ll << 48) - 1);
-    for(int64_t t = 0; t <= TEST; ++t) {
+    for(auto t = TEST_BIG; t--;) {
       const uint64_t a = ud1(mt64);
       const uint64_t b = ud2(mt64);
 
@@ -504,7 +505,7 @@ void subtestDivModRandom() {
     std::mt19937_64 mt(std::random_device{}());
     std::uniform_int_distribution<uint64_t> ud1;
     std::uniform_int_distribution<uint64_t> ud2(1);
-    for(int64_t t = 0; t <= TEST; ++t) {
+    for(auto t = TEST_BIG; t--;) {
       const uint64_t a = ud1(mt);
       const uint64_t b = ud2(mt);
 
@@ -633,10 +634,34 @@ void subtestDivModEx() {
   T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_DOWN), -2, 1));
   T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_UP), -2, 1));
 }
+void subtestDivMod2Exp() {
+  puts("======Subtest DivMod 2Exp");
+
+  for(int t = TEST_BIG; t--;) {
+    BigInt a = BigInt::fromRandom("32");
+    for(short i = 0; i < 32; ++i) {
+      auto pair = a.divmod2Exp(i);
+      auto ansPair = a.divmod(BigInt::from2Exp(i));
+      T_assert(pairEqual(pair, ansPair));
+
+      BigInt q = a;
+      T_assert(
+        ulbi_div_2exp_ssize(ulbn_default_alloc(), q.get(), q.get(), i) == (ansPair.second ? ULBN_ERR_INEXACT : 0)
+      );
+      T_assert(q == ansPair.first);
+      BigInt r = a;
+      T_assert(ulbi_mod_2exp_ssize(ulbn_default_alloc(), r.get(), r.get(), i) == 0);
+      T_assert(r == ansPair.second);
+    }
+    for(int i = 0; i >= -4; --i) {
+      T_assert(pairEqual(a.divmod2Exp(i), a * BigInt::from2Exp(-i), 0));
+    }
+  }
+}
 void subtestBigMulDiv() {
   puts("======Subtest Big MulDiv");
 
-  for(int t = 3000; t--;) {
+  for(int t = TEST_SMALL; t--;) {
     BigInt x, y, z;
     x = 1 + BigInt::fromRandom("0xFFF");
     y = 1 + BigInt::fromRandom("0xFFF");
@@ -678,7 +703,7 @@ void subtestSqrt() {
     T_assert(x - ret.first * ret.first == ret.second);
   }
 
-  for(int t = 3000; t--;) {
+  for(int t = TEST_SMALL; t--;) {
     BigInt x = BigInt::fromRandom("0xFFF");
 
     auto ret = x.sqrtrem();
@@ -757,7 +782,7 @@ void subtestRoot() {
     }
   }
 
-  for(int t = 300; t--;) {
+  for(int t = TEST_SMALL; t--;) {
     BigInt x = BigInt::fromRandom("0xFFF");
     BigInt e = BigInt::fromRandom("0x10");
     auto obj = x.rootrem(e);
@@ -777,6 +802,7 @@ void testArithmeticOperation() {
   subtestDivModOverlapRandom();
   subtestDivModEx();
   subtestBigMulDiv();
+  subtestDivMod2Exp();
   subtestPower();
   subtestSqrt();
   subtestRoot();
