@@ -2643,7 +2643,7 @@ ULBN_INTERNAL ulbn_usize_t ulbn_conv2str(
  */
 ULBN_INTERNAL int ulbn_conv2print(
   ulbn_usize_t ci, ulbn_limb_t* ul_restrict cp,                     /* */
-  ulbi_printer_t* printer, void* opaque,                            /* */
+  ulbn_printer_t* printer, void* opaque,                            /* */
   ulbn_limb_t b, unsigned B_pow, const char* ul_restrict char_table /* */
 ) {
   ulbn_usize_t i = 0;
@@ -5605,7 +5605,7 @@ done:
     *p_len = on;
   return buf;
 }
-ULBN_PUBLIC int ulbi_print_ex(ulbn_alloc_t* alloc, const ulbi_t* ao, int base, ulbi_printer_t* printer, void* opaque) {
+ULBN_PUBLIC int ulbi_print_ex(ulbn_alloc_t* alloc, const ulbi_t* ao, int base, ulbn_printer_t* printer, void* opaque) {
   const ulbn_usize_t an = _ulbn_abs_size(ao->len);
   ulbn_limb_t* rp;
 

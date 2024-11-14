@@ -330,7 +330,7 @@ typedef struct ulbn_alloc_t {
 } ulbn_alloc_t;
 ULBN_PUBLIC ulbn_alloc_t* ulbn_default_alloc(void);
 
-typedef int ulbi_printer_t(void* opaque, const char* str, size_t len);
+typedef int ulbn_printer_t(void* opaque, const char* str, size_t len);
 
 
 #if UINT_MAX >= 0xFFFFFFFFu
@@ -1306,7 +1306,7 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
  * @return `ULBN_ERR_EXTERNAL` if `printer` returns non-zero;
  * @return `0` if successful
  */
-ULBN_PUBLIC int ulbi_print_ex(ulbn_alloc_t* alloc, const ulbi_t* ao, int base, ulbi_printer_t* printer, void* opaque);
+ULBN_PUBLIC int ulbi_print_ex(ulbn_alloc_t* alloc, const ulbi_t* ao, int base, ulbn_printer_t* printer, void* opaque);
 /**
  * @brief Print `o` to `fp`
  *
