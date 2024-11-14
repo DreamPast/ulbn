@@ -183,6 +183,12 @@ static ul_constexpr const ulbn_usize_t ULBN_SSIZE_LIMIT = _ULBN_SSIZE_LIMIT;
   if(ul_unlikely(cond))                       \
   return (ret)
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #define ulbn_doalloc(alloc, p, on, nn) (alloc)->alloc_func((alloc)->alloc_opaque, (p), (on), (nn))
 
 #define ulbn_doallocT(T, alloc, p, onum, nnum)                                                                         \
@@ -6226,5 +6232,9 @@ ULBN_PUBLIC const ulbi_t* ulbi_set_stack_slong(ulbi_stack_slong_t* dst, ulbn_slo
 ULBN_PUBLIC const ulbi_t* ulbi_get_stack_slong(const ulbi_stack_slong_t* dst) {
   return dst->o;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ULBN_SOURCE */

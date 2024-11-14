@@ -140,10 +140,6 @@
 #include <stdio.h>
 #include <float.h>
 
-#define ULBN_PUBLIC
-#define ULBN_INTERNAL static
-#define ULBN_PRIVATE static
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -249,6 +245,37 @@ typedef signed long ulbn_slong_t;
 #ifndef ULBN_CONF_ONLY_ALLOCATE_NEEDED
   #define ULBN_CONF_ONLY_ALLOCATE_NEEDED 1
 #endif /* ULBN_CONF_ONLY_ALLOCATE_NEEDED */
+
+/**
+ * @def ULBN_CONF_INCLUDE_IMPLEMENT
+ * @brief Configuration: Whether to include the implementation
+ */
+#ifndef ULBN_CONF_INCLUDE_IMPLEMENT
+  #define ULBN_CONF_INCLUDE_IMPLEMENT 0
+#endif /* ULBN_CONF_INCLUDE_IMPLEMENT */
+
+#if ULBN_CONF_INCLUDE_IMPLEMENT
+  #ifndef ULBN_PUBLIC
+    #define ULBN_PUBLIC static ul_inline
+  #endif /* ULBN_PUBLIC */
+  #ifndef ULBN_INTERNAL
+    #define ULBN_INTERNAL static ul_inline
+  #endif /* ULBN_INTERNAL */
+  #ifndef ULBN_PRIVATE
+    #define ULBN_PRIVATE static ul_inline
+  #endif /* ULBN_PRIVATE */
+#endif
+
+
+#ifndef ULBN_PUBLIC
+  #define ULBN_PUBLIC
+#endif /* ULBN_PUBLIC */
+#ifndef ULBN_INTERNAL
+  #define ULBN_INTERNAL static
+#endif /* ULBN_INTERNAL */
+#ifndef ULBN_PRIVATE
+  #define ULBN_PRIVATE static
+#endif /* ULBN_PRIVATE */
 
 
 /* <0 indicates a system error, >0 indicates a mathematical error
@@ -1490,6 +1517,10 @@ ULBN_PUBLIC const ulbi_t* ulbi_get_stack_slong(const ulbi_stack_slong_t* dst);
 
 #ifdef __cplusplus
 }
+#endif
+
+#if ULBN_CONF_INCLUDE_IMPLEMENT
+  #include "ulbn.c"
 #endif
 
 #endif /* ULBN_HEADER */

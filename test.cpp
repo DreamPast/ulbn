@@ -4,6 +4,7 @@ typedef signed char ulbn_slimb_t;
 #define ULBN_SLIMB_MAX SCHAR_MAX
 #define ULBN_SLIMB_MIN SCHAR_MIN
 
+#define ULBN_CONF_INCLUDE_IMPLEMENT 1
 #include "ulbn.hpp"
 using ul::bn::BigInt;
 using ul::bn::operator""_bi;
@@ -1223,7 +1224,3 @@ int main() {
   T_assert(tot_mem == 0);
   return 0;
 }
-
-// #undef ul_static_assert
-// #define ul_static_assert(cond, msg)
-#include "ulbn.c"
