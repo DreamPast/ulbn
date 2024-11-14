@@ -148,13 +148,7 @@ extern "C" {
 #endif
 
 #if !defined(ULBN_LIMB_MAX) || !defined(ULBN_SLIMB_MAX) || !defined(ULBN_SLIMB_MIN)
-  #if defined(_ULBN_DEBUG_LIMB)
-typedef unsigned char ulbn_limb_t;
-typedef signed char ulbn_slimb_t;
-    #define ULBN_LIMB_MAX UCHAR_MAX
-    #define ULBN_SLIMB_MAX SCHAR_MAX
-    #define ULBN_SLIMB_MIN SCHAR_MIN
-  #elif defined(LLONG_MAX)
+  #if defined(LLONG_MAX)
 typedef unsigned long long ulbn_limb_t;
 typedef signed long long ulbn_slimb_t;
     #define ULBN_LIMB_MAX ULLONG_MAX
@@ -169,36 +163,31 @@ typedef signed long ulbn_slimb_t;
   #endif
 #endif
 
-#if !defined(ulbn_limb2_t) && defined(__SIZEOF_INT128__) && defined(__GNUC__)
-  #if ULBN_LIMB_MAX <= 0xFFFFFFFFFFFFFFFFu
-    #define ulbn_limb2_t unsigned __int128
-  #endif
-#endif
 #if !defined(ulbn_limb2_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
   #define ulbn_limb2_t unsigned short
 #endif
 #if !defined(ulbn_limb2_t) && UINT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
   #define ulbn_limb2_t unsigned int
 #endif
+#if !defined(ulbn_limb2_t) && ULONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
+  #define ulbn_limb2_t unsigned long
+#endif
 #if !defined(ulbn_limb2_t) && defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
   #define ulbn_limb2_t unsigned long long
+#endif
+#if !defined(ulbn_limb2_t) && defined(__SIZEOF_INT128__) && defined(__GNUC__)
+  #if ULBN_LIMB_MAX <= 0xFFFFFFFFFFFFFFFFu
+    #define ulbn_limb2_t unsigned __int128
+  #endif
 #endif
 
 
 #if !defined(ULBN_USIZE_MAX) || !defined(ULBN_SSIZE_MAX) || !defined(ULBN_SSIZE_MIN)
-  #if !defined(_ULBN_DEBUG_USIZE)
 typedef signed ulbn_ssize_t;
 typedef unsigned ulbn_usize_t;
-    #define ULBN_USIZE_MAX UINT_MAX
-    #define ULBN_SSIZE_MAX INT_MAX
-    #define ULBN_SSIZE_MIN INT_MIN
-  #else
-typedef signed char ulbn_ssize_t;
-typedef unsigned char ulbn_usize_t;
-    #define ULBN_USIZE_MAX UCHAR_MAX
-    #define ULBN_SSIZE_MAX CHAR_MAX
-    #define ULBN_SSIZE_MIN CHAR_MIN
-  #endif
+  #define ULBN_USIZE_MAX UINT_MAX
+  #define ULBN_SSIZE_MAX INT_MAX
+  #define ULBN_SSIZE_MIN INT_MIN
 #endif
 
 #define ulbn_cast_usize(n) ul_static_cast(ulbn_usize_t, (n))
@@ -235,14 +224,9 @@ typedef signed long ulbn_slong_t;
 /**
  * @def ULBN_CONF_CHECK_ALLOCATION_FAILURE
  * @brief Configuration: Whether to check for memory allocation failure
- * @note On Linux, it is usually not necessary to check for allocation failure, as realloc seems to never return NULL
  */
 #ifndef ULBN_CONF_CHECK_ALLOCATION_FAILURE
-  #ifdef __linux__
-    #define ULBN_CONF_CHECK_ALLOCATION_FAILURE 0
-  #else
-    #define ULBN_CONF_CHECK_ALLOCATION_FAILURE 1
-  #endif
+  #define ULBN_CONF_CHECK_ALLOCATION_FAILURE 1
 #endif /* ULBN_CONF_CHECK_ALLOCATION_FAILURE */
 
 /**
@@ -250,8 +234,20 @@ typedef signed long ulbn_slong_t;
  * @brief Configuration: Whether to enable double precision floating point number
  */
 #ifndef ULBN_CONF_HAS_DOUBLE
-  #define ULBN_CONF_HAS_DOUBLE 1
+  #ifdef DBL_MAX
+    #define ULBN_CONF_HAS_DOUBLE 1
+  #else
+    #define ULBN_CONF_HAS_DOUBLE 0
+  #endif
 #endif /* ULBN_CONF_HAS_DOUBLE */
+
+/**
+ * @def ULBN_CONF_ONLY_ALLOCATE_NEEDED
+ * @brief Configuration: Whether to only allocate memory needed
+ */
+#ifndef ULBN_CONF_ONLY_ALLOCATE_NEEDED
+  #define ULBN_CONF_ONLY_ALLOCATE_NEEDED 1
+#endif /* ULBN_CONF_ONLY_ALLOCATE_NEEDED */
 
 
 /* <0 indicates a system error, >0 indicates a mathematical error

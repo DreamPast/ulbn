@@ -1,4 +1,13 @@
-#define _ULBN_DEBUG_LIMB 1
+typedef unsigned char ulbn_limb_t;
+typedef signed char ulbn_slimb_t;
+#define ULBN_LIMB_MAX UCHAR_MAX
+#define ULBN_SLIMB_MAX SCHAR_MAX
+#define ULBN_SLIMB_MIN SCHAR_MIN
+
+#include "ulbn.hpp"
+using ul::bn::BigInt;
+using ul::bn::operator""_bi;
+
 #include <iostream>
 #include <cmath>
 #include <cfloat>
@@ -7,10 +16,6 @@
 #include <bit>
 #include <random>
 #include <numeric>
-
-#include "ulbn.hpp"
-using ul::bn::BigInt;
-using ul::bn::operator""_bi;
 
 [[noreturn]] void _T_assert(const char* msg, const char* file, int line) {
   std::cerr << "Assertion failed: " << msg << " at " << file << ":" << line << std::endl;

@@ -3520,10 +3520,15 @@ ULBN_PRIVATE ulbn_limb_t* _ulbi_reserve(ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usi
   ulbn_limb_t* new_limb;
 
   ulbn_assert(n > o->cap);
+#if ULBN_CONF_ONLY_ALLOCATE_NEEDED
+  new_cap = n;
+#else
   new_cap = o->cap + (o->cap >> 1);
   new_cap = _ulbn_max_(new_cap, n);
   ULBN_DO_IF_USIZE_OVERFLOW(new_cap, new_cap = n;);
+#endif
   ULBN_DO_IF_USIZE_OVERFLOW(new_cap, return ul_nullptr;);
+
   new_limb = ulbn_reallocT(ulbn_limb_t, alloc, o->limb, o->cap, new_cap);
   ULBN_RETURN_IF_ALLOC_FAILED(new_limb, ul_nullptr);
   o->limb = new_limb;
