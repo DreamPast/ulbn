@@ -16,6 +16,7 @@ using ul::bn::operator""_bi;
 #include <bit>
 #include <random>
 #include <numeric>
+#include <algorithm>
 
 [[noreturn]] void _T_assert(const char* msg, const char* file, int line) {
   std::cerr << "Assertion failed: " << msg << " at " << file << ":" << line << std::endl;
@@ -70,6 +71,134 @@ void testException() {
   T_assert(ul::bn::Exception(-100) == -100);
 }
 
+template<class ExpectValue>
+void _checkSetString(
+  const char* str, ExpectValue expect_value, ptrdiff_t expect_len = -1, int expect_error = 0, int flags = ~0
+) {
+  const char* nstr = str;
+  BigInt bi;
+  if(expect_len < 0)
+    expect_len = strlen(str) - (expect_len + 1);
+  T_assert(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, 0, flags) == expect_error);
+  T_assert(bi == expect_value);
+  T_assert(nstr - str == expect_len);
+}
+
+void subtestSetString() {
+  puts("===Subtest Set String");
+
+  for(auto zero: {"0", "0.", "0.0", "0.00", "0.000"})
+    for(auto sign: {"", "+", "-"})
+      for(auto prefix: {"", "0x", "0o", "0b"}) {
+        std::string str = std::string(sign) + prefix + zero;
+        _checkSetString(str.c_str(), 0, -1, strcmp(sign, "-") == 0 ? ULBN_ERR_INEXACT : 0);
+        _checkSetString(
+          str.c_str(), 0, strlen(prefix) + strlen(sign) + 1, strcmp(sign, "-") == 0 ? ULBN_ERR_INEXACT : 0,
+          ~0 ^ ULBN_SET_STRING_ACCEPT_DECIMAL_PART
+        );
+      }
+
+  _checkSetString("00", 0, 1);
+  _checkSetString("000", 0, 1);
+  _checkSetString("+00", 0, 2);
+  _checkSetString("+000", 0, 2);
+  _checkSetString("-00", 0, 2, ULBN_ERR_INEXACT);
+  _checkSetString("-000", 0, 2, ULBN_ERR_INEXACT);
+
+  {
+    _checkSetString(".1e-10", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString(".1e-2", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString(".1e-1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString(".1e0", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString(".1e1", 1);
+    _checkSetString(".1e2", 10);
+    _checkSetString(".1e3", 100);
+    _checkSetString(".1e10", 1000000000);
+
+    _checkSetString("0.1e-10", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1e-2", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1e-1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1e0", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1e1", 1);
+    _checkSetString("0.1e2", 10);
+    _checkSetString("0.1e3", 100);
+    _checkSetString("0.1e10", 1000000000);
+
+    _checkSetString("0.12e-10", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.12e-1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.12e0", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.12e1", 1, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.12e2", 12);
+    _checkSetString("0.12e3", 120);
+    _checkSetString("0.12e10", 1200000000);
+
+    _checkSetString("0.123e-10", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.123e-1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.123e0", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.123e1", 1, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.123e2", 12, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.123e3", 123);
+    _checkSetString("0.123e10", 1230000000);
+
+    _checkSetString("1.2", 1, 1, 0, ~0 ^ ULBN_SET_STRING_ACCEPT_DECIMAL_PART);
+    _checkSetString(".1", 0, 0, 0, ~0 ^ ULBN_SET_STRING_ACCEPT_DECIMAL_PART);
+  }
+
+  {
+    _checkSetString("0x.1p-10", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x.1p-2", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x.1p-1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x.1p0", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x.1p2", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x.1p3", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x.1p4", 1);
+    _checkSetString("0x.1p5", 2);
+    _checkSetString("0x.1p6", 4);
+
+    _checkSetString("0x0.1p-10", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.1p-2", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.1p-1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.1p0", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.1p2", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.1p3", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.1p4", 1);
+    _checkSetString("0x0.1p5", 2);
+    _checkSetString("0x0.1p6", 4);
+
+    _checkSetString("0x0.13p-10", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.13p-1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.13p0", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.13p1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.13p2", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.13p3", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.13p4", 1, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.13p7", 9, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0x0.13p8", 19, -1, 0);
+    _checkSetString("0x0.13p9", 38, -1, 0);
+  }
+
+  {
+    _checkSetString("0.1p-1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p-2", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p0", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p2", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p3", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p4", 1, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p5", 3, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p6", 6, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p-1", 0, -1, ULBN_ERR_INEXACT);
+    _checkSetString("0.1p-2", 0, -1, ULBN_ERR_INEXACT);
+
+    _checkSetString("0.1p0", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
+    _checkSetString("0.1p1", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
+    _checkSetString("0.1p2", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
+    _checkSetString("0.1p3", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
+    _checkSetString("0.1p4", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
+    _checkSetString("0.1p5", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
+    _checkSetString("0.1p6", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
+  }
+}
 void testCastFrom() {
   puts("===Test Cast From");
 
@@ -135,6 +264,8 @@ void testCastFrom() {
       BigInt::fromData(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64) == static_cast<uint64_t>(y)
     );
   }
+
+  subtestSetString();
 }
 
 void testCastTo() {
@@ -1093,6 +1224,6 @@ int main() {
   return 0;
 }
 
-#undef ul_static_assert
-#define ul_static_assert(cond, msg)
+// #undef ul_static_assert
+// #define ul_static_assert(cond, msg)
 #include "ulbn.c"

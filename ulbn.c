@@ -3720,13 +3720,143 @@ ULBN_PUBLIC int ulbi_set_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n)
   return 0;
 }
 
-ULBN_PUBLIC int ulbi_set_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base) {
-  ulbn_limb_t GUARD;
-  ulbn_limb_t l = 0, B = 1;
+ul_static_assert('0' == 48, "not ASCII");
+ul_static_assert('A' == 65, "not ASCII");
+ul_static_assert('Z' == 90, "not ASCII");
+ul_static_assert('a' == 97, "not ASCII");
+ul_static_assert('z' == 122, "not ASCII");
+ul_static_assert(ULBN_LIMB_MAX >= 36, "ulbn_limb_t is too small to hold base");
+ULBN_PRIVATE int _ulbi_mul_base_exp(ulbn_alloc_t* alloc, ulbi_t* obj, int base, ulbn_usize_t expo) {
+  ulbi_t temp;
+  int err;
+  int shift = -1;
+
+  ulbn_assert(base >= 2 && base <= 36);
+
+  if(ul_likely(base == 16))
+    shift = 4;
+  else if(base == 8)
+    shift = 3;
+  else if(base == 4)
+    shift = 2;
+  else if(base == 2)
+    return ulbi_sal_usize(alloc, obj, obj, expo);
+
+  if(shift >= 0) {
+    if(ul_unlikely(expo > ULBN_USIZE_MAX / ul_static_cast(unsigned char, shift))) {
+      err = ulbi_init_usize(alloc, &temp, expo);
+      ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+      err = ulbi_mul_limb(alloc, &temp, &temp, ul_static_cast(ulbn_limb_t, shift));
+      if(ul_likely(err >= 0))
+        err = ulbi_sal(alloc, obj, obj, &temp);
+      ulbi_deinit(alloc, &temp);
+    } else
+      err = ulbi_sal_usize(alloc, obj, obj, expo * ul_static_cast(unsigned char, shift));
+  } else {
+    err = ulbi_init_limb(alloc, &temp, ul_static_cast(ulbn_limb_t, base));
+    ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+    err = ulbi_pow_usize(alloc, &temp, &temp, expo);
+    if(ul_likely(err >= 0))
+      err = ulbi_mul(alloc, obj, obj, &temp);
+    ulbi_deinit(alloc, &temp);
+  }
+  return err;
+}
+ULBN_PRIVATE int _ulbi_div_base_exp(ulbn_alloc_t* alloc, ulbi_t* obj, int base, ulbn_usize_t expo) {
+  ulbi_t temp;
+  int err;
+  int shift = -1;
+
+  ulbn_assert(base >= 2 && base <= 36);
+
+  if(ul_likely(base == 16))
+    shift = 4;
+  else if(base == 8)
+    shift = 3;
+  else if(base == 4)
+    shift = 2;
+  else if(base == 2)
+    return ulbi_sal_usize(alloc, obj, obj, expo);
+
+  if(shift >= 0) {
+    if(ul_unlikely(expo > ULBN_USIZE_MAX / ul_static_cast(unsigned char, shift))) {
+      err = ulbi_init_usize(alloc, &temp, expo);
+      ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+      err = ulbi_mul_limb(alloc, &temp, &temp, ul_static_cast(ulbn_limb_t, shift));
+      if(ul_likely(err >= 0))
+        err = ulbi_div_2exp(alloc, obj, obj, &temp);
+      ulbi_deinit(alloc, &temp);
+    } else
+      err = ulbi_div_2exp_usize(alloc, obj, obj, expo * ul_static_cast(unsigned char, shift));
+  } else {
+    err = ulbi_init_limb(alloc, &temp, ul_static_cast(ulbn_limb_t, base));
+    ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+    err = ulbi_pow_usize(alloc, &temp, &temp, expo);
+    if(ul_likely(err >= 0))
+      err = ulbi_div(alloc, obj, obj, &temp);
+    ulbi_deinit(alloc, &temp);
+  }
+
+  ulbn_assert(err < 0 || err == 0 || err == ULBN_ERR_INEXACT);
+  return err;
+}
+ULBN_PUBLIC int ulbi_set_string_ex(ulbn_alloc_t* alloc, ulbi_t* dst, const char** pstr, int base, int flag) {
+  static ul_constexpr const unsigned char _TABLE[] = {
+    0,   1,  2,  3,  4,  5,  6,  7,  8,  9,  255, 255, 255, 255, 255, 255, /* \x30 - \x3F */
+    255, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,  20,  21,  22,  23,  24,  /* \x40 - \x4F */
+    25,  26, 27, 28, 29, 30, 31, 32, 33, 34, 35,  255, 255, 255, 255, 255, /* \x50 - \x5F */
+    255, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,  20,  21,  22,  23,  24,  /* \x60 - \x6F */
+    25,  26, 27, 28, 29, 30, 31, 32, 33, 34, 35,  255, 255, 255, 255, 255, /* \x70 - \x7F */
+  };
+
+  ulbn_limb_t B_GUARD;
+  const char* str = *pstr;
+  const int CH_SEP = (flag & ULBN_SET_STRING_ACCEPT_SEPARATOR) ? '_' : 0x100;
+  const int CH_DOT = (flag & ULBN_SET_STRING_ACCEPT_DECIMAL_PART) ? '.' : 0x100;
   unsigned x;
-  char lim0, lim1, lim2;
-  int err = 0;
-  int neg = 0;
+  int err = 0, neg = 0;
+
+  ulbn_limb_t intpart_l = 0, intpart_B = 1;
+
+  const char* frac_start = ul_nullptr;
+  const char* frac_end = ul_nullptr;
+  const char* frac_end2;
+  ulbi_t frac = ULBI_INIT;
+  ulbn_limb_t fracpart_l = 0, fracpart_B = 1;
+  ulbn_usize_t frac_expo;
+
+  ulbn_usize_t expo = 0;
+  int expo_neg = 0;
+  int expo_base = 0;
+
+#if 1
+  #define _ULBI_CHECK(B, l, bi)                    \
+    if((B) >= B_GUARD) {                           \
+      err = ulbi_mul_limb(alloc, (bi), (bi), (B)); \
+      ULBN_DO_IF_PUBLIC_COND(err < 0, goto done;); \
+      err = ulbi_add_limb(alloc, (bi), (bi), (l)); \
+      ulbn_assert(err <= 0);                       \
+      ULBN_DO_IF_PUBLIC_COND(err < 0, goto done;); \
+      (l) = 0;                                     \
+      (B) = 1;                                     \
+    }                                              \
+    (void)0
+  #define _ULBI_NEXT(B, l, x)                   \
+    ulbn_assert((B) < B_GUARD);                 \
+    (B) *= ul_static_cast(unsigned char, base); \
+    (l) = ul_static_cast(ulbn_limb_t, (l) * ul_static_cast(unsigned char, base) + x)
+  #define _ULBI_END(B, l, bi)                      \
+    if((B) != 1) {                                 \
+      err = ulbi_mul_limb(alloc, (bi), (bi), (B)); \
+      ULBN_DO_IF_PUBLIC_COND(err < 0, goto done;); \
+      err = ulbi_add_limb(alloc, (bi), (bi), (l)); \
+    }                                              \
+    (void)0
+  #define _ULBI_INRANGE(ch) (ul_static_cast(unsigned char, (ch)) - 0x30u < 0x50u)
+  #define _ULBI_TAB(ch) _TABLE[ul_static_cast(unsigned char, (ch)) - 0x30u]
+#endif
+
+  /* remove preffix */
 
   dst->len = 0;
   if(str[0] == '-') {
@@ -3734,72 +3864,226 @@ ULBN_PUBLIC int ulbi_set_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* st
     ++str;
   } else if(str[0] == '+')
     ++str;
+  if(*str == 0) {
+    --str;
+    goto done;
+  }
 
   if(base == 0) {
-    if(str[0] == '0')
-      switch(str[1]) {
-      case 'x':
-      case 'X':
-        base = 16;
-        str += 2;
-        break;
-      case 'b':
-      case 'B':
-        base = 2;
-        str += 2;
-        break;
-      case 'o':
-      case 'O':
-        base = 8;
-        str += 2;
-        break;
-      default:
-        if(str[1] >= '0' && str[1] <= '7') {
+    if(str[0] == '0') {
+      if(str[1] == 0) { /* "0" */
+        ++str;          /* eat "0" */
+        goto done;
+      } else if(str[1] == 'x' || str[1] == 'X') {
+        if(str[2] == 0) { /* "0x" or "0X" */
+          ++str;          /* eat "0" */
+          goto done;
+        } else if((str[2] >= '0' && str[2] <= '9') || (str[2] >= 'a' && str[2] <= 'f')
+                  || (str[2] >= 'A' && str[2] <= 'F') || str[2] == CH_DOT) {
+          /* eat "0x"/"0X", and accpet the preffix */
+          base = 16;
+          str += 2;
+        } else {
+          ++str; /* eat "0" */
+          goto done;
+        }
+      } else if(str[1] == 'b' || str[1] == 'B') {
+        if(str[2] == 0) { /* "0x" or "0X" */
+          ++str;          /* eat "0" */
+          goto done;
+        } else if(str[2] == '0' || str[2] == '1' || str[2] == CH_DOT) {
+          /* eat "0b"/"0B", and accpet the preffix */
+          base = 2;
+          str += 2;
+        } else {
+          ++str; /* eat "0" */
+          goto done;
+        }
+      } else if(str[1] == 'o' || str[1] == 'O') {
+        if(str[2] == 0) {
+          ++str; /* eat "0" */
+          goto done;
+        } else if(str[2] >= '0' && str[2] <= '7') {
           base = 8;
-          ++str;
-        } else
-          return 0;
+          str += 2;
+        } else {
+          ++str; /* eat "0" */
+          goto done;
+        }
+      } else if(str[1] == '0') { /* "00" */
+        ++str;
+        goto done;
+      } else if((str[1] >= '1' && str[1] <= '7') && (flag & ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX)) {
+        base = 8;
+        ++str;
+      } else if(str[1] == CH_DOT) { /* "0."... */
+        base = 10;
+        ++str; /* eat "0" only */
+      } else {
+        ++str; /* eat "0" only */
+        goto done;
       }
-    else
+    } else {
       base = 10;
-  }
-  if(base < 2 || base > 36)
-    return ULBN_ERR_EXCEED_RANGE;
-
-  GUARD = ul_static_cast(ulbn_limb_t, ULBN_LIMB_MAX / ul_static_cast(unsigned, base));
-  lim0 = base <= 10 ? ul_static_cast(char, '0' + base - 1) : '9';
-  lim1 = ul_static_cast(char, base - 11 + 'A');
-  lim2 = ul_static_cast(char, base - 11 + 'a');
-  for(;; ++str) {
-    if(B >= GUARD) {
-      err = ulbi_mul_limb(alloc, dst, dst, B);
-      ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
-      err = ulbi_add_limb(alloc, dst, dst, l);
-      ulbn_assert(err <= 0);
-      ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
-      l = 0;
-      B = 1;
     }
-    if(*str >= '0' && *str <= lim0)
-      x = ul_static_cast(unsigned, *str - '0');
-    else if(*str >= 'A' && *str <= lim1)
-      x = ul_static_cast(unsigned, *str - 'A' + 10);
-    else if(*str >= 'a' && *str <= lim2)
-      x = ul_static_cast(unsigned, *str - 'a' + 10);
-    else
-      break;
-    B *= ul_static_cast(unsigned char, base);
-    l = ul_static_cast(ulbn_limb_t, l * ul_static_cast(unsigned char, base) + x);
   }
-  if(B != 1) {
-    err = ulbi_mul_limb(alloc, dst, dst, B);
-    ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
-    err = ulbi_add_limb(alloc, dst, dst, l);
+  if(base < 2 || base > 36) {
+    err = ULBN_ERR_EXCEED_RANGE;
+    goto done;
   }
-  ulbn_assert(err <= 0);
-  if(neg)
+
+  /* parse integer part */
+
+  B_GUARD = ul_static_cast(ulbn_limb_t, ULBN_LIMB_MAX / ul_static_cast(unsigned, base));
+  for(;; ++str) {
+    _ULBI_CHECK(intpart_B, intpart_l, dst);
+    if(!_ULBI_INRANGE(*str) || (x = _ULBI_TAB(*str)) >= ul_static_cast(unsigned, base)) {
+      if(*str == CH_SEP)
+        continue;
+      else
+        break;
+    }
+    _ULBI_NEXT(intpart_B, intpart_l, x);
+  }
+  _ULBI_END(intpart_B, intpart_l, dst);
+
+  if(*str == CH_DOT) {
+    frac_start = ++str;
+    for(;;)
+      if((_ULBI_INRANGE(*str) && _ULBI_TAB(*str) < ul_static_cast(unsigned, base)) || *str == CH_SEP)
+        ++str;
+      else
+        break;
+    frac_end = str;
+  }
+
+  /* parse exponent part */
+
+  if(*str == 'e' || *str == 'E' || *str == 'p' || *str == 'P') {
+    const ulbn_usize_t EXPO_LIMIT = (ULBN_USIZE_MAX - 9) / 10;
+
+    if(*str == 'e' || *str == 'E') {
+      if(!(flag & ULBN_SET_STRING_ACCEPT_DEC_EXPONENT))
+        goto handle_frac;
+      if(!(flag & ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH) && base != 10)
+        goto handle_frac;
+      expo_base = 10;
+    } else {
+      if(!(flag & ULBN_SET_STRING_ACCEPT_HEX_EXPONENT))
+        goto handle_frac;
+      if(!(flag & ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH) && base != 16)
+        goto handle_frac;
+      expo_base = 2;
+    }
+    ++str;
+
+    if(*str == '+')
+      ++str;
+    else if(*str == '-') {
+      ++str;
+      expo_neg = 1;
+    }
+
+    for(;; ++str)
+      if(*str >= '0' && *str <= '9') {
+        if(ul_likely(expo <= EXPO_LIMIT)) {
+          expo *= 10u;
+          expo += ul_static_cast(unsigned char, *str - '0');
+        } else {
+          err = ULBN_ERR_EXCEED_RANGE;
+          goto done;
+        }
+      } else
+        break;
+  }
+
+handle_frac: /* parse fractional part */
+  while(frac_start < frac_end && frac_end[-1] == '0')
+    --frac_end;
+  if(frac_start == frac_end) {
+    if(ul_unlikely(expo_neg) && expo)
+      err = _ulbi_div_base_exp(alloc, dst, base, expo);
+    goto done;
+  }
+
+  if(expo == 0) {
+    err = ULBN_ERR_INEXACT;
+    goto done;
+  }
+  if(ul_unlikely(expo_neg)) {
+    err = _ulbi_div_base_exp(alloc, dst, base, expo);
+    if(err == 0)
+      err = ULBN_ERR_INEXACT;
+    goto done;
+  }
+
+  if(ul_unlikely(expo_base != base)) {
+    frac_expo = 0;
+    for(; frac_start < frac_end; ++frac_start) {
+      _ULBI_CHECK(fracpart_B, fracpart_l, &frac);
+      if(*frac_start == CH_SEP)
+        continue;
+      x = _TABLE[ul_static_cast(unsigned char, *frac_start) - 0x30u];
+      _ULBI_NEXT(fracpart_B, fracpart_l, x);
+      ++frac_expo;
+    }
+    _ULBI_END(fracpart_B, fracpart_l, &frac);
+
+    err = _ulbi_mul_base_exp(alloc, dst, base, expo);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto done;);
+    err = _ulbi_mul_base_exp(alloc, &frac, expo_base, expo);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto done;);
+    err = _ulbi_div_base_exp(alloc, &frac, base, frac_expo);
+    if(ul_likely(err >= 0)) {
+      int nerr = ulbi_add(alloc, dst, dst, &frac);
+      ULBN_DO_IF_PUBLIC_COND(nerr < 0, err = nerr;);
+    }
+    goto done;
+  }
+
+  err = _ulbi_mul_base_exp(alloc, dst, base, expo);
+  ULBN_DO_IF_PUBLIC_COND(err < 0, goto done;);
+
+  if(ul_static_cast(size_t, frac_end - frac_start) > expo)
+    frac_end2 = frac_start + expo;
+  else
+    frac_end2 = frac_end;
+  for(; frac_start < frac_end2; ++frac_start) {
+    _ULBI_CHECK(fracpart_B, fracpart_l, &frac);
+    x = _TABLE[ul_static_cast(unsigned char, *frac_start) - 0x30u];
+    _ULBI_NEXT(fracpart_B, fracpart_l, x);
+    --expo;
+  }
+  _ULBI_END(fracpart_B, fracpart_l, &frac);
+
+  if(expo) {
+    err = _ulbi_mul_base_exp(alloc, &frac, base, expo);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto done;);
+  }
+  err = ulbi_add(alloc, dst, dst, &frac);
+  ULBN_DO_IF_PUBLIC_COND(err < 0, goto done;);
+  err = frac_end2 != frac_end ? ULBN_ERR_INEXACT : 0;
+
+done:
+  ulbi_deinit(alloc, &frac);
+  *pstr = str;
+  if(neg) {
     dst->len = -dst->len;
+    if(err == 0 && dst->len == 0)
+      err = ULBN_ERR_INEXACT;
+  }
   return err;
+#undef _ULBI_CHECK
+#undef _ULBI_END
+#undef _ULBI_NEXT
+#undef _ULBI_INRANGE
+#undef _ULBI_TAB
+}
+ULBN_PUBLIC int ulbi_set_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base) {
+  int err = ulbi_set_string_ex(alloc, dst, &str, base, ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX);
+  if(err < 0)
+    return err;
+  return *str == 0 ? 0 : ULBN_ERR_INVALID;
 }
 
 ULBN_PUBLIC int ulbi_set_data(ulbn_alloc_t* alloc, ulbi_t* dst, const void* limbs, size_t len, int is_big_endian) {

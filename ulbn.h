@@ -138,6 +138,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
+#include <float.h>
 
 #define ULBN_PUBLIC
 #define ULBN_INTERNAL static
@@ -479,14 +480,64 @@ ULBN_PUBLIC int ulbi_set_2exp_usize(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
 ULBN_PUBLIC int ulbi_set_2exp(ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n);
+
+enum ULBN_SET_STRING_FLAG_ENUM {
+  /**
+   * @brief Accept separator ('_')
+   * @note Separator is ignored when parsing the string.
+   * @note Separator cannot appear at the exponent part (e.g., "10e1_2" is illegal).
+   */
+  ULBN_SET_STRING_ACCEPT_SEPARATOR = (1 << 0),
+  /**
+   * @brief Accept decimal part (e.g., "1.5", ".5")
+   */
+  ULBN_SET_STRING_ACCEPT_DECIMAL_PART = (1 << 1),
+  /**
+   * @brief Accept decimal exponent part (e.g., "1e2", "1e+2", "1e-2")
+   * @note "{a}e{b}" is equivalent to "{a} * 10^{b}"
+   */
+  ULBN_SET_STRING_ACCEPT_DEC_EXPONENT = (1 << 2),
+  /**
+   * @brief Accept hexadecimal exponent part (e.g., "1p2", "1p+2", "1p-2")
+   * @note "{a}p{b}" is equivalent to "{a} * 2^{b}"
+   */
+  ULBN_SET_STRING_ACCEPT_HEX_EXPONENT = (1 << 3),
+  /**
+   * @brief Accept octal number with implicit prefix (e.g., "0123")
+   * @note This flag is only effective when `base` is 0
+   */
+  ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX = (1 << 4),
+  /**
+   * @brief Allow exponent mismatch (e.g., "0x1e2.5")
+   * @note If this flag is not set, 'e' or 'E' can only be used in decimal, 'p' or 'P' can only be used in hexadecimal
+   */
+  ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH = (1 << 5)
+};
 /**
- * @brief Set `dst` to the integer represented by `str` in base `base`
+ * @brief Set `dst` to the integer represented by `*pstr` in base `base`, and write the pointer back to `*pstr`
  * @note This function stops parsing when it encounters the first illegal character
- * @param base 0 means automatic detection;
- *  otherwise, it should be greater than or equal to 2 and less than or equal to 36
+ * @param base 0 means automatic detection (according to the prefix); 2-36 means the base; otherwise, it is invalid
+ * @param flag Combination of `ULBN_SET_STRING_FLAG_ENUM`
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid
+ * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
+ * @return `ULBN_ERR_INEXACT` if the number represented by the string cannot be exactly represented as an integer;
+ * @return `ULBN_ERR_INEXACT` if the string represents some form of -0;
+ */
+ULBN_PUBLIC int ulbi_set_string_ex(ulbn_alloc_t* alloc, ulbi_t* dst, const char** pstr, int base, int flag);
+/**
+ * @brief Set `dst` to the integer represented by `str` in base `base`
+ * @param base 0 means automatic detection;
+ *  otherwise, it should be greater than or equal to 2 and less than or equal to 36
+ * @note it's equivalent to `ulbi_set_string_ex(alloc, dst, &str, base, ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX)` and
+ *  check if `str` is fully parsed and ignore `ULBN_ERR_INEXACT` (this function won't accpet decimal part)
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
+ * @return `ULBN_ERR_INVALID` if the string cannot be fully parsed as an integer
+ *  (but the result is still stored, so you can ignore it);
  */
 ULBN_PUBLIC int ulbi_set_string(ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base);
 /**

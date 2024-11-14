@@ -5,6 +5,7 @@
 #include <limits>
 #include <bit>
 #include <iostream>
+#include <cstring>
 
 #include "ulbn.h"
 
@@ -318,6 +319,18 @@ public:
     } else {
       static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big);
     }
+  }
+
+
+  static BigInt fromStringEx(const char* str, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX) {
+    BigInt ret;
+    _check(ulbi_set_string_ex(_ctx(), ret._value, &str, base, flags));
+    return ret;
+  }
+  static BigInt fromStringEx(
+    const std::string& str, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  ) {
+    return fromStringEx(str.c_str(), base, flags);
   }
 
 
