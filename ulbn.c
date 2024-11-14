@@ -176,6 +176,12 @@ static ul_constexpr const ulbn_usize_t ULBN_SSIZE_LIMIT = _ULBN_SSIZE_LIMIT;
 #define ULBN_RETURN_IF_ALLOC_FAILED(ptr, ret) ULBN_RETURN_IF_ALLOC_COND((ptr) == ul_nullptr, ret)
 #define ULBN_DO_IF_ALLOC_FAILED(ptr, expr) ULBN_DO_IF_ALLOC_COND((ptr) == ul_nullptr, expr)
 
+#define ULBN_DO_IF_PUBLIC_COND(cond, expr) \
+  if(ul_unlikely(cond))                    \
+  expr((void)0)
+#define ULBN_RETURN_IF_PUBLIC_COND(cond, ret) \
+  if(ul_unlikely(cond))                       \
+  return (ret)
 
 #define ulbn_doalloc(alloc, p, on, nn) (alloc)->alloc_func((alloc)->alloc_opaque, (p), (on), (nn))
 
@@ -3820,7 +3826,7 @@ ULBN_PUBLIC int ulbi_set_data(ulbn_alloc_t* alloc, ulbi_t* dst, const void* limb
 #else
   wlen = len / sizeof(ulbn_limb_t) + (len % sizeof(ulbn_limb_t) != 0);
 #endif
-  if(wlen > ULBN_SSIZE_LIMIT)
+  if(ul_unlikely(wlen > ULBN_SSIZE_LIMIT))
     return ULBN_ERR_EXCEED_RANGE;
   dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
   ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
@@ -4667,10 +4673,10 @@ ULBN_PUBLIC int ulbi_pow_usize(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
   while(b) {
     if(b & 1) {
       err = ulbi_mul(alloc, ro, ro, &B);
-      ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+      ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
     }
     err = ulbi_mul(alloc, &B, &B, &B);
-    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
     b >>= 1;
   }
 
@@ -4710,10 +4716,10 @@ ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, cons
       while(j--) {
         if(l & 1) {
           err = ulbi_mul(alloc, ro, ro, &B);
-          ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+          ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
         }
         err = ulbi_mul(alloc, &B, &B, &B);
-        ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+        ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
         l >>= 1;
       }
     }
@@ -4721,10 +4727,10 @@ ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, cons
     while(l) {
       if(l & 1) {
         err = ulbi_mul(alloc, ro, ro, &B);
-        ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+        ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
       }
       err = ulbi_mul(alloc, &B, &B, &B);
-      ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+      ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
       l >>= 1;
     }
   }
@@ -4823,15 +4829,16 @@ ULBN_PUBLIC int ulbi_rootrem(ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const 
 
   /* e_n1 = e - 1, x = 2 ** ceil(bits_width(a) / e) + 1 */
   err = ulbi_sub_limb(alloc, eo_n1, eo, 1);
+  ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
   ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
   err = ulbi_abs_bit_width(alloc, yo, ao);
   ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
   cy = ulbi_div(alloc, yo, yo, eo);
   ULBN_DO_IF_ALLOC_COND(cy < 0, goto cleanup;);
   err = ulbi_add_limb(alloc, yo, yo, 1 + (cy == ULBN_ERR_INEXACT));
-  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
   err = ulbi_set_2exp(alloc, xo, yo);
-  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
 #if 0
   printf("bits = ");
   ulbi_print(alloc, yo, stdout, 10);
@@ -4858,13 +4865,13 @@ ULBN_PUBLIC int ulbi_rootrem(ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const 
     /* x = (x * (e - 1) + y) / e */
     /* y = abs(a) / (x ** (e - 1)) */
     err = ulbi_mul(alloc, xo, xo, eo_n1);
-    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
     err = ulbi_add(alloc, xo, xo, yo);
-    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
     err = ulbi_div(alloc, xo, xo, eo);
     ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
     err = ulbi_pow(alloc, to, xo, eo_n1);
-    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
     err = _ulbi_divmod(alloc, yo, ul_nullptr, ao, _ulbn_abs_size(ao->len), 1, to, ulbn_cast_usize(to->len), 1);
     ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
   }
@@ -4873,9 +4880,10 @@ ULBN_PUBLIC int ulbi_rootrem(ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const 
   if(sign)
     xo->len = -xo->len;
   err = ulbi_mul(alloc, to, to, xo);
-  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
   if(ro) {
     err = ulbi_sub(alloc, ro, ao, to);
+    ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
     ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
   } else
     err = ulbi_eq(to, ao) ? 0 : ULBN_ERR_INEXACT;
@@ -5373,11 +5381,13 @@ ULBN_PRIVATE int _ulbi_merge_usize2(ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize
   err = ulbi_set_usize(alloc, dst, h);
   ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
   err = ulbi_sal_usize(alloc, dst, dst, sizeof(ulbn_usize_t) * CHAR_BIT);
+  ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
   ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
 
   err = ulbi_set_usize(alloc, &tmp, l);
   ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
   err = ulbi_or(alloc, dst, dst, &tmp);
+  ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
   ulbi_deinit(alloc, &tmp);
   return err;
 }
@@ -5576,12 +5586,12 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
 
   B = ulbn_conv2str_base(base, &B_pow);
   ci = ulbn_convbase(alloc, &cp, &c_alloc, rp, an, B);
-  ULBN_DO_IF_ALLOC_COND(ci == 0, { goto done; });
+  ULBN_DO_IF_ALLOC_COND(ci == 0, goto done;);
 
   on = ulbn_conv2str(ci, cp, ul_nullptr, 0, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
-  ULBN_DO_IF_ALLOC_COND(on == 0, { goto done; });
+  ULBN_DO_IF_ALLOC_COND(on == 0, goto done;);
   buf = ul_reinterpret_cast(char*, alloc_func(alloc_opaque, ul_nullptr, 0, ul_static_cast(size_t, on) + 1 + a_neg));
-  ULBN_DO_IF_ALLOC_COND(buf == ul_nullptr, { goto done; });
+  ULBN_DO_IF_ALLOC_FAILED(buf, goto done;);
   if(ul_unlikely(a_neg))
     buf[0] = '-';
   ulbn_conv2str(ci, cp, buf + a_neg, on, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
@@ -5625,7 +5635,7 @@ ULBN_PUBLIC int ulbi_print_ex(ulbn_alloc_t* alloc, const ulbi_t* ao, int base, u
 
   B = ulbn_conv2str_base(base, &B_pow);
   ci = ulbn_convbase(alloc, &cp, &c_alloc, rp, an, B);
-  ULBN_DO_IF_ALLOC_COND(ci == 0, { goto done; });
+  ULBN_DO_IF_ALLOC_COND(ci == 0, goto done;);
 
   ret = ulbn_conv2print(ci, cp, printer, opaque, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
 
@@ -5782,6 +5792,7 @@ ULBN_PUBLIC int ulbi_set_rand_range(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_
     return ULBN_ERR_EXCEED_RANGE;
   }
   err = ulbi_abs_bit_width(alloc, &nbits, limit);
+  ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
   ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
   if(ulbi_is_2pow(limit)) {
     err = ulbi_sub_limb(alloc, &nbits, &nbits, 1);
@@ -5791,8 +5802,10 @@ ULBN_PUBLIC int ulbi_set_rand_range(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_
   }
 
   err = ulbi_set_2exp(alloc, &threshold, &nbits);
+  ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
   ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
   err = ulbi_sub(alloc, &threshold, &threshold, limit);
+  ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
   ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
   ulbn_assert(threshold.len >= 0);
   err = ulbi_mod(alloc, &threshold, &threshold, limit);
@@ -5806,7 +5819,7 @@ ULBN_PUBLIC int ulbi_set_rand_range(ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_
 
   do {
     err = ulbi_set_rand(alloc, rng, dst, &nbits);
-    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
   } while(ulbi_comp(dst, &threshold) < 0);
   err = ulbi_mod(alloc, dst, dst, limit);
 cleanup:
@@ -5831,7 +5844,9 @@ ULBN_PUBLIC int ulbi_set_rand_range2(
     _ulbn_swap_(const ulbi_t*, lo, hi);
 
   err = ulbi_sub(alloc, &limit, hi, lo);
+  ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
   ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ulbn_assert(limit.len > 0);
   if(ul_unlikely(lo == dst)) {
     err = ulbi_set_copy(alloc, &tlo, lo);
     ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
@@ -5839,7 +5854,7 @@ ULBN_PUBLIC int ulbi_set_rand_range2(
   }
 
   err = ulbi_set_rand_range(alloc, rng, dst, &limit);
-  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
   err = ulbi_add(alloc, dst, dst, lo);
 
 cleanup:
