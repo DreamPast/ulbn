@@ -15,19 +15,21 @@ namespace bn {
 class Exception: public std::runtime_error {
 public:
   explicit Exception(int err): std::runtime_error(_makeMessage(err)), _error(err) { }
+  explicit Exception(int err, const char* message): std::runtime_error(message), _error(err) { }
+  explicit Exception(int err, const std::string& message): std::runtime_error(message), _error(err) { }
 
-  int get_error() const {
+  int getError() const {
     return _error;
   }
 
   friend bool operator==(Exception lhs, Exception rhs) {
-    return lhs.get_error() == rhs.get_error();
+    return lhs.getError() == rhs.getError();
   }
   friend bool operator==(Exception lhs, int rhs) {
-    return lhs.get_error() == rhs;
+    return lhs.getError() == rhs;
   }
   friend bool operator==(int lhs, Exception rhs) {
-    return rhs.get_error() == lhs;
+    return rhs.getError() == lhs;
   }
 
 private:
@@ -148,17 +150,29 @@ public:
   }
 
   BigInt(const char* str, int base = 0) {
-    _check(ulbi_init_string(_ctx(), _value, str, base));
+    int err = ulbi_init_string(_ctx(), _value, str, base);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed ");
+    _check(err);
   }
   BigInt(const std::string& str, int base = 0) {
-    _check(ulbi_init_string(_ctx(), _value, str.c_str(), base));
+    int err = ulbi_init_string(_ctx(), _value, str.c_str(), base);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed ");
+    _check(err);
   }
   BigInt& operator=(const char* str) {
-    _check(ulbi_set_string(_ctx(), _value, str, 0));
+    int err = ulbi_set_string(_ctx(), _value, str, 0);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed ");
+    _check(err);
     return *this;
   }
   BigInt& operator=(const std::string& str) {
-    _check(ulbi_set_string(_ctx(), _value, str.c_str(), 0));
+    int err = ulbi_set_string(_ctx(), _value, str.c_str(), 0);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed ");
+    _check(err);
     return *this;
   }
 
@@ -556,17 +570,26 @@ public:
   }
   std::pair<BigInt, BigInt> divmod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode) const {
     BigInt q, r;
-    _check(ulbi_divmod_ex(_ctx(), q._value, r._value, _value, other._value, round_mode));
+    int err = ulbi_divmod_ex(_ctx(), q._value, r._value, _value, other._value, round_mode);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
+    _check(err);
     return {q, r};
   }
   BigInt div(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt q;
-    _check(ulbi_div_ex(_ctx(), q._value, _value, other._value, round_mode));
+    int err = ulbi_div_ex(_ctx(), q._value, _value, other._value, round_mode);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
+    _check(err);
     return q;
   }
   BigInt mod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt r;
-    _check(ulbi_mod_ex(_ctx(), r._value, _value, other._value, round_mode));
+    int err = ulbi_mod_ex(_ctx(), r._value, _value, other._value, round_mode);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
+    _check(err);
     return r;
   }
 
@@ -837,22 +860,34 @@ public:
   }
   BigInt sqrt() const {
     BigInt ret;
-    _check(ulbi_sqrt(_ctx(), ret._value, _value));
+    int err = ulbi_sqrt(_ctx(), ret._value, _value);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the value is negative");
+    _check(err);
     return ret;
   }
   std::pair<BigInt, BigInt> sqrtrem() const {
     BigInt q, r;
-    _check(ulbi_sqrtrem(_ctx(), q._value, r._value, _value));
+    int err = ulbi_sqrtrem(_ctx(), q._value, r._value, _value);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the value is negative");
+    _check(err);
     return {q, r};
   }
   BigInt root(const BigInt& e) const {
     BigInt ret;
-    _check(ulbi_root(_ctx(), ret._value, _value, e._value));
+    int err = ulbi_root(_ctx(), ret._value, _value, e._value);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the result is illegal");
+    _check(err);
     return ret;
   }
   std::pair<BigInt, BigInt> rootrem(const BigInt& e) const {
     BigInt q, r;
-    _check(ulbi_rootrem(_ctx(), q._value, r._value, _value, e._value));
+    int err = ulbi_rootrem(_ctx(), q._value, r._value, _value, e._value);
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the result is illegal");
+    _check(err);
     return {q, r};
   }
 

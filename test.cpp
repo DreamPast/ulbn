@@ -31,7 +31,7 @@ int _getExceptionCode(Func&& func) {
     func();
     return 0;
   } catch(const ul::bn::Exception& e) {
-    return e.get_error();
+    return e.getError();
   }
 }
 #define T_assert_exception(func, expect) T_assert(_getExceptionCode(func) == (expect))
