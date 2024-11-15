@@ -1032,6 +1032,16 @@ ULBN_PUBLIC int ulbi_pow_usize(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
 /**
  * @brief `ro` = `ao` ** b
  * @return `0` if successful;
+ * @return `ULBN_ERR_DIV_BY_ZERO` if `ao` = 0 and `b` < 0 (in this case, `ro` is set to 0);
+ * @return `ULBN_ERR_INEXACT` if `b` < 0 (in this case, `ro` is set to 0);
+ * @return `ULBN_ERR_EXCEED_RANGE` if the result is too large;
+ * @return `ULBN_ERR_NOMEM` if out of memory
+ */
+ULBN_PUBLIC int ulbi_pow_ssize(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_ssize_t b);
+/**
+ * @brief `ro` = `ao` ** b
+ * @return `0` if successful;
+ * @return `ULBN_ERR_DIV_BY_ZERO` if `ao` = 0 and `b` < 0 (in this case, `ro` is set to 0);
  * @return `ULBN_ERR_INEXACT` if `b` < 0 (in this case, `ro` is set to 0);
  * @return `ULBN_ERR_EXCEED_RANGE` if the result is too large;
  * @return `ULBN_ERR_NOMEM` if out of memory

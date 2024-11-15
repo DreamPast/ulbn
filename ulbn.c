@@ -4975,6 +4975,17 @@ cleanup:
   ulbi_deinit(alloc, &ta);
   return err;
 }
+ULBN_PUBLIC int ulbi_pow_ssize(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_ssize_t b) {
+  if(ao->len == 0) {
+    _ulbi_set_zero(ro);
+    return ul_unlikely(b < 0) ? ULBN_ERR_DIV_BY_ZERO : 0;
+  }
+  if(ul_unlikely(b < 0)) {
+    _ulbi_set_zero(ro);
+    return ULBN_ERR_INEXACT;
+  }
+  return ulbi_pow_usize(alloc, ro, ao, ulbn_cast_usize(b));
+}
 ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* b) {
   ulbi_t B = ULBI_INIT, ta = ULBI_INIT;
   int err;
@@ -4982,8 +4993,12 @@ ULBN_PUBLIC int ulbi_pow(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, cons
   ulbn_usize_t i = 0, n;
   unsigned j;
 
+  if(ao->len == 0) {
+    _ulbi_set_zero(ro);
+    return ul_unlikely(b->len < 0) ? ULBN_ERR_DIV_BY_ZERO : 0;
+  }
   if(ul_unlikely(b->len < 0)) {
-    ro->len = 0;
+    _ulbi_set_zero(ro);
     return ULBN_ERR_INEXACT;
   }
 

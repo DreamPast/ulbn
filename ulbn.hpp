@@ -849,8 +849,7 @@ public:
   template<FitSsize T>
   BigInt pow(T e) const {
     BigInt ret;
-    if(e >= 0)
-      _check(ulbi_pow_usize(_ctx(), ret._value, _value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(e))));
+    _check(ulbi_pow_ssize(_ctx(), ret._value, _value, static_cast<ulbn_ssize_t>(e)));
     return ret;
   }
   BigInt pow(const BigInt& e) const {
