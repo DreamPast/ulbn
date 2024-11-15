@@ -227,7 +227,7 @@ ULBN_PRIVATE int _ulbn_clz_(ulbn_limb_t x) {
   int r = 0;
 
   #if ULBN_LIMB_MAX > 0xFFu
-  static const ulbn_limb_t MASK8 = ULBN_LIMB_SHL(0xFF, ULBN_LIMB_BITS - 8);
+  static const ulbn_limb_t MASK8 = ULBN_LIMB_SHL(0xFF, _ULBN_LIMB_BITS - 8);
   ulbn_assert(x != 0);
   while(!(x & MASK8)) {
     r += 8;
