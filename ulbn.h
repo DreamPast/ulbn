@@ -118,22 +118,78 @@
 #endif /* ul_restrict */
 
 #ifndef ul_constexpr
+  /* clang-format off */
   #ifdef __cplusplus
     #if __cplusplus >= 201103L
       #define ul_constexpr constexpr
-      #define UL_CONSTEXPR_INIT \
-        { }
+      #define UL_CONSTEXPR_INIT { }
     #elif defined(_MSC_VER) && _MSC_VER >= 1900 && !defined(__clang__) /* Visual Studio 2015 and above */
       #define ul_constexpr constexpr
-      #define UL_CONSTEXPR_INIT \
-        { }
+      #define UL_CONSTEXPR_INIT { }
     #endif
   #endif
   #ifndef ul_constexpr
     #define ul_constexpr
     #define UL_CONSTEXPR_INIT
   #endif
+  /* clang-format on */
 #endif /* ul_constexpr */
+
+#ifndef UL_HAS_STDINT_H
+  #if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 1))
+    #if defined(__GNUC__) || ((__GLIBC__ > 2) || ((__GLIBC__ == 2) && (__GLIBC_MINOR__ >= 5)))
+      #define UL_HAS_STDINT_H
+    #endif
+  #endif
+  #if defined(__MINGW32__) \
+    && (__MINGW32_MAJOR_VERSION > 2 || (__MINGW32_MAJOR_VERSION == 2 && __MINGW32_MINOR_VERSION >= 0))
+    #define UL_HAS_STDINT_H
+  #endif
+  #if defined(unix) || defined(__unix) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE)
+    #include <unistd.h>
+    #if defined(_POSIX_VERSION) && (_POSIX_VERSION >= 200100L)
+      #define UL_HAS_STDINT_H
+    #endif
+  #endif
+  #if(defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L) || (defined(__cplusplus) && __cplusplus >= 201103L)
+    #define UL_HAS_STDINT_H
+  #endif
+  #if(defined(_MSC_VER) && _MSC_VER >= 1600) || (defined(__CYGWIN__) && defined(_STDINT_H))
+    #define UL_HAS_STDINT_H
+  #endif
+  #if defined(__has_include)
+    #if __has_include(<stdint.h>)
+      #define UL_HAS_STDINT_H
+    #endif
+  #endif
+#endif /* UL_HAS_STDINT_H */
+#ifdef UL_HAS_STDINT_H
+  #include <stdint.h>
+#endif
+
+#ifndef ul_export
+  #if defined(__clang__)
+    #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(__CYGWIN__)
+      #define ul_export __attribute__((__dllexport__))
+    #else
+      #define ul_export __attribute__((__visibility__("default")))
+    #endif
+  #elif defined(__GNUC__) && __GNUC__ >= 4
+    #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(__CYGWIN__)
+      #define ul_export __attribute__((__dllexport__))
+    #else
+      #define ul_export __attribute__((__visibility__("default")))
+    #endif
+  #endif
+  #if !defined(ul_export)
+    #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+      #define ul_export __declspec(dllexport)
+    #else
+      #define ul_export
+    #endif
+  #endif
+#endif /* ul_export */
+
 
 #include <limits.h>
 #include <math.h>
@@ -192,7 +248,13 @@ typedef unsigned ulbn_usize_t;
 
 
 #if !defined(ULBN_ULONG_MAX) || !defined(ULBN_SLONG_MAX) || !defined(ULBN_SLONG_MIN)
-  #if defined(ULLONG_MAX)
+  #if defined(UINTMAX_MAX)
+typedef uintmax_t ulbn_ulong_t;
+typedef intmax_t ulbn_slong_t;
+    #define ULBN_ULONG_MAX UINTMAX_MAX
+    #define ULBN_SLONG_MAX INTMAX_MAX
+    #define ULBN_SLONG_MIN INTMAX_MIN
+  #elif defined(ULLONG_MAX)
 typedef unsigned long long ulbn_ulong_t;
 typedef signed long long ulbn_slong_t;
     #define ULBN_ULONG_MAX ULLONG_MAX
@@ -247,12 +309,25 @@ typedef signed long ulbn_slong_t;
 #endif /* ULBN_CONF_ONLY_ALLOCATE_NEEDED */
 
 /**
+ * @def ULBN_CONF_EXPORT_PUBLIC
+ * @brief Configuration: Whether to export public functions
+ */
+#ifndef ULBN_CONF_EXPORT_PUBLIC
+  #define ULBN_CONF_EXPORT_PUBLIC 0
+#endif /* ULBN_CONF_EXPORT_PUBLIC */
+
+/**
  * @def ULBN_CONF_INCLUDE_IMPLEMENT
  * @brief Configuration: Whether to include the implementation
  */
 #ifndef ULBN_CONF_INCLUDE_IMPLEMENT
   #define ULBN_CONF_INCLUDE_IMPLEMENT 0
 #endif /* ULBN_CONF_INCLUDE_IMPLEMENT */
+
+
+#if ULBN_CONF_EXPORT_PUBLIC
+  #define ULBN_PUBLIC ul_export
+#endif
 
 #if ULBN_CONF_INCLUDE_IMPLEMENT
   #ifndef ULBN_PUBLIC
@@ -265,7 +340,6 @@ typedef signed long ulbn_slong_t;
     #define ULBN_PRIVATE static ul_inline
   #endif /* ULBN_PRIVATE */
 #endif
-
 
 #ifndef ULBN_PUBLIC
   #define ULBN_PUBLIC
@@ -382,9 +456,14 @@ ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n);
 typedef struct ulbi_t {
   ulbn_ssize_t len;
   ulbn_usize_t cap;
-  ulbn_limb_t* ul_restrict limb;
+  union {
+    ulbn_limb_t shrt[2];
+    ulbn_limb_t* ul_restrict lng;
+  } u;
 } ulbi_t;
-#define ULBI_INIT {0, 0, ul_nullptr}
+/* clang-format off */
+#define ULBI_INIT { 0, 2, { { 0, 0 } } }
+/* clang-format on */
 
 
 /**
@@ -1501,36 +1580,14 @@ ULBN_PUBLIC int ulbi_gcd_slimb(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
  */
 ULBN_PUBLIC int ulbi_lcm(ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 
-
-/**
- * @brief A big integer that can fit ulbn_slong_t on the stack
- *
- * @details In some cases, a full allocation of a big integer is not needed,
- * and only a temporary big integer is required. This struct provides that functionality.
- *
- * @note No ulbi_* API other than `ulbi_set_stack_slong` should be used to modify this struct;
- * no function call is needed to free this struct.
- */
-typedef struct ulbi_stack_slong_t {
-  ulbi_t o[1];
-  ulbn_limb_t l[(sizeof(ulbn_slong_t) + sizeof(ulbn_limb_t) - 1) / sizeof(ulbn_limb_t)];
-} ulbi_stack_slong_t;
-/**
- * @brief Set `ulbi_stack_slong_t` to `l` and return `const ulbi_t*`
- * @note This function never fails
- */
-ULBN_PUBLIC const ulbi_t* ulbi_set_stack_slong(ulbi_stack_slong_t* dst, ulbn_slong_t l);
-/**
- * @brief Get `const ulbi_t*` from `ulbi_stack_slong_t`
- */
-ULBN_PUBLIC const ulbi_t* ulbi_get_stack_slong(const ulbi_stack_slong_t* dst);
-
 #ifdef __cplusplus
 }
 #endif
 
 #if ULBN_CONF_INCLUDE_IMPLEMENT
-  #include "ulbn.c"
+  #ifndef ULBN_SOURCE
+    #include "ulbn.c"
+  #endif
 #endif
 
 #endif /* ULBN_HEADER */
