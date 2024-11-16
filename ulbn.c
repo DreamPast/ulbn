@@ -3467,40 +3467,6 @@ ULBN_PUBLIC int ulbi_init_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usi
   o->cap = n;
   return 0;
 }
-#define _ulbi_set_zero(dst) ((dst)->len = 0)
-#define _ulbi_may_set_zero(dst) ((dst) && _ulbi_set_zero(dst))
-ULBN_PUBLIC ulbi_t* ulbi_set_zero(ulbi_t* dst) {
-  _ulbi_set_zero(dst);
-  return dst;
-}
-
-ULBN_PUBLIC void ulbi_deinit(const ulbn_alloc_t* alloc, ulbi_t* o) {
-  if(o->cap > 2)
-    ulbn_deallocT(ulbn_limb_t, alloc, o->u.lng, o->cap);
-  _ulbi_set_zero(o);
-  o->cap = 2;
-}
-ULBN_PUBLIC int ulbi_shrink(const ulbn_alloc_t* alloc, ulbi_t* o) {
-  const ulbn_usize_t n = _ulbn_abs_size(o->len);
-  if(o->cap <= 2)
-    return 0;
-  if(n <= 2) {
-    ulbn_limb_t low = o->u.lng[0], high = o->u.lng[1];
-    ulbn_deallocT(ulbn_limb_t, alloc, o->u.lng, o->cap);
-    o->u.shrt[0] = low;
-    o->u.shrt[1] = high;
-    o->cap = 2;
-    return 0;
-  } else {
-    ulbn_limb_t* limb = ul_nullptr;
-    limb = ulbn_reallocT(ulbn_limb_t, alloc, o->u.lng, o->cap, n);
-    ULBN_RETURN_IF_ALLOC_FAILED(limb, ULBN_ERR_NOMEM);
-    o->u.lng = limb;
-    o->cap = n;
-  }
-  return 0;
-}
-
 ULBN_PRIVATE ulbn_limb_t* _ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n) {
   ulbn_usize_t new_cap;
   ulbn_limb_t* new_limb;
@@ -3532,6 +3498,88 @@ ULBN_PRIVATE ulbn_limb_t* _ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ul
 #define _ulbi_res(alloc, o, n) (((n) <= (o)->cap) ? _ulbi_limbs(o) : _ulbi_reserve((alloc), (o), (n)))
 ULBN_PUBLIC ulbn_limb_t* ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n) {
   return _ulbi_res(alloc, o, n);
+}
+
+
+#define _ulbi_set_zero(dst) ((dst)->len = 0)
+#define _ulbi_may_set_zero(dst) ((dst) && _ulbi_set_zero(dst))
+ULBN_PUBLIC ulbi_t* ulbi_set_zero(ulbi_t* dst) {
+  _ulbi_set_zero(dst);
+  return dst;
+}
+ULBN_PUBLIC ulbi_t* ulbi_init_limb(ulbi_t* dst, ulbn_limb_t limb) {
+  dst->cap = 2;
+  if(limb == 0)
+    _ulbi_set_zero(dst);
+  else {
+    dst->u.shrt[0] = limb;
+    dst->len = 1;
+  }
+  return dst;
+}
+ULBN_PUBLIC ulbi_t* ulbi_init_slimb(ulbi_t* dst, ulbn_slimb_t slimb) {
+  dst->cap = 2;
+  if(slimb == 0)
+    _ulbi_set_zero(dst);
+  else {
+    if(slimb < 0) {
+      dst->u.shrt[0] = _ulbn_from_neg_slimb(slimb);
+      dst->len = -1;
+    } else {
+      dst->u.shrt[0] = _ulbn_from_pos_slimb(slimb);
+      dst->len = 1;
+    }
+  }
+  return dst;
+}
+ULBN_PUBLIC void ulbi_set_limb(ulbi_t* dst, ulbn_limb_t limb) {
+  if(limb == 0)
+    _ulbi_set_zero(dst);
+  else {
+    _ulbi_limbs(dst)[0] = limb;
+    dst->len = 1;
+  }
+}
+ULBN_PUBLIC void ulbi_set_slimb(ulbi_t* dst, ulbn_slimb_t slimb) {
+  if(slimb == 0)
+    _ulbi_set_zero(dst);
+  else {
+    if(slimb < 0) {
+      _ulbi_limbs(dst)[0] = _ulbn_from_neg_slimb(slimb);
+      dst->len = -1;
+    } else {
+      _ulbi_limbs(dst)[0] = _ulbn_from_pos_slimb(slimb);
+      dst->len = 1;
+    }
+  }
+}
+
+
+ULBN_PUBLIC void ulbi_deinit(const ulbn_alloc_t* alloc, ulbi_t* o) {
+  if(o->cap > 2)
+    ulbn_deallocT(ulbn_limb_t, alloc, o->u.lng, o->cap);
+  _ulbi_set_zero(o);
+  o->cap = 2;
+}
+ULBN_PUBLIC int ulbi_shrink(const ulbn_alloc_t* alloc, ulbi_t* o) {
+  const ulbn_usize_t n = _ulbn_abs_size(o->len);
+  if(o->cap <= 2)
+    return 0;
+  if(n <= 2) {
+    ulbn_limb_t low = o->u.lng[0], high = o->u.lng[1];
+    ulbn_deallocT(ulbn_limb_t, alloc, o->u.lng, o->cap);
+    o->u.shrt[0] = low;
+    o->u.shrt[1] = high;
+    o->cap = 2;
+    return 0;
+  } else {
+    ulbn_limb_t* limb = ul_nullptr;
+    limb = ulbn_reallocT(ulbn_limb_t, alloc, o->u.lng, o->cap, n);
+    ULBN_RETURN_IF_ALLOC_FAILED(limb, ULBN_ERR_NOMEM);
+    o->u.lng = limb;
+    o->cap = n;
+  }
+  return 0;
 }
 
 
@@ -3567,35 +3615,6 @@ ULBN_PUBLIC void ulbi_set_move(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbi_t* s
   ulbi_deinit(alloc, dst);
   *dst = *src;
   ulbi_init(src);
-}
-ULBN_PUBLIC int ulbi_set_limb(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_limb_t limb) {
-  if(limb == 0)
-    _ulbi_set_zero(dst);
-  else {
-    ulbn_limb_t* ptr;
-    ptr = _ulbi_res(alloc, dst, 1);
-    ULBN_RETURN_IF_ALLOC_FAILED(ptr, ULBN_ERR_NOMEM);
-    ptr[0] = limb;
-    dst->len = 1;
-  }
-  return 0;
-}
-ULBN_PUBLIC int ulbi_set_slimb(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slimb_t limb) {
-  if(limb == 0)
-    _ulbi_set_zero(dst);
-  else {
-    ulbn_limb_t* ptr;
-    ptr = _ulbi_res(alloc, dst, 1);
-    ULBN_RETURN_IF_ALLOC_FAILED(ptr, ULBN_ERR_NOMEM);
-    if(limb < 0) {
-      ptr[0] = _ulbn_from_neg_slimb(limb);
-      dst->len = -1;
-    } else {
-      ptr[0] = _ulbn_from_pos_slimb(limb);
-      dst->len = 1;
-    }
-  }
-  return 0;
 }
 ul_static_assert(
   (sizeof(ulbn_ulong_t) * CHAR_BIT + _ULBN_LIMB_BITS - 1) / _ULBN_LIMB_BITS <= _ULBN_SSIZE_LIMIT,
@@ -3743,8 +3762,7 @@ ULBN_PRIVATE int _ulbi_mul_base_exp(const ulbn_alloc_t* alloc, ulbi_t* obj, int 
     } else
       err = ulbi_sal_usize(alloc, obj, obj, expo * ul_static_cast(unsigned char, shift));
   } else {
-    err = ulbi_init_limb(alloc, &temp, ul_static_cast(ulbn_limb_t, base));
-    ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+    ulbi_init_limb(&temp, ul_static_cast(ulbn_limb_t, base));
     err = ulbi_pow_usize(alloc, &temp, &temp, expo);
     if(ul_likely(err >= 0))
       err = ulbi_mul(alloc, obj, obj, &temp);
@@ -3779,8 +3797,7 @@ ULBN_PRIVATE int _ulbi_div_base_exp(const ulbn_alloc_t* alloc, ulbi_t* obj, int 
     } else
       err = ulbi_div_2exp_usize(alloc, obj, obj, expo * ul_static_cast(unsigned char, shift));
   } else {
-    err = ulbi_init_limb(alloc, &temp, ul_static_cast(ulbn_limb_t, base));
-    ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+    ulbi_init_limb(&temp, ul_static_cast(ulbn_limb_t, base));
     err = ulbi_pow_usize(alloc, &temp, &temp, expo);
     if(ul_likely(err >= 0))
       err = ulbi_div(alloc, obj, obj, &temp);
@@ -4162,12 +4179,6 @@ ULBN_PUBLIC void ulbi_init_move(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbi_t* 
   (void)alloc;
   *dst = *src;
   ulbi_init(src);
-}
-ULBN_PUBLIC int ulbi_init_limb(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_limb_t limb) {
-  return ulbi_set_limb(alloc, ulbi_init(dst), limb);
-}
-ULBN_PUBLIC int ulbi_init_slimb(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slimb_t limb) {
-  return ulbi_set_slimb(alloc, ulbi_init(dst), limb);
 }
 ULBN_PUBLIC int ulbi_init_ulong(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ulong_t l) {
   return ulbi_set_ulong(alloc, ulbi_init(dst), l);
@@ -4966,8 +4977,7 @@ ULBN_PUBLIC int ulbi_pow_usize(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi
     ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
     ao = &ta;
   }
-  err = ulbi_set_limb(alloc, ro, 1);
-  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ulbi_set_limb(ro, 1);
   err = ulbi_set_copy(alloc, &B, ao);
   ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
 
@@ -5019,8 +5029,7 @@ ULBN_PUBLIC int ulbi_pow(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
     ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
     ao = &ta;
   }
-  err = ulbi_set_limb(alloc, ro, 1);
-  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ulbi_set_limb(ro, 1);
   err = ulbi_set_copy(alloc, &B, ao);
   ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
 
@@ -5123,11 +5132,9 @@ ULBN_PUBLIC int ulbi_rootrem(const ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, 
   }
   if(ao->len == 1 && _ulbi_limbs(ao)[0] == 1) {
     if(so)
-      err = ulbi_set_slimb(alloc, so, ao->len > 0 ? 1 : -1);
-    else
-      err = 0;
+      ulbi_set_slimb(so, ao->len > 0 ? 1 : -1);
     _ulbi_may_set_zero(ro);
-    return err;
+    return 0;
   }
   if(eo->len == 1) {
     if(_ulbi_limbs(eo)[0] == 1) {
@@ -5166,8 +5173,7 @@ ULBN_PUBLIC int ulbi_rootrem(const ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, 
   putchar('\n');
 #endif
 
-  err = ulbi_set_limb(alloc, yo, 1);
-  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ulbi_set_limb(yo, 1);
   while(ulbi_comp(xo, yo) > 0) {
 #if 0
     printf("x = ");
@@ -6228,8 +6234,10 @@ ULBN_PUBLIC int ulbi_gcd_limb(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_
   ulbn_usize_t an;
 
   an = _ulbn_abs_size(ao->len);
-  if(ul_unlikely(an == 0))
-    return ulbi_set_limb(alloc, ro, b);
+  if(ul_unlikely(an == 0)) {
+    ulbi_set_limb(ro, b);
+    return 0;
+  }
   if(ul_unlikely(b == 0))
     return ulbi_abs(alloc, ro, ao);
 

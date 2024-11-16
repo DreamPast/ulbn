@@ -197,21 +197,21 @@ public:
   }
 
   template<FitSlimb T>
-  BigInt(T value) {
-    _check(ulbi_init_slimb(_ctx(), _value, static_cast<ulbn_slimb_t>(value)));
+  BigInt(T value) noexcept {
+    ulbi_init_slimb(_value, static_cast<ulbn_slimb_t>(value));
   }
   template<FitLimb T>
-  BigInt(T value) {
-    _check(ulbi_init_limb(_ctx(), _value, static_cast<ulbn_limb_t>(value)));
+  BigInt(T value) noexcept {
+    ulbi_init_limb(_value, static_cast<ulbn_limb_t>(value));
   }
   template<FitSlimb T>
-  BigInt& operator=(T value) {
-    _check(ulbi_set_slimb(_ctx(), _value, static_cast<ulbn_slimb_t>(value)));
+  BigInt& operator=(T value) noexcept {
+    ulbi_set_slimb(_value, static_cast<ulbn_slimb_t>(value));
     return *this;
   }
   template<FitLimb T>
-  BigInt& operator=(T value) {
-    _check(ulbi_set_limb(_ctx(), _value, static_cast<ulbn_limb_t>(value)));
+  BigInt& operator=(T value) noexcept {
+    ulbi_set_limb(_value, static_cast<ulbn_limb_t>(value));
     return *this;
   }
 

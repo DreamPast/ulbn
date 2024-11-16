@@ -480,12 +480,6 @@ ULBN_PUBLIC ulbi_t* ulbi_init(ulbi_t* o);
  */
 ULBN_PUBLIC int ulbi_init_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n);
 /**
- * @brief Set `dst` to zero
- * @note This function never fails
- */
-ULBN_PUBLIC ulbi_t* ulbi_set_zero(ulbi_t* dst);
-
-/**
  * @brief Deinitialize a big integer
  * @note After this, `o` will become 0. `o` is still usable but memory is freed
  */
@@ -504,6 +498,31 @@ ULBN_PUBLIC int ulbi_shrink(const ulbn_alloc_t* alloc, ulbi_t* o);
  */
 ULBN_PUBLIC ulbn_limb_t* ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n);
 
+/**
+ * @brief Set `dst` to zero
+ * @note This function never fails
+ */
+ULBN_PUBLIC ulbi_t* ulbi_set_zero(ulbi_t* dst);
+/**
+ * @brief Initialize `dst` with `limb`
+ * @note This function never fails
+ */
+ULBN_PUBLIC ulbi_t* ulbi_init_limb(ulbi_t* dst, ulbn_limb_t limb);
+/**
+ * @brief Initialize `dst` with `slimb`
+ * @note This function never fails
+ */
+ULBN_PUBLIC ulbi_t* ulbi_init_slimb(ulbi_t* dst, ulbn_slimb_t slimb);
+/**
+ * @brief Set `dst` to `limb`
+ * @note This function never fails
+ */
+ULBN_PUBLIC void ulbi_set_limb(ulbi_t* dst, ulbn_limb_t limb);
+/**
+ * @brief Set `dst` to `slimb`
+ * @note This function never fails
+ */
+ULBN_PUBLIC void ulbi_set_slimb(ulbi_t* dst, ulbn_slimb_t slimb);
 
 /**
  * @brief Swap `o1` and `o2`
@@ -535,18 +554,6 @@ ULBN_PUBLIC int ulbi_set_copy(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi
  * @note This function never fails; after this `src` will be as if `ulbi_deinit` was called
  */
 ULBN_PUBLIC void ulbi_set_move(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbi_t* src);
-/**
- * @brief Set `dst` to `limb`
- * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory
- */
-ULBN_PUBLIC int ulbi_set_limb(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_limb_t limb);
-/**
- * @brief Set `dst` to `slimb`
- * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory
- */
-ULBN_PUBLIC int ulbi_set_slimb(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slimb_t slimb);
 /**
  * @brief Set `dst` to `l`
  * @return `0` if successful;
@@ -666,18 +673,6 @@ ULBN_PUBLIC int ulbi_init_copy(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulb
  * @note This function never fails; after this `src` will be as if `ulbi_deinit` was called
  */
 ULBN_PUBLIC void ulbi_init_move(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbi_t* src);
-/**
- * @brief Initialize `dst` with `limb`
- * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory
- */
-ULBN_PUBLIC int ulbi_init_limb(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_limb_t limb);
-/**
- * @brief Initialize `dst` with `slimb`
- * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory
- */
-ULBN_PUBLIC int ulbi_init_slimb(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_slimb_t limb);
 /**
  * @brief Initialize `dst` with `l`
  * @return `0` if successful;
