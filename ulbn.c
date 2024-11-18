@@ -51,8 +51,6 @@
 #define ulbn_assert_same_or_not_overlap(d, dn, s, sn) \
   ulbn_assert((d) == ul_nullptr || (s) == ul_nullptr || (s) == (d) || ulbn_safe_overlap(d, dn, s, sn))
 
-#define _ulbn_max_(a, b) ((a) > (b) ? (a) : (b))
-#define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
 #define _ulbn_abs_(a) ((a) >= 0 ? (a) : -(a))
 #define _ulbn_swap_(T, a, b) \
   do {                       \
@@ -74,6 +72,9 @@
 #define _ULBN_LOWMASK ul_static_cast(ulbn_limb_t, ULBN_LIMB_SHL(1, _ULBN_LIMB_HALF_BITS) - 1u)
 #define ULBN_LOWPART(x) ul_static_cast(ulbn_limb_t, (x) & ULBN_LOWMASK)
 #define ULBN_HIGHPART(x) ul_static_cast(ulbn_limb_t, (x) >> ULBN_LIMB_HALF_BITS)
+
+static ul_constexpr const ulbn_usize_t ULBN_SHORT_LIMB_SIZE_VAL = ULBN_SHORT_LIMB_SIZE;
+ul_static_assert(ULBN_SHORT_LIMB_SIZE >= 1, "ULBN_SHORT_LIMB_SIZE is too small, must be at least 1");
 
 static ul_constexpr const size_t ULBN_LIMB_BITS = _ULBN_LIMB_BITS;
 static ul_constexpr const size_t ULBN_LIMB_HALF_BITS = _ULBN_LIMB_HALF_BITS;
@@ -2708,7 +2709,6 @@ ULBN_PRIVATE int _ulbn_cfile_print(void* file, const char* buf, size_t len) {
 }
 
 
-
 /* In 2's complement, rp[0:an] = ap[0:an] & bp[0:bn], return carry (do not write to rp[an]).
  The sign of `rp`, `ap`, and `bp` is given by the corresponding cy */
 ULBN_INTERNAL ulbn_limb_t ulbn_and(
@@ -3452,19 +3452,18 @@ ULBN_INTERNAL int ulbn_check_round(const ulbn_limb_t* ap, ulbn_usize_t an, const
 
 ULBN_PUBLIC ulbi_t* ulbi_init(ulbi_t* o) {
   o->len = 0;
-  o->cap = 2;
+  o->cap = ULBN_SHORT_LIMB_SIZE_VAL;
   return o;
 }
 ULBN_PUBLIC int ulbi_init_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n) {
   ULBN_RETURN_IF_USIZE_OVERFLOW(n, ULBN_ERR_EXCEED_RANGE);
-  o->cap = 2;
+  o->cap = ULBN_SHORT_LIMB_SIZE_VAL;
   o->len = 0;
-  if(n > 2) {
+  if(n > ULBN_SHORT_LIMB_SIZE_VAL) {
     o->u.lng = ulbn_allocT(ulbn_limb_t, alloc, n);
     ULBN_RETURN_IF_ALLOC_FAILED(o->u.lng, ULBN_ERR_NOMEM);
-  } else
-    n = 2;
-  o->cap = n;
+    o->cap = n;
+  }
   return 0;
 }
 ULBN_PRIVATE ulbn_limb_t* _ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n) {
@@ -3472,7 +3471,7 @@ ULBN_PRIVATE ulbn_limb_t* _ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ul
   ulbn_limb_t* new_limb;
 
   ulbn_assert(n > o->cap);
-  ulbn_assert(n > 2);
+  ulbn_assert(n > ULBN_SHORT_LIMB_SIZE_VAL);
 #if ULBN_CONF_ONLY_ALLOCATE_NEEDED
   new_cap = n;
 #else
@@ -3482,7 +3481,7 @@ ULBN_PRIVATE ulbn_limb_t* _ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ul
 #endif
   ULBN_DO_IF_USIZE_OVERFLOW(new_cap, return ul_nullptr;);
 
-  if(o->cap > 2) {
+  if(o->cap > ULBN_SHORT_LIMB_SIZE_VAL) {
     new_limb = ulbn_reallocT(ulbn_limb_t, alloc, o->u.lng, o->cap, new_cap);
     ULBN_RETURN_IF_ALLOC_FAILED(new_limb, ul_nullptr);
   } else {
@@ -3494,7 +3493,7 @@ ULBN_PRIVATE ulbn_limb_t* _ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ul
   o->cap = new_cap;
   return new_limb;
 }
-#define _ulbi_limbs(o) ((o)->cap <= 2 ? (o)->u.shrt : (o)->u.lng)
+#define _ulbi_limbs(o) ((o)->cap <= ULBN_SHORT_LIMB_SIZE_VAL ? (o)->u.shrt : (o)->u.lng)
 #define _ulbi_res(alloc, o, n) (((n) <= (o)->cap) ? _ulbi_limbs(o) : _ulbi_reserve((alloc), (o), (n)))
 ULBN_PUBLIC ulbn_limb_t* ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n) {
   return _ulbi_res(alloc, o, n);
@@ -3508,7 +3507,7 @@ ULBN_PUBLIC ulbi_t* ulbi_set_zero(ulbi_t* dst) {
   return dst;
 }
 ULBN_PUBLIC ulbi_t* ulbi_init_limb(ulbi_t* dst, ulbn_limb_t limb) {
-  dst->cap = 2;
+  dst->cap = ULBN_SHORT_LIMB_SIZE_VAL;
   if(limb == 0)
     _ulbi_set_zero(dst);
   else {
@@ -3518,7 +3517,7 @@ ULBN_PUBLIC ulbi_t* ulbi_init_limb(ulbi_t* dst, ulbn_limb_t limb) {
   return dst;
 }
 ULBN_PUBLIC ulbi_t* ulbi_init_slimb(ulbi_t* dst, ulbn_slimb_t slimb) {
-  dst->cap = 2;
+  dst->cap = ULBN_SHORT_LIMB_SIZE_VAL;
   if(slimb == 0)
     _ulbi_set_zero(dst);
   else {
@@ -3556,21 +3555,21 @@ ULBN_PUBLIC void ulbi_set_slimb(ulbi_t* dst, ulbn_slimb_t slimb) {
 
 
 ULBN_PUBLIC void ulbi_deinit(const ulbn_alloc_t* alloc, ulbi_t* o) {
-  if(o->cap > 2)
+  if(o->cap > ULBN_SHORT_LIMB_SIZE_VAL)
     ulbn_deallocT(ulbn_limb_t, alloc, o->u.lng, o->cap);
   _ulbi_set_zero(o);
-  o->cap = 2;
+  o->cap = ULBN_SHORT_LIMB_SIZE_VAL;
 }
 ULBN_PUBLIC int ulbi_shrink(const ulbn_alloc_t* alloc, ulbi_t* o) {
   const ulbn_usize_t n = _ulbn_abs_size(o->len);
-  if(o->cap <= 2)
+  if(o->cap <= ULBN_SHORT_LIMB_SIZE_VAL)
     return 0;
-  if(n <= 2) {
-    ulbn_limb_t low = o->u.lng[0], high = o->u.lng[1];
+  if(n <= ULBN_SHORT_LIMB_SIZE_VAL) {
+    ulbn_limb_t temp[ULBN_SHORT_LIMB_SIZE];
+    memcpy(temp, o->u.lng, sizeof(temp));
     ulbn_deallocT(ulbn_limb_t, alloc, o->u.lng, o->cap);
-    o->u.shrt[0] = low;
-    o->u.shrt[1] = high;
-    o->cap = 2;
+    memcpy(o->u.shrt, temp, sizeof(temp));
+    o->cap = ULBN_SHORT_LIMB_SIZE_VAL;
     return 0;
   } else {
     ulbn_limb_t* limb = ul_nullptr;

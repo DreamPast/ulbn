@@ -424,6 +424,12 @@ enum ULBN_ROUND_ENUM {
   ULBN_RNDF = ULBN_ROUND_FAIL
 };
 
+#define _ulbn_max_(a, b) ((a) > (b) ? (a) : (b))
+#define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
+#ifndef ULBN_SHORT_LIMB_SIZE
+  #define ULBN_SHORT_LIMB_SIZE _ulbn_max_((sizeof(ulbn_limb_t*) + sizeof(ulbn_limb_t) - 1) / sizeof(ulbn_limb_t), 2u)
+#endif
+
 
 typedef void* ulbn_alloc_func_t(void* opaque, void* ptr, size_t on, size_t nn);
 typedef struct ulbn_alloc_t {
@@ -431,6 +437,7 @@ typedef struct ulbn_alloc_t {
   void* alloc_opaque;
 } ulbn_alloc_t;
 ULBN_PUBLIC ulbn_alloc_t* ulbn_default_alloc(void);
+
 
 typedef int ulbn_printer_t(void* opaque, const char* str, size_t len);
 
@@ -457,12 +464,12 @@ typedef struct ulbi_t {
   ulbn_ssize_t len;
   ulbn_usize_t cap;
   union {
-    ulbn_limb_t shrt[2];
+    ulbn_limb_t shrt[ULBN_SHORT_LIMB_SIZE];
     ulbn_limb_t* ul_restrict lng;
   } u;
 } ulbi_t;
 /* clang-format off */
-#define ULBI_INIT { 0, 2, { { 0, 0 } } }
+#define ULBI_INIT { 0, ULBN_SHORT_LIMB_SIZE, { { 0 } } }
 /* clang-format on */
 
 
@@ -481,7 +488,7 @@ ULBN_PUBLIC ulbi_t* ulbi_init(ulbi_t* o);
 ULBN_PUBLIC int ulbi_init_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n);
 /**
  * @brief Deinitialize a big integer
- * @note After this, `o` will become 0. `o` is still usable but memory is freed
+ * @note After this, `o` will become 0. `o` is still usable but memory is free
  */
 ULBN_PUBLIC void ulbi_deinit(const ulbn_alloc_t* alloc, ulbi_t* o);
 /**
