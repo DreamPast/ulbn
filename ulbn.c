@@ -4,12 +4,13 @@
 #ifndef ULBN_HEADER
   #include "ulbn.h"
 #endif
-
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <time.h>
+
 
 #ifndef ulbn_assert
-  #include <assert.h>
   #define ulbn_assert(expr) assert(expr)
 #endif /* ulbn_assert */
 
@@ -32,15 +33,6 @@
   #endif
 #endif /* ul_assume */
 
-/* check if `x` is 64-bit integer */
-#if defined(ULONG_MAX) && (ULONG_MAX >> 63) == 1
-  #define _ULBN_IS_64BIT(x) ((x) == 0xFFFFFFFFFFFFFFFFul)
-#elif defined(ULLONG_MAX) && (ULLONG_MAX >> 63) == 1
-  #define _ULBN_IS_64BIT(x) ((x) == 0xFFFFFFFFFFFFFFFFull)
-#else
-  #define _ULBN_IS_64BIT(x) (0)
-#endif /* _ULBN_IS_64BIT */
-
 #define ulbn_safe_forward_overlap(d, dn, s, sn) ((d) <= (s) || (d) >= (s) + (sn))
 #define ulbn_safe_backward_overlap(d, dn, s, sn) ((d) + (dn) <= (s) || ((d) >= (s) && (d) + (dn) >= (s) + (sn)))
 #define ulbn_safe_overlap(d, dn, s, sn) ((d) + (dn) <= (s) || (s) + (sn) <= (d))
@@ -51,17 +43,17 @@
 #define ulbn_assert_same_or_not_overlap(d, dn, s, sn) \
   ulbn_assert((d) == ul_nullptr || (s) == ul_nullptr || (s) == (d) || ulbn_safe_overlap(d, dn, s, sn))
 
-#define _ulbn_abs_(a) ((a) >= 0 ? (a) : -(a))
-#define _ulbn_swap_(T, a, b) \
-  do {                       \
-    T __swap_tmp = (a);      \
-    (a) = (b);               \
-    (b) = __swap_tmp;        \
-  } while(0)
 
-#define _ulbn_same_sign(a, b) (((a) ^ (b)) >= 0)
+/* check if `x` is 64-bit integer */
+#if defined(ULONG_MAX) && (ULONG_MAX >> 63) == 1
+  #define _ULBN_IS_64BIT(x) ((x) == 0xFFFFFFFFFFFFFFFFul)
+#elif defined(ULLONG_MAX) && (ULLONG_MAX >> 63) == 1
+  #define _ULBN_IS_64BIT(x) ((x) == 0xFFFFFFFFFFFFFFFFull)
+#else
+  #define _ULBN_IS_64BIT(x) (0)
+#endif /* _ULBN_IS_64BIT */
 
-#if(CHAR_BIT & 1) != 0
+#if 0 != (CHAR_BIT & 1)
   #error "ulbn: CHAR_BIT must be even"
 #endif
 
@@ -289,6 +281,15 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
 #endif
 }
 
+#define _ulbn_swap_(T, a, b) \
+  do {                       \
+    T __swap_tmp = (a);      \
+    (a) = (b);               \
+    (b) = __swap_tmp;        \
+  } while(0)
+
+#define _ulbn_same_sign(a, b) (((a) ^ (b)) >= 0)
+#define _ulbn_abs_(a) ((a) >= 0 ? (a) : -(a))
 #define _ulbn_neg_(v) ul_static_cast(ulbn_limb_t, ul_static_cast(ulbn_limb_t, 0u) - (v))
 #define _ulbn_add_(s1, s0, a1, a0, b1, b0) \
   do {                                     \
@@ -419,6 +420,7 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
       }                                                                                           \
     } while(0)
 #endif /* _ulbn_udiv_ */
+
 
 /* Let B to be 2^{ULBN_LIMB_BITS}, di = (B^2-1)//d1 - B */
 ULBN_INTERNAL ulbn_limb_t _ulbn_divinv1(ulbn_limb_t d1) {
@@ -654,6 +656,7 @@ ul_unused ULBN_INTERNAL void ulbn_dprint(FILE* fp, const char* prefix, const ulb
 }
 #endif
 
+
 /* Normalize p[0:n], removing leading zeros, and return the remaining length.
   When p[0:n] = 0, the length is 0. */
 ULBN_INTERNAL ulbn_usize_t ulbn_normalize(const ulbn_limb_t* p, ulbn_usize_t n) {
@@ -695,6 +698,7 @@ ULBN_INTERNAL void ulbn_rcopy(ulbn_limb_t* dst, const ulbn_limb_t* src, ulbn_usi
 }
 #define ulbn_maycopy(dst, src, n) ((dst) != (src) ? ulbn_copy((dst), (src), (n)) : (void)0)
 
+
 /* Compare ap[0:n] and bp[0:n], return direction (<0 means less than, =0 means equal, >0 means greater) */
 ULBN_INTERNAL int ulbn_cmpn(const ulbn_limb_t* ap, const ulbn_limb_t* bp, ulbn_usize_t n) {
   ulbn_usize_t i = n;
@@ -709,6 +713,7 @@ ULBN_INTERNAL int ulbn_cmp(const ulbn_limb_t* ap, ulbn_usize_t an, const ulbn_li
   ulbn_assert(bn == 0 || bp[bn - 1] != 0);
   return an != bn ? (an < bn ? -1 : 1) : ulbn_cmpn(ap, bp, an);
 }
+
 
 /* rp[0:an] = ap[0:an] + b, return carry (do not write to rp[an]) */
 ULBN_INTERNAL ulbn_limb_t ulbn_add1(ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t an, ulbn_limb_t b) {
@@ -999,7 +1004,6 @@ ULBN_INTERNAL void ulbn_mul_school(
     rp[an] = ulbn_addmul1(rp, ap, an, bp[i]);
   }
 }
-
 
 #define _ULBN_TOOM_1_THRESHOLD 48
 #define _ULBN_TOOM_2_THRESHOLD 128
@@ -2943,7 +2947,6 @@ ULBN_INTERNAL unsigned ulbn_rand_gen(ulbn_rand_t* rng) {
   return ret & 0xFFFFu;
 }
 
-#include <time.h>
 ULBN_PUBLIC void ulbn_rand_init2(ulbn_rand_t* rng, ulbn_rand_uint_t seed) {
   rng->state = 0u;
   rng->inc = (0xBB75u << 1u) | 1u;

@@ -1,6 +1,16 @@
 #ifndef ULBN_HEADER
 #define ULBN_HEADER
 
+
+/***************************
+ * Internal Utility Macros *
+ ***************************/
+
+
+/**
+ * @def ul_unused
+ * @brief Mark a variable or function may be unused
+ */
 #if !defined(ul_unused) && defined(__has_attribute)
   #if __has_attribute(unused)
     #define ul_unused __attribute__((unused))
@@ -15,6 +25,12 @@
   #define ul_unused
 #endif /* ul_unused */
 
+/**
+ * @def ul_inline
+ * @brief Marks a function as inline. This macro is not intended to instruct the compiler to inline the function,
+ * but rather to use another meaning: if the implementation is consistent within the same translation unit,
+ * only one copy can be retained.
+ */
 #ifndef ul_inline
   #if defined(__cplusplus) || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
     #define ul_inline inline
@@ -23,6 +39,14 @@
   #endif
 #endif /* ul_inline */
 
+/**
+ * @def ul_likely
+ * @brief Hint to the compiler that the condition is more likely to be true
+ */
+/**
+ * @def ul_unlikely
+ * @brief Hint to the compiler that the condition is more likely to be false
+ */
 #ifdef __has_builtin
   #if __has_builtin(__builtin_expect)
     #ifndef ul_likely
@@ -40,6 +64,10 @@
   #define ul_unlikely(x) (x)
 #endif /* ul_unlikely */
 
+/**
+ * @def ul_static_cast
+ * @brief Same as C++ `static_cast` (used to convert values between types)
+ */
 #ifndef ul_static_cast
   #ifdef __cplusplus
     #define ul_static_cast(T, val) static_cast<T>(val)
@@ -48,6 +76,10 @@
   #endif
 #endif /* ul_static_cast */
 
+/**
+ * @def ul_reinterpret_cast
+ * @brief Same as C++ `reinterpret_cast` (used to convert pointers between types)
+ */
 #ifndef ul_reinterpret_cast
   #ifdef __cplusplus
     #define ul_reinterpret_cast(T, val) reinterpret_cast<T>(val)
@@ -56,15 +88,10 @@
   #endif
 #endif /* ul_reinterpret_cast */
 
-#if !defined(ul_offsetof) && defined(__has_builtin)
-  #if __has_builtin(__builtin_offsetof)
-    #define ul_offsetof(type, field) __builtin_offsetof(type, field)
-  #endif
-#endif /* ul_offsetof */
-#ifndef ul_offsetof
-  #define ul_offsetof(type, field) offsetof(type, field)
-#endif /* ul_offsetof */
-
+/**
+ * @def ul_has_builtin
+ * @brief Check if has builtin functions (GCC/Clang)
+ */
 #ifndef ul_has_builtin
   #if defined(__has_builtin)
     #define ul_has_builtin(x) __has_builtin(x)
@@ -73,12 +100,20 @@
   #endif
 #endif /* ul_has_builtin */
 
+/**
+ * @def UL_JOIN
+ * @brief Concatenate two tokens
+ */
 #ifndef UL_JOIN
   #define __UL_JOIN2(X, Y) X##Y
   #define __UL_JOIN(X, Y) __UL_JOIN2(X, Y)
   #define UL_JOIN(X, Y) __UL_JOIN(X, Y)
 #endif /* UL_JOIN */
 
+/**
+ * @def ul_static_assert
+ * @brief Static assertion
+ */
 /* clang-format off */
 #if defined(__cplusplus) && __cplusplus >= 201103L
   #define ul_static_assert(cond, msg) static_assert(cond, msg)
@@ -101,10 +136,18 @@
 #endif /* ul_static_assert */
 /* clang-format on */
 
+/**
+ * @def ul_nullptr
+ * @brief Null pointer constant
+ */
 #ifndef ul_nullptr
   #define ul_nullptr NULL
 #endif /* ul_nullptr */
 
+/**
+ * @def ul_restrict
+ * @brief Restrict qualifier (C99/C++ extensions). Mark pointers with same types doesn't overlap.
+ */
 #ifndef ul_restrict
   #if defined(_MSC_VER) && _MSC_VER >= 1900
     #define ul_restrict __restrict
@@ -117,6 +160,10 @@
   #endif
 #endif /* ul_restrict */
 
+/**
+ * @def ul_constexpr
+ * @brief Mark a function able to be evaluated at compile time (C++11).
+ */
 #ifndef ul_constexpr
   /* clang-format off */
   #ifdef __cplusplus
@@ -135,6 +182,10 @@
   /* clang-format on */
 #endif /* ul_constexpr */
 
+/**
+ * @def UL_HAS_STDINT_H
+ * @brief Check if the compiler has <stdint.h>
+ */
 #ifndef UL_HAS_STDINT_H
   #if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 1))
     #if defined(__GNUC__) || ((__GLIBC__ > 2) || ((__GLIBC__ == 2) && (__GLIBC_MINOR__ >= 5)))
@@ -167,6 +218,10 @@
   #include <stdint.h>
 #endif
 
+/**
+ * @def ul_export
+ * @brief Export a symbol
+ */
 #ifndef ul_export
   #if defined(__clang__)
     #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(__CYGWIN__)
@@ -191,10 +246,71 @@
 #endif /* ul_export */
 
 
+/****************
+ * Header Files *
+ ****************/
+
+
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <float.h>
+
+
+/*****************
+ * Configuration *
+ *****************/
+
+
+/**
+ * @def ULBN_CONF_CHECK_ALLOCATION_FAILURE
+ * @brief Configuration: Whether to check for memory allocation failure
+ */
+#ifndef ULBN_CONF_CHECK_ALLOCATION_FAILURE
+  #define ULBN_CONF_CHECK_ALLOCATION_FAILURE 1
+#endif /* ULBN_CONF_CHECK_ALLOCATION_FAILURE */
+
+/**
+ * @def ULBN_CONF_HAS_DOUBLE
+ * @brief Configuration: Whether to enable double precision floating point number
+ */
+#ifndef ULBN_CONF_HAS_DOUBLE
+  #ifdef DBL_MAX
+    #define ULBN_CONF_HAS_DOUBLE 1
+  #else
+    #define ULBN_CONF_HAS_DOUBLE 0
+  #endif
+#endif /* ULBN_CONF_HAS_DOUBLE */
+
+/**
+ * @def ULBN_CONF_ONLY_ALLOCATE_NEEDED
+ * @brief Configuration: Whether to only allocate memory needed
+ */
+#ifndef ULBN_CONF_ONLY_ALLOCATE_NEEDED
+  #define ULBN_CONF_ONLY_ALLOCATE_NEEDED 1
+#endif /* ULBN_CONF_ONLY_ALLOCATE_NEEDED */
+
+/**
+ * @def ULBN_CONF_EXPORT_PUBLIC
+ * @brief Configuration: Whether to export public functions
+ */
+#ifndef ULBN_CONF_EXPORT_PUBLIC
+  #define ULBN_CONF_EXPORT_PUBLIC 0
+#endif /* ULBN_CONF_EXPORT_PUBLIC */
+
+/**
+ * @def ULBN_CONF_INCLUDE_IMPLEMENT
+ * @brief Configuration: Whether to include the implementation
+ */
+#ifndef ULBN_CONF_INCLUDE_IMPLEMENT
+  #define ULBN_CONF_INCLUDE_IMPLEMENT 0
+#endif /* ULBN_CONF_INCLUDE_IMPLEMENT */
+
+
+/*********************
+ * Basic Definitions *
+ *********************/
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -279,52 +395,6 @@ typedef signed long ulbn_slong_t;
   #error "ulbn: ulbn_limb_t cannot be larger than ulbn_usize_t"
 #endif
 
-
-/**
- * @def ULBN_CONF_CHECK_ALLOCATION_FAILURE
- * @brief Configuration: Whether to check for memory allocation failure
- */
-#ifndef ULBN_CONF_CHECK_ALLOCATION_FAILURE
-  #define ULBN_CONF_CHECK_ALLOCATION_FAILURE 1
-#endif /* ULBN_CONF_CHECK_ALLOCATION_FAILURE */
-
-/**
- * @def ULBN_CONF_HAS_DOUBLE
- * @brief Configuration: Whether to enable double precision floating point number
- */
-#ifndef ULBN_CONF_HAS_DOUBLE
-  #ifdef DBL_MAX
-    #define ULBN_CONF_HAS_DOUBLE 1
-  #else
-    #define ULBN_CONF_HAS_DOUBLE 0
-  #endif
-#endif /* ULBN_CONF_HAS_DOUBLE */
-
-/**
- * @def ULBN_CONF_ONLY_ALLOCATE_NEEDED
- * @brief Configuration: Whether to only allocate memory needed
- */
-#ifndef ULBN_CONF_ONLY_ALLOCATE_NEEDED
-  #define ULBN_CONF_ONLY_ALLOCATE_NEEDED 1
-#endif /* ULBN_CONF_ONLY_ALLOCATE_NEEDED */
-
-/**
- * @def ULBN_CONF_EXPORT_PUBLIC
- * @brief Configuration: Whether to export public functions
- */
-#ifndef ULBN_CONF_EXPORT_PUBLIC
-  #define ULBN_CONF_EXPORT_PUBLIC 0
-#endif /* ULBN_CONF_EXPORT_PUBLIC */
-
-/**
- * @def ULBN_CONF_INCLUDE_IMPLEMENT
- * @brief Configuration: Whether to include the implementation
- */
-#ifndef ULBN_CONF_INCLUDE_IMPLEMENT
-  #define ULBN_CONF_INCLUDE_IMPLEMENT 0
-#endif /* ULBN_CONF_INCLUDE_IMPLEMENT */
-
-
 #if ULBN_CONF_EXPORT_PUBLIC
   #define ULBN_PUBLIC ul_export
 #endif
@@ -350,6 +420,17 @@ typedef signed long ulbn_slong_t;
 #ifndef ULBN_PRIVATE
   #define ULBN_PRIVATE static
 #endif /* ULBN_PRIVATE */
+
+#define _ulbn_max_(a, b) ((a) > (b) ? (a) : (b))
+#define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
+#ifndef ULBN_SHORT_LIMB_SIZE
+  #define ULBN_SHORT_LIMB_SIZE _ulbn_max_((sizeof(ulbn_limb_t*) + sizeof(ulbn_limb_t) - 1) / sizeof(ulbn_limb_t), 2u)
+#endif
+
+
+/*********
+ * Enums *
+ *********/
 
 
 /* <0 indicates a system error, >0 indicates a mathematical error
@@ -424,14 +505,47 @@ enum ULBN_ROUND_ENUM {
   ULBN_RNDF = ULBN_ROUND_FAIL
 };
 
-#define _ulbn_max_(a, b) ((a) > (b) ? (a) : (b))
-#define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
-#ifndef ULBN_SHORT_LIMB_SIZE
-  #define ULBN_SHORT_LIMB_SIZE _ulbn_max_((sizeof(ulbn_limb_t*) + sizeof(ulbn_limb_t) - 1) / sizeof(ulbn_limb_t), 2u)
-#endif
+enum ULBN_SET_STRING_FLAG_ENUM {
+  /**
+   * @brief Accept separator ('_')
+   * @note Separator is ignored when parsing the string.
+   * @note Separator cannot appear at the exponent part (e.g., "10e1_2" is illegal).
+   */
+  ULBN_SET_STRING_ACCEPT_SEPARATOR = (1 << 0),
+  /**
+   * @brief Accept decimal part (e.g., "1.5", ".5")
+   */
+  ULBN_SET_STRING_ACCEPT_DECIMAL_PART = (1 << 1),
+  /**
+   * @brief Accept decimal exponent part (e.g., "1e2", "1e+2", "1e-2")
+   * @note "{a}e{b}" is equivalent to "{a} * 10^{b}"
+   */
+  ULBN_SET_STRING_ACCEPT_DEC_EXPONENT = (1 << 2),
+  /**
+   * @brief Accept hexadecimal exponent part (e.g., "1p2", "1p+2", "1p-2")
+   * @note "{a}p{b}" is equivalent to "{a} * 2^{b}"
+   */
+  ULBN_SET_STRING_ACCEPT_HEX_EXPONENT = (1 << 3),
+  /**
+   * @brief Accept octal number with implicit prefix (e.g., "0123")
+   * @note This flag is only effective when `base` is 0
+   */
+  ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX = (1 << 4),
+  /**
+   * @brief Allow exponent mismatch (e.g., "0x1e2.5")
+   * @note If this flag is not set, 'e' or 'E' can only be used in decimal, 'p' or 'P' can only be used in hexadecimal
+   */
+  ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH = (1 << 5)
+};
+
+
+/************************
+ * `ulbn_*` Common APIs *
+ ************************/
 
 
 typedef void* ulbn_alloc_func_t(void* opaque, void* ptr, size_t on, size_t nn);
+/* note: `ulbn_alloc_t` is thread-safe if `alloc_func` is thread-safe */
 typedef struct ulbn_alloc_t {
   ulbn_alloc_func_t* alloc_func;
   void* alloc_opaque;
@@ -448,6 +562,7 @@ typedef unsigned ulbn_rand_uint_t;
 typedef unsigned long ulbn_rand_uint_t;
 #endif
 /* [PCG Random Number Generators](https://www.pcg-random.org/) */
+/* note: `ulbn_rand_t` is not thread-safe */
 typedef struct ulbn_rand_t {
   ulbn_rand_uint_t state;
   ulbn_rand_uint_t inc;
@@ -458,6 +573,11 @@ typedef struct ulbn_rand_t {
 ULBN_PUBLIC ulbn_rand_uint_t ulbn_rand_init(ulbn_rand_t* rng);
 ULBN_PUBLIC void ulbn_rand_init2(ulbn_rand_t* rng, ulbn_rand_uint_t seed);
 ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n);
+
+
+/********************
+ * Big Integer APIs *
+ ********************/
 
 
 typedef struct ulbi_t {
@@ -601,38 +721,6 @@ ULBN_PUBLIC int ulbi_set_2exp_usize(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn
  */
 ULBN_PUBLIC int ulbi_set_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n);
 
-enum ULBN_SET_STRING_FLAG_ENUM {
-  /**
-   * @brief Accept separator ('_')
-   * @note Separator is ignored when parsing the string.
-   * @note Separator cannot appear at the exponent part (e.g., "10e1_2" is illegal).
-   */
-  ULBN_SET_STRING_ACCEPT_SEPARATOR = (1 << 0),
-  /**
-   * @brief Accept decimal part (e.g., "1.5", ".5")
-   */
-  ULBN_SET_STRING_ACCEPT_DECIMAL_PART = (1 << 1),
-  /**
-   * @brief Accept decimal exponent part (e.g., "1e2", "1e+2", "1e-2")
-   * @note "{a}e{b}" is equivalent to "{a} * 10^{b}"
-   */
-  ULBN_SET_STRING_ACCEPT_DEC_EXPONENT = (1 << 2),
-  /**
-   * @brief Accept hexadecimal exponent part (e.g., "1p2", "1p+2", "1p-2")
-   * @note "{a}p{b}" is equivalent to "{a} * 2^{b}"
-   */
-  ULBN_SET_STRING_ACCEPT_HEX_EXPONENT = (1 << 3),
-  /**
-   * @brief Accept octal number with implicit prefix (e.g., "0123")
-   * @note This flag is only effective when `base` is 0
-   */
-  ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX = (1 << 4),
-  /**
-   * @brief Allow exponent mismatch (e.g., "0x1e2.5")
-   * @note If this flag is not set, 'e' or 'E' can only be used in decimal, 'p' or 'P' can only be used in hexadecimal
-   */
-  ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH = (1 << 5)
-};
 /**
  * @brief Set `dst` to the integer represented by `*pstr` in base `base`, and write the pointer back to `*pstr`
  * @note This function stops parsing when it encounters the first illegal character
@@ -1599,6 +1687,11 @@ ULBN_PUBLIC int ulbi_gcd_slimb(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi
  * @return `ULBN_ERR_NOMEM` if out of memory
  */
 ULBN_PUBLIC int ulbi_lcm(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+
+
+/*******
+ * End *
+ *******/
 
 #ifdef __cplusplus
 }
