@@ -316,6 +316,9 @@
 extern "C" {
 #endif
 
+#define _ulbn_max_(a, b) ((a) > (b) ? (a) : (b))
+#define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
+
 #if !defined(ULBN_LIMB_MAX) || !defined(ULBN_SLIMB_MAX) || !defined(ULBN_SLIMB_MIN)
   #if defined(LLONG_MAX)
 typedef unsigned long long ulbn_limb_t;
@@ -361,7 +364,7 @@ typedef unsigned ulbn_usize_t;
 
 #define ulbn_cast_usize(n) ul_static_cast(ulbn_usize_t, (n))
 #define ulbn_cast_ssize(n) ul_static_cast(ulbn_ssize_t, (n))
-#define _ULBN_USIZE_SIGNBIT ulbn_cast_usize(ulbn_cast_usize(1u) << (sizeof(ulbn_usize_t) * CHAR_BIT - 1))
+#define _ULBN_USIZE_LIMIT ulbn_cast_usize(_ulbn_min_(_ULBN_SIZET_MAX / _ULBN_LIMB_BITS, ULBN_USIZE_MAX))
 
 
 #if !defined(ULBN_ULONG_MAX) || !defined(ULBN_SLONG_MAX) || !defined(ULBN_SLONG_MIN)
@@ -422,8 +425,6 @@ typedef signed long ulbn_slong_t;
   #define ULBN_PRIVATE static
 #endif /* ULBN_PRIVATE */
 
-#define _ulbn_max_(a, b) ((a) > (b) ? (a) : (b))
-#define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
 #ifndef ULBN_SHORT_LIMB_SIZE
   #define ULBN_SHORT_LIMB_SIZE _ulbn_max_((sizeof(ulbn_limb_t*) + sizeof(ulbn_limb_t) - 1) / sizeof(ulbn_limb_t), 2u)
 #endif
