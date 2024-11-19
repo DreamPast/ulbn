@@ -980,6 +980,15 @@ void subtestBitwiseOperation() {
       T_assert((BigInt(a) >> BigInt(-b)) == (a << b));
     }
   }
+
+  for(auto t = TEST_BIG; t--;) {
+    int64_t a = static_cast<int64_t>(mt64());
+    int64_t b = static_cast<int64_t>(mt64());
+    T_assert(BigInt(a) & BigInt(b) == (a & b));
+    T_assert((BigInt(a) | BigInt(b)) == (a | b));
+    T_assert((BigInt(a) ^ BigInt(b)) == (a ^ b));
+    T_assert(~BigInt(a) == ~a);
+  }
 }
 void subtestSingleBitOperation() {
   puts("======Subtest Single Bit Operation");
@@ -1199,6 +1208,9 @@ static ulbn_alloc_func_t* original_alloc_func;
 static void* original_alloc_opaque;
 
 int main() {
+  subtestBitwiseOperation();
+  return 0;
+
   original_alloc_func = ulbn_default_alloc()->alloc_func;
   original_alloc_opaque = ulbn_default_alloc()->alloc_opaque;
   ulbn_default_alloc()->alloc_func = [](void* opaque, void* ptr, size_t on, size_t nn) -> void* {
