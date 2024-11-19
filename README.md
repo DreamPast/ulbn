@@ -46,7 +46,7 @@ Depends on the following C++20 features:
   - [x] Root
   - [ ] Number theory functions
     - [x] GCD/LCM
-    - [ ] Extended GCD
+    - [x] Extended GCD
     - [ ] Prime number determination
     - [ ] Prime number search
     - [ ] Factorization

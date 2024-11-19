@@ -1234,6 +1234,18 @@ public:
   }
 
 
+  std::tuple<BigInt, BigInt, BigInt> gcdext(const BigInt& other) {
+    BigInt g, x, y;
+    _check(ulbi_gcdext(_ctx(), g._value, x._value, y._value, _value, other._value));
+    return {g, x, y};
+  }
+  BigInt invert(const BigInt& m) {
+    BigInt ret;
+    _check(ulbi_invert(_ctx(), ret._value, _value, m._value));
+    return ret;
+  }
+
+
 private:
   static ulbn_alloc_t* _ctx() {
     static ulbn_alloc_t* ctx = ulbn_default_alloc();

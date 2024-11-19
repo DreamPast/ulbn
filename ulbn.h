@@ -1690,6 +1690,27 @@ ULBN_PUBLIC int ulbi_gcd_slimb(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi
  */
 ULBN_PUBLIC int ulbi_lcm(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 
+/**
+ * @brief Calculate `g,u,v` makes `g = u*a + v*b = gcd(a,b)`
+ * @note `go`, `uo`, `vo` is allowed to be `NULL`
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if overflow when calculating;
+ * @return `ULBN_ERR_INVALID` if `go` is `NULL` and `gcd(a,b) != 1`
+ */
+ULBN_PUBLIC int ulbi_gcdext(
+  const ulbn_alloc_t* alloc, ulbi_t* go, ulbi_t* uo, ulbi_t* vo, /* */
+  const ulbi_t* ao, const ulbi_t* bo                             /* */
+);
+/**
+ * Calculate the modular inverse of `a` modulo `m` (`a*b = 1 (mod m)`)
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if overflow when calculating;
+ * @return `ULBN_ERR_INVALID` if there is no modular inverse
+ */
+ULBN_PUBLIC int ulbi_invert(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* mo);
+
 
 /*******
  * End *

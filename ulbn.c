@@ -3375,6 +3375,23 @@ cleanup:
 
 
 ULBN_PRIVATE ulbn_limb_t _ulbn_gcd_(ulbn_limb_t a, ulbn_limb_t b) {
+  /**
+   * Binary GCD algorithm:
+   *
+   * function gcd(a, b) {
+   *   if(a == b) return a;
+   *   if(a % 2 == 0)
+   *     if(b % 2 == 0)
+   *       return 2 * gcd(a/2, b/2);
+   *     else
+   *       return gcd(a/2, b);
+   *   else
+   *     if(b % 2 == 0)
+   *       return gcd(a, b/2);
+   *     else
+   *       return gcd(|a - b|/2, min(a, b));
+   * }
+   */
   int shift = 0, a_shift, b_shift;
   ulbn_assert(a > 0 && b > 0);
   for(;;) {
@@ -4246,6 +4263,16 @@ ULBN_PUBLIC int ulbi_init_data(
 ) {
   return ulbi_set_data(alloc, ulbi_init(dst), limbs, len, is_big_endian);
 }
+
+
+#if 0
+ULBN_PRIVATE void ulbi_dprint(FILE* fp, const char* prefix, const ulbi_t* bi) {
+  if(prefix)
+    fputs(prefix, fp);
+  ulbi_print(ulbn_default_alloc(), bi, fp, 10);
+  fputc('\n', fp);
+}
+#endif
 
 
 ULBN_PUBLIC int ulbi_comp(const ulbi_t* ao, const ulbi_t* bo) {
@@ -5203,25 +5230,16 @@ ULBN_PUBLIC int ulbi_rootrem(const ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, 
   err = ulbi_set_2exp(alloc, xo, yo);
   ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
 #if 0
-  printf("bits = ");
-  ulbi_print(alloc, yo, stdout, 10);
-  putchar('\n');
-
-  printf("e - 1 = ");
-  ulbi_print(alloc, eo_n1, stdout, 10);
+  ulbi_dprint(stdout, "bits = ", yo);
+  ulbi_dprint(stdout, "e - 1 = ", eo_n1);
   putchar('\n');
 #endif
 
   ulbi_set_limb(yo, 1);
   while(ulbi_comp(xo, yo) > 0) {
 #if 0
-    printf("x = ");
-    ulbi_print(alloc, xo, stdout, 10);
-    putchar('\t');
-
-    printf("y = ");
-    ulbi_print(alloc, yo, stdout, 10);
-    putchar('\n');
+    ulbi_dprint(stdout, "x = ", xo);
+    ulbi_dprint(stdout, "y = ", yo);
 #endif
 
     /* x = (x * (e - 1) + y) / e */
@@ -6367,6 +6385,105 @@ ULBN_PUBLIC int ulbi_lcm(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
   err = ulbi_mul(alloc, ro, ro, bo);
   ro->len = _ulbn_abs_(ro->len);
   return err;
+}
+
+ULBN_PUBLIC int ulbi_gcdext(
+  const ulbn_alloc_t* alloc, ulbi_t* ro, ulbi_t* uo, ulbi_t* vo, /* */
+  const ulbi_t* ao, const ulbi_t* _bo                            /* */
+) {
+  /**
+   * Extended GCD Algorithm:
+   *
+   * function exgcd(a, b) {
+   *   (u, w) = (1, 0)
+   *   (v, x) = (0, 1)
+   *   while(b != 0) {
+   *     (q, r) = DivMod(a, b)
+   *     (a, b) = (b, r)
+   *     (u, w) = (w, u - q * w)
+   *     (v, x) = (x, v - q * x)
+   *   }
+   *   return (a, u, v);
+   * }
+   */
+  ulbi_t tuo[1] = {ULBI_INIT};
+  ulbi_t wo[1] = {ULBI_INIT}, xo[1] = {ULBI_INIT};
+  ulbi_t qo[1] = {ULBI_INIT}, tro[1] = {ULBI_INIT};
+  ulbi_t to[1] = {ULBI_INIT};
+  ulbi_t bo[1] = {ULBI_INIT};
+  int err;
+  const int a_sign = ao->len < 0, b_sign = _bo->len < 0;
+
+  if(ro == ul_nullptr)
+    ro = tro;
+  if(uo == ul_nullptr || ul_unlikely(uo == ro))
+    uo = tuo;
+  if(ul_unlikely(vo == uo || vo == ro))
+    vo = ul_nullptr;
+
+  err = ulbi_abs(alloc, ro, ao);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  err = ulbi_abs(alloc, bo, _bo);
+  ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+  ulbi_set_limb(uo, 1);
+  ulbi_set_limb(xo, 1);
+
+  while(bo->len != 0) {
+    err = ulbi_divmod(alloc, qo, ro, ro, bo);
+    ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
+#if 0
+    ulbi_dprint(stdout, "qo = ", qo);
+    ulbi_dprint(stdout, "ro = ", ro);
+#endif
+
+    ulbi_swap(ro, bo);
+
+    err = ulbi_mul(alloc, to, qo, wo);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
+    err = ulbi_sub(alloc, uo, uo, to);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
+    ulbi_swap(uo, wo);
+
+#if 0
+    ulbi_dprint(stdout, "uo = ", uo);
+    ulbi_dprint(stdout, "wo = ", wo);
+#endif
+
+    if(vo) {
+      err = ulbi_mul(alloc, to, qo, xo);
+      ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
+      err = ulbi_sub(alloc, vo, vo, to);
+      ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
+      ulbi_swap(vo, xo);
+
+#if 0
+      ulbi_dprint(stdout, "vo = ", vo);
+      ulbi_dprint(stdout, "xo = ", xo);
+#endif
+    }
+  }
+
+  if(a_sign)
+    uo->len = -uo->len;
+  if(b_sign) {
+    if(vo)
+      vo->len = -vo->len;
+  }
+  if(ro == tro)
+    err = ulbi_eq_limb(ro, 1) ? 0 : ULBN_ERR_INVALID;
+
+cleanup:
+  ulbi_deinit(alloc, tuo);
+  ulbi_deinit(alloc, wo);
+  ulbi_deinit(alloc, xo);
+  ulbi_deinit(alloc, qo);
+  ulbi_deinit(alloc, tro);
+  ulbi_deinit(alloc, to);
+  ulbi_deinit(alloc, bo);
+  return err;
+}
+ULBN_PUBLIC int ulbi_invert(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* mo) {
+  return ulbi_gcdext(alloc, ul_nullptr, ro, ul_nullptr, ao, mo);
 }
 
 
