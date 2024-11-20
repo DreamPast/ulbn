@@ -2,6 +2,16 @@
 
 [English](./README.md) [简体中文](./README_zh_CN.md)
 
+## Features
+
+- C89/C++98 compatible (optional C++20 headers available)
+- Minimal hardware assumptions
+- Avoids most UB (Undefined Behavior)
+- Strict boundary checks
+- Custom memory allocator support
+- Most functions are optimized
+- No external dependencies
+
 ## Dependencies
 
 No external dependencies needed.
@@ -10,7 +20,9 @@ No external dependencies needed.
 
 Minimum C89/C++98, with macros to suggest optimizations for some code.
 
-`CHAR_BIT` need to be even.
+Hardware Assumptions:
+
+- Requires `CHAR_BIT` to be even
 
 ### ulbn.hpp
 
@@ -18,6 +30,7 @@ Depends on the following C++20 features:
 
 - Concepts and constranints
 - Three-way comparison
+- `<bit>` header file
 
 ### test.cpp
 
@@ -26,10 +39,6 @@ Depends on the following assumptions for modern platforms:
 - Signed integers are stored in two's complement form
 - `double` has 52 bits of precision (IEEE754)
 - `char` is 8-bits, and `int64_t` exists
-
-Depends on the following C++20 features:
-
-- `<bit>` header file
 
 ## Roadmap
 
@@ -41,6 +50,8 @@ Depends on the following C++20 features:
       - [x] Toom-4 algorithm
       - [ ] FFT
     - [ ] Faster base conversion
+      - [ ] Faster input
+      - [x] Faster output
   - [x] Comparison
   - [x] Bitwise Operation
   - [x] Root
