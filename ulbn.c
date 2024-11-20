@@ -65,7 +65,7 @@
 #define ULBN_LOWPART(x) ul_static_cast(ulbn_limb_t, (x) & ULBN_LOWMASK)
 #define ULBN_HIGHPART(x) ul_static_cast(ulbn_limb_t, (x) >> ULBN_LIMB_HALF_BITS)
 
-static ul_constexpr const size_t ULBN_LIMB_BITS = _ULBN_LIMB_BITS;
+static ul_constexpr const ulbn_usize_t ULBN_LIMB_BITS = _ULBN_LIMB_BITS;
 static ul_constexpr const size_t ULBN_LIMB_HALF_BITS = _ULBN_LIMB_HALF_BITS;
 static ul_constexpr const ulbn_limb_t ULBN_LIMB_SIGNBIT = _ULBN_LIMB_SIGNBIT;
 static ul_constexpr const ulbn_limb_t ULBN_LOWMASK = _ULBN_LOWMASK;
@@ -2753,7 +2753,7 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
       ccap = new_ccap;
     }
 
-    ulbn_divmod_inv1(tp, cp + (ci++), tp, tn, conv.b << conv.shift, conv.bi, conv.shift);
+    ulbn_divmod_inv1(tp, cp + (ci++), tp, tn, ul_static_cast(ulbn_limb_t, conv.b << conv.shift), conv.bi, conv.shift);
     if(ul_likely(tp[tn - 1] == 0))
       --tn;
   } while(tn > 0);

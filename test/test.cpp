@@ -90,7 +90,7 @@ void _checkSetString(
   const char* nstr = str;
   BigInt bi;
   if(expect_len < 0)
-    expect_len = strlen(str) - (expect_len + 1);
+    expect_len = static_cast<ptrdiff_t>(strlen(str)) - (expect_len + 1);
   T_assert(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, 0, flags) == expect_error);
   T_assert(bi == expect_value);
   T_assert(nstr - str == expect_len);
@@ -105,8 +105,8 @@ void subtestSetString() {
         std::string str = std::string(sign) + prefix + zero;
         _checkSetString(str.c_str(), 0, -1, strcmp(sign, "-") == 0 ? ULBN_ERR_INEXACT : 0);
         _checkSetString(
-          str.c_str(), 0, strlen(prefix) + strlen(sign) + 1, strcmp(sign, "-") == 0 ? ULBN_ERR_INEXACT : 0,
-          ~0 ^ ULBN_SET_STRING_ACCEPT_DECIMAL_PART
+          str.c_str(), 0, static_cast<ptrdiff_t>(strlen(prefix) + strlen(sign) + 1),
+          strcmp(sign, "-") == 0 ? ULBN_ERR_INEXACT : 0, ~0 ^ ULBN_SET_STRING_ACCEPT_DECIMAL_PART
         );
       }
 
@@ -1096,8 +1096,8 @@ void subtestGcdext() {
   puts("======Subtest Extended GCD");
 
   for(int t = TEST_BIG; t--;) {
-    int64_t a = mt64();
-    int64_t b = mt64();
+    int64_t a = static_cast<int64_t>(mt64());
+    int64_t b = static_cast<int64_t>(mt64());
     auto [g, x, y] = BigInt(a).gcdext(b);
     T_assert(std::gcd(a, b) == g);
     T_assert(BigInt(a) * x + BigInt(b) * y == g);

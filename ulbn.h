@@ -141,7 +141,13 @@
  * @brief Null pointer constant
  */
 #ifndef ul_nullptr
-  #define ul_nullptr NULL
+  #if defined(__cplusplus) && __cplusplus >= 201103L
+    #define ul_nullptr nullptr
+  #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+    #define ul_nullptr nullptr
+  #else
+    #define ul_nullptr NULL
+  #endif
 #endif /* ul_nullptr */
 
 /**

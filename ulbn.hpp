@@ -1011,7 +1011,8 @@ public:
       [](void* opaque, const char* ptr, size_t len) -> int {
         OstreamWrapper* o = reinterpret_cast<OstreamWrapper*>(opaque);
         try {
-          o->ost.write(ptr, len);
+          // todo: check std::streamsize?
+          o->ost.write(ptr, static_cast<std::streamsize>(len));
         } catch(...) {
           o->exception = std::current_exception();
           return 1;
