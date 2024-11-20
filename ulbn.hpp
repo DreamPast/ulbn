@@ -970,11 +970,11 @@ public:
 
   std::string toString(int base = 10) const {
     std::string ret;
-    ulbn_usize_t len;
+    size_t len, cap;
     char* ret_ptr;
 
     ret_ptr = ulbi_to_string_alloc(
-      _ctx(), &len,
+      _ctx(), &len, &cap,
       [](void* opaque, void* ptr, size_t on, size_t nn) -> void* {
         (void)on;
         (void)ptr;
@@ -994,7 +994,7 @@ public:
     return ost;
   }
   void print(FILE* fp, int base = 10) const {
-    _check(ulbi_print(_ctx(), _value, fp, base));
+    _check(ulbi_print(_ctx(), fp, _value, base));
   }
   void print(std::ostream& ost, int base = 10) const {
     struct OstreamWrapper {
@@ -1003,7 +1003,7 @@ public:
     };
     OstreamWrapper wrapper = {{}, ost};
     int err = ulbi_print_ex(
-      _ctx(), _value, base,
+      _ctx(),
       [](void* opaque, const char* ptr, size_t len) -> int {
         OstreamWrapper* o = reinterpret_cast<OstreamWrapper*>(opaque);
         try {
@@ -1014,7 +1014,7 @@ public:
         }
         return 0;
       },
-      &wrapper
+      &wrapper, _value, base
     );
     if(err == ULBN_ERR_EXTERNAL)
       std::rethrow_exception(wrapper.exception);

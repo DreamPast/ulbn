@@ -1557,6 +1557,7 @@ ULBN_PUBLIC int ulbi_fit_ssize(const ulbi_t* src);
  * @brief Converts `ao` to a string
  *
  * @param p_len If not `NULL`, the length of the string will be written into it
+ * @param p_alloced The number of bytes allocated
  * @param alloc_func Allocation function, ensuring the passed `ptr` is used for the returned string
  * @param alloc_opaque Parameter for the allocation function
  * @param base String base (2 <= base <= 36)
@@ -1566,9 +1567,9 @@ ULBN_PUBLIC int ulbi_fit_ssize(const ulbi_t* src);
  * @return `NULL` if the base is invalid (considered as `ULBN_ERR_EXCEED_RANGE`)
  */
 ULBN_PUBLIC char* ulbi_to_string_alloc(
-  const ulbn_alloc_t* alloc, ulbn_usize_t* p_len,    /* */
-  ulbn_alloc_func_t* alloc_func, void* alloc_opaque, /* */
-  const ulbi_t* ao, int base                         /* */
+  const ulbn_alloc_t* alloc, size_t* p_len, size_t* p_alloced, /* */
+  ulbn_alloc_func_t* alloc_func, void* alloc_opaque,           /* */
+  const ulbi_t* ao, int base                                   /* */
 );
 /**
  * @brief Print `o` with `printer`
@@ -1581,8 +1582,9 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
  * @return `0` if successful
  */
 ULBN_PUBLIC int ulbi_print_ex(
-  const ulbn_alloc_t* alloc, const ulbi_t* ao, int base, /* */
-  ulbn_printer_t* printer, void* opaque                  /* */
+  const ulbn_alloc_t* alloc,             /* */
+  ulbn_printer_t* printer, void* opaque, /* */
+  const ulbi_t* ao, int base             /* */
 );
 /**
  * @brief Print `o` to `fp`
@@ -1594,7 +1596,7 @@ ULBN_PUBLIC int ulbi_print_ex(
  * @return `ULBN_ERR_EXTERNAL` if write to `fp` failed;
  * @return `0` if successful
  */
-ULBN_PUBLIC int ulbi_print(const ulbn_alloc_t* alloc, const ulbi_t* o, FILE* fp, int base);
+ULBN_PUBLIC int ulbi_print(const ulbn_alloc_t* alloc, FILE* fp, const ulbi_t* ao, int base);
 
 
 #if ULBN_CONF_HAS_DOUBLE

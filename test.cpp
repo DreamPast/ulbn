@@ -319,6 +319,12 @@ void testCastTo() {
     T_assert(d == static_cast<double>(i));
     T_assert(BigInt(i).fitDouble() == (std::trunc(d) == d));
   }
+
+  for(int t = TEST_SMALL; t--;) {
+    BigInt x = BigInt::fromRandom(1024).asInt(1024);
+    auto str = x.toString();
+    T_assert(str == BigInt(str));
+  }
 }
 
 void testCompare() {

@@ -75,6 +75,7 @@ static ul_constexpr const ulbn_limb_t ULBN_LOWMASK = _ULBN_LOWMASK;
 
 
 #define _ULBN_SIZET_MAX ul_static_cast(size_t, ~ul_static_cast(size_t, 0))
+#define _ULBN_ALLOC_LIMIT ul_static_cast(size_t, _ULBN_SIZET_MAX / sizeof(ulbn_limb_t))
 /* The limitation of ulbn_usize_t, mainly to avoid overflow caused by the multiplication of ulbn_usize_t */
 #define _ULBN_SSIZE_LIMIT ulbn_cast_usize(_ulbn_min_(_ULBN_USIZE_LIMIT / 2, ulbn_cast_usize(ULBN_SSIZE_MAX)))
 #define _ULBN_USIZE_SHIFT_MASK ulbn_cast_usize(_ULBN_USIZE_SIGNBIT - 1u)
@@ -82,6 +83,7 @@ static ul_constexpr const ulbn_limb_t ULBN_LOWMASK = _ULBN_LOWMASK;
 ul_static_assert(sizeof(size_t) >= sizeof(ulbn_usize_t), "usbn_usize_t cannot be larger than size_t");
 ul_static_assert(ULBN_SHORT_LIMB_SIZE >= 1, "ULBN_SHORT_LIMB_SIZE is too small, must be at least 1");
 
+static ul_constexpr const size_t ULBN_ALLOC_LIMIT = _ULBN_ALLOC_LIMIT;
 static ul_constexpr const size_t ULBN_USIZE_LIMIT = _ULBN_USIZE_LIMIT;
 static ul_constexpr const ulbn_usize_t ULBN_SSIZE_LIMIT = _ULBN_SSIZE_LIMIT;
 static ul_constexpr const ulbn_usize_t ULBN_SHORT_LIMB_SIZE_VAL = ULBN_SHORT_LIMB_SIZE;
@@ -530,6 +532,97 @@ ULBN_INTERNAL ulbn_limb_t _ulbn_divinv2(ulbn_limb_t d1, ulbn_limb_t d0) {
   } while(0)
 
 
+/* Normalize p[0:n] from high to low, return the length */
+ULBN_INTERNAL ulbn_usize_t ulbn_rnorm(const ulbn_limb_t* p, ulbn_usize_t n) {
+  while(n > 0 && p[n - 1] == 0)
+    --n;
+  return n;
+}
+/* Normalize p[0:n] from low to high, return the index of the first non-zero element */
+ULBN_INTERNAL ulbn_usize_t ulbn_fnorm(const ulbn_limb_t* p, ulbn_usize_t n) {
+  ulbn_usize_t i = 0;
+  while(i < n && p[i] == 0)
+    ++i;
+  return i;
+}
+
+
+/* Clear p[0:n] */
+ULBN_INTERNAL void ulbn_fill0(ulbn_limb_t* p, ulbn_usize_t n) {
+  memset(p, 0, ul_static_cast(size_t, n) * sizeof(ulbn_limb_t));
+}
+/* Fill p[0:n] with ~0 */
+ULBN_INTERNAL void ulbn_fill1(ulbn_limb_t* p, ulbn_usize_t n) {
+  memset(p, 0xFF, ul_static_cast(size_t, n) * sizeof(ulbn_limb_t));
+}
+
+/* Check if p[0:n] is 0 */
+ULBN_INTERNAL int ulbn_is0(const ulbn_limb_t* p, ulbn_usize_t n) {
+  return ulbn_fnorm(p, n) >= n;
+}
+
+/* Copy src[0:n] to dst[0:n], ensuring src[] and dest[] do not overlap */
+ULBN_INTERNAL void ulbn_copy(ulbn_limb_t* ul_restrict dst, const ulbn_limb_t* ul_restrict src, ulbn_usize_t n) {
+  ulbn_assert_overlap(dst, n, src, n);
+  memcpy(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
+}
+/* Copy src[0:n] to dst[0:n], ensuring dest is after src */
+ULBN_INTERNAL void ulbn_fcopy(ulbn_limb_t* dst, const ulbn_limb_t* src, ulbn_usize_t n) {
+  ulbn_assert_forward_overlap(dst, n, src, n);
+  memcpy(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
+}
+/* Copy src[0:n] to dst[0:n], ensuring dest is before src */
+ULBN_INTERNAL void ulbn_rcopy(ulbn_limb_t* dst, const ulbn_limb_t* src, ulbn_usize_t n) {
+  ulbn_assert_backward_overlap(dst, n, src, n);
+  memmove(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
+}
+#define ulbn_maycopy(dst, src, n) ((dst) != (src) ? ulbn_copy((dst), (src), (n)) : (void)0)
+
+
+/* rp[0:n] = ap[0:n] << b, return overflow part (do not write to rp[n]), ensure 0 < b < {ULBN_LIMB_BITS} */
+ULBN_INTERNAL ulbn_limb_t ulbn_shl(ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t n, int b) {
+  ulbn_usize_t i;
+  ulbn_limb_t rh, rl, ret;
+  const int br = ul_static_cast(int, ULBN_LIMB_BITS) - b;
+
+  ulbn_assert(n > 0);
+  ulbn_assert(0 < b && ul_static_cast(unsigned, b) < ULBN_LIMB_BITS);
+  ulbn_assert_backward_overlap(rp, n, ap, n);
+
+  rl = ap[n - 1];
+  ret = rl >> br;
+  rh = ul_static_cast(ulbn_limb_t, rl << b);
+  for(i = n - 1; i > 0; --i) {
+    rl = ap[i - 1];
+    rp[i] = rh | (rl >> br);
+    rh = ul_static_cast(ulbn_limb_t, rl << b);
+  }
+  rp[0] = rh;
+  return ret;
+}
+/* rp[0:n] = ap[0:n] >> b, return overflow part (do not write to rp[-1]), ensure 0 < b < {ULBN_LIMB_BITS} */
+ULBN_INTERNAL ulbn_limb_t ulbn_shr(ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t n, int b) {
+  ulbn_usize_t i;
+  ulbn_limb_t rh, rl, ret;
+  const int br = ul_static_cast(int, ULBN_LIMB_BITS) - b;
+
+  ulbn_assert(n > 0);
+  ulbn_assert(0 < b && ul_static_cast(unsigned, b) < ULBN_LIMB_BITS);
+  ulbn_assert_forward_overlap(rp, n, ap, n);
+
+  rh = ap[0];
+  ret = ul_static_cast(ulbn_limb_t, rh << br);
+  rl = rh >> b;
+  for(i = 1; i < n; ++i) {
+    rh = ap[i];
+    rp[i - 1] = ul_static_cast(ulbn_limb_t, rl | (rh << br));
+    rl = rh >> b;
+  }
+  rp[n - 1] = rl;
+  return ret;
+}
+
+
 ul_static_assert(_ULBN_LIMB_BITS <= ULBN_USIZE_MAX, "ulbn_usize_t must be able to hold at least ULBN_LIMB_BITS");
 #define ULBN_BITS_OVERFLOW_USIZE (ULBN_USIZE_MAX / ULBN_LIMB_BITS)
 ULBN_INTERNAL ulbn_usize_t ulbn_ctz(const ulbn_limb_t* p, ulbn_usize_t n, ulbn_usize_t* p_rh) {
@@ -630,6 +723,63 @@ ULBN_INTERNAL ulbn_usize_t ulbn_bit_width(const ulbn_limb_t* p, ulbn_usize_t n, 
   return rl;
 }
 
+#define _ULBN_MERGE_USIZE_LEN ((sizeof(ulbn_usize_t) * 2 + sizeof(ulbn_limb_t) - 1) / sizeof(ulbn_limb_t))
+static ul_constexpr const ulbn_usize_t ULBN_MERGE_USIZE_LEN = _ULBN_MERGE_USIZE_LEN;
+ULBN_INTERNAL ulbn_usize_t ulbn_merge_usize(ulbn_limb_t* buf, ulbn_usize_t rl, ulbn_usize_t rh) {
+#if ULBN_USIZE_MAX == ULBN_LIMB_MAX
+  buf[1] = rh;
+  buf[0] = rl;
+  return rh != 0 ? 2 : (rl != 0);
+#elif ULBN_USIZE_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
+  && ULBN_USIZE_MAX - ULBN_LIMB_MAX * ULBN_LIMB_MAX == 2u * ULBN_LIMB_MAX
+  buf[3] = ul_static_cast(ulbn_limb_t, rh >> ULBN_LIMB_BITS);
+  buf[2] = ul_static_cast(ulbn_limb_t, rh & ULBN_LIMB_MAX);
+  buf[1] = ul_static_cast(ulbn_limb_t, rl >> ULBN_LIMB_BITS);
+  buf[0] = ul_static_cast(ulbn_limb_t, rl & ULBN_LIMB_MAX);
+  return ulbn_rnorm(buf, 4);
+#elif ULBN_LIMB_MAX / ULBN_USIZE_MAX >= ULBN_USIZE_MAX \
+  && ULBN_LIMB_MAX - ULBN_USIZE_MAX * ULBN_USIZE_MAX >= 2u * ULBN_USIZE_MAX
+  buf[0] = ul_static_cast(ulbn_limb_t, rh) << (sizeof(ulbn_usize_t) * CHAR_BIT) | ul_static_cast(ulbn_limb_t, rl);
+  return buf[0] != 0;
+#else
+  static ul_constexpr const ulbn_usize_t idx = sizeof(ulbn_usize_t) * CHAR_BIT / _ULBN_LIMB_BITS;
+  static ul_constexpr const int shift = sizeof(ulbn_usize_t) * CHAR_BIT % _ULBN_LIMB_BITS;
+  ulbn_usize_t len = 0;
+
+  #if ULBN_USIZE_MAX <= ULBN_LIMB_MAX
+  buf[len++] = ul_static_cast(ulbn_limb_t, rh);
+  #else
+  do {
+    buf[len++] = ul_static_cast(ulbn_limb_t, rh);
+    rh >>= ULBN_LIMB_BITS;
+  } while(rh);
+  #endif
+
+  if(shift) {
+    buf[idx + len] = ulbn_shl(buf + idx, buf, len, shift);
+    len += idx + 1u;
+  } else {
+    ulbn_rcopy(buf + idx, buf, len);
+    len += idx;
+  }
+  ulbn_fill0(buf, idx);
+
+  #if ULBN_USIZE_MAX <= ULBN_LIMB_MAX
+  buf[0] |= ul_static_cast(ulbn_limb_t, rl);
+  #else
+  do {
+    ulbn_usize_t i = 0;
+    do {
+      buf[i++] |= ul_static_cast(ulbn_limb_t, rl);
+      rl >>= ULBN_LIMB_BITS;
+    } while(rl);
+  } while(0);
+  #endif
+
+  return ulbn_rnorm(buf, len);
+#endif
+}
+
 
 static const char _ULBN_UPPER_TABLE[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 static const char _ULBN_LOWER_TABLE[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -659,53 +809,6 @@ ul_unused ULBN_INTERNAL void ulbn_dprint(FILE* fp, const char* prefix, const ulb
   fputc('\n', fp);
 }
 #endif
-
-
-/* Normalize p[0:n] from high to low, return the length */
-ULBN_INTERNAL ulbn_usize_t ulbn_rnorm(const ulbn_limb_t* p, ulbn_usize_t n) {
-  while(n > 0 && p[n - 1] == 0)
-    --n;
-  return n;
-}
-/* Normalize p[0:n] from low to high, return the index of the first non-zero element */
-ULBN_INTERNAL ulbn_usize_t ulbn_fnorm(const ulbn_limb_t* p, ulbn_usize_t n) {
-  ulbn_usize_t i = 0;
-  while(i < n && p[i] == 0)
-    ++i;
-  return i;
-}
-
-
-/* Clear p[0:n] */
-ULBN_INTERNAL void ulbn_fill0(ulbn_limb_t* p, ulbn_usize_t n) {
-  memset(p, 0, ul_static_cast(size_t, n) * sizeof(ulbn_limb_t));
-}
-/* Fill p[0:n] with ~0 */
-ULBN_INTERNAL void ulbn_fill1(ulbn_limb_t* p, ulbn_usize_t n) {
-  memset(p, 0xFF, ul_static_cast(size_t, n) * sizeof(ulbn_limb_t));
-}
-
-/* Check if p[0:n] is 0 */
-ULBN_INTERNAL int ulbn_is0(const ulbn_limb_t* p, ulbn_usize_t n) {
-  return ulbn_fnorm(p, n) >= n;
-}
-
-/* Copy src[0:n] to dst[0:n], ensuring src[] and dest[] do not overlap */
-ULBN_INTERNAL void ulbn_copy(ulbn_limb_t* ul_restrict dst, const ulbn_limb_t* ul_restrict src, ulbn_usize_t n) {
-  ulbn_assert_overlap(dst, n, src, n);
-  memcpy(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
-}
-/* Copy src[0:n] to dst[0:n], ensuring dest is after src */
-ULBN_INTERNAL void ulbn_fcopy(ulbn_limb_t* dst, const ulbn_limb_t* src, ulbn_usize_t n) {
-  ulbn_assert_forward_overlap(dst, n, src, n);
-  memcpy(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
-}
-/* Copy src[0:n] to dst[0:n], ensuring dest is before src */
-ULBN_INTERNAL void ulbn_rcopy(ulbn_limb_t* dst, const ulbn_limb_t* src, ulbn_usize_t n) {
-  ulbn_assert_backward_overlap(dst, n, src, n);
-  memmove(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
-}
-#define ulbn_maycopy(dst, src, n) ((dst) != (src) ? ulbn_copy((dst), (src), (n)) : (void)0)
 
 
 /* Compare ap[0:n] and bp[0:n], return direction (<0 means less than, =0 means equal, >0 means greater) */
@@ -928,50 +1031,6 @@ ULBN_INTERNAL ulbn_limb_t ulbn_subshl(
 
   cy = ulbn_subshln(rp, ap, bp, bn, b);
   return ulbn_sub1(rp + bn, ap + bn, an - bn, cy);
-}
-
-
-/* rp[0:n] = ap[0:n] << b, return overflow part (do not write to rp[n]), ensure 0 < b < {ULBN_LIMB_BITS} */
-ULBN_INTERNAL ulbn_limb_t ulbn_shl(ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t n, int b) {
-  ulbn_usize_t i;
-  ulbn_limb_t rh, rl, ret;
-  const int br = ul_static_cast(int, ULBN_LIMB_BITS) - b;
-
-  ulbn_assert(n > 0);
-  ulbn_assert(0 < b && ul_static_cast(unsigned, b) < ULBN_LIMB_BITS);
-  ulbn_assert_backward_overlap(rp, n, ap, n);
-
-  rl = ap[n - 1];
-  ret = rl >> br;
-  rh = ul_static_cast(ulbn_limb_t, rl << b);
-  for(i = n - 1; i > 0; --i) {
-    rl = ap[i - 1];
-    rp[i] = rh | (rl >> br);
-    rh = ul_static_cast(ulbn_limb_t, rl << b);
-  }
-  rp[0] = rh;
-  return ret;
-}
-/* rp[0:n] = ap[0:n] >> b, return overflow part (do not write to rp[-1]), ensure 0 < b < {ULBN_LIMB_BITS} */
-ULBN_INTERNAL ulbn_limb_t ulbn_shr(ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t n, int b) {
-  ulbn_usize_t i;
-  ulbn_limb_t rh, rl, ret;
-  const int br = ul_static_cast(int, ULBN_LIMB_BITS) - b;
-
-  ulbn_assert(n > 0);
-  ulbn_assert(0 < b && ul_static_cast(unsigned, b) < ULBN_LIMB_BITS);
-  ulbn_assert_forward_overlap(rp, n, ap, n);
-
-  rh = ap[0];
-  ret = ul_static_cast(ulbn_limb_t, rh << br);
-  rl = rh >> b;
-  for(i = 1; i < n; ++i) {
-    rh = ap[i];
-    rp[i - 1] = ul_static_cast(ulbn_limb_t, rl | (rh << br));
-    rl = rh >> b;
-  }
-  rp[n - 1] = rl;
-  return ret;
 }
 
 
@@ -2556,202 +2615,271 @@ ULBN_INTERNAL int ulbn_divmod_guard(
 }
 
 
-/* Convert ap[0:an] to base b. If allocation fails, return 0; otherwise, return the length after conversion */
-ULBN_INTERNAL ulbn_usize_t ulbn_convbase(
-  const ulbn_alloc_t* alloc, ulbn_limb_t** p_cp, ulbn_usize_t* p_cn, /* */
-  ulbn_limb_t* ap, ulbn_usize_t an, ulbn_limb_t b                    /* */
-) {
-  ulbn_limb_t* cp = ul_nullptr;
-  ulbn_usize_t cn = 0, ci = 0;
-  ulbn_limb_t bi;
+ULBN_INTERNAL size_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t rh, int base, int inv) {
+  /* Store log2(base) as a fraction, only allowing overestimation */
+#if ULBN_LIMB_MAX >= 0xFFFFFFFF
+  static const ulbn_limb_t table_log2[][2] = {
+    /* clang-format off */
+    {0x1, 0x1},              {0x333A379, 0x51318AD},  {0x1, 0x2},             {0x2A30F19, 0x61F703B},
+    {0x333A379, 0x846BC26},  {0x1A90993, 0x4A93B18},  {0x1, 0x3},             {0x333A379, 0xA26315A},
+    {0x2A30F19, 0x8C27F54},  {0x42C29E7, 0xE6F3D3D},  {0x333A379, 0xB7A5F9F}, {0x1F11ECF, 0x72F905A},
+    {0x1A90993, 0x65244AB},  {0x1695FAD, 0x583D8FF},  {0x1, 0x4},             {0x1E3B74B, 0x7B92BCF},
+    {0x333A379, 0xD59D4D3},  {0x4F22C47, 0x15029C67}, {0x38DED52, 0xF5CA3A3}, {0xFC4D6E, 0x4543147},
+    {0x42C29E7, 0x129B6724}, {0x24269CB, 0xA387CFA},  {0x333A379, 0xEAE0318}, {0x2A30F19, 0xC3EE076},
+    {0x1F11ECF, 0x920AF29},  {0x333A379, 0xF394A07},  {0x1A90993, 0x7FB4E3E}, {0xE9F3DE2, 0x470898E1},
+    {0x1695FAD, 0x6ED38AC},  {0x376B249, 0x1128DE40}, {0x1, 0x5},             {0x21F31B1, 0xAB415CD},
+    {0x1E3B74B, 0x99CE31A},  {0x1D61D65, 0x96B5A1B},  {0x333A379, 0x108D784C}
+    /* clang-format on */
+  };
+#elif ULBN_LIMB_MAX >= 0xFFFF
+  static const ulbn_limb_t table_log2[][2] = {
+    {1, 1},         {15601, 24727}, {1, 2},         {21306, 49471}, {15601, 40328}, {2964, 8321},   {1, 3},
+    {15601, 49454}, {8651, 28738},  {4856, 16799},  {15601, 55929}, {5458, 20197},  {2964, 11285},  {15659, 61178},
+    {1, 4},         {12451, 50893}, {15601, 65055}, {11701, 49705}, {8651, 37389},  {13433, 59002}, {4856, 21655},
+    {5963, 26974},  {14271, 65432}, {10653, 49471}, {5458, 25655},  {10179, 48400}, {2964, 14249},  {10738, 52165},
+    {11610, 56969}, {10676, 52891}, {1, 5},         {10159, 51246}, {12451, 63344}, {3473, 17814},  {7468, 38609}
+  };
+#else
+  static const ulbn_limb_t table_log2[][2] = {
+    {1, 1},    {147, 233}, {1, 2},    {59, 137}, {94, 243}, {26, 73},  {1, 3},    {47, 149}, {59, 196},
+    {37, 128}, {41, 147},  {67, 248}, {26, 99},  {43, 168}, {1, 4},    {57, 233}, {47, 196}, {4, 17},
+    {59, 255}, {28, 123},  {37, 165}, {21, 95},  {41, 188}, {45, 209}, {47, 221}, {49, 233}, {26, 125},
+    {50, 243}, {43, 211},  {22, 109}, {1, 5},    {45, 227}, {34, 173}, {23, 118}, {47, 243}
+    /* clang-format off */
+    /* clang-format on */
+  };
+#endif
+
+  ulbn_limb_t buf[_ULBN_MERGE_USIZE_LEN];
+  ulbn_usize_t len;
+  ulbn_limb_t d;
+  size_t ret = 0;
   int shift;
 
-  ulbn_assert(b >= 2);
+  ulbn_assert(2 <= base && base <= 36);
+  ulbn_assert(inv == 0 && inv == 1);
 
-  shift = _ulbn_clz_(b);
-  b <<= shift;
-  bi = ulbn_divinv1(b);
-
-  while(an > 0) {
-    if(ul_unlikely(ci >= cn)) {
-      ulbn_limb_t* ncp;
-      ulbn_usize_t ncn;
-      ncn = cn + (cn >> 1) + 1u;
-      ULBN_DO_IF_ALLOC_COND(ncn < cn, {
-        ncn = ULBN_USIZE_MAX;
-        if(ul_unlikely(ncn == cn)) {
-          ulbn_deallocT(ulbn_limb_t, alloc, cp, cn);
-          return 0;
-        }
-      });
-      ncp = ulbn_reallocT(ulbn_limb_t, alloc, cp, cn, ncn);
-      ULBN_DO_IF_ALLOC_COND(ncp == ul_nullptr, {
-        ulbn_deallocT(ulbn_limb_t, alloc, cp, cn);
-        return 0;
-      });
-      cp = ncp;
-      cn = ncn;
-    }
-    ulbn_divmod_inv1(ap, cp + (ci++), ap, an, b, bi, shift);
-    if(ul_likely(ap[an - 1] == 0))
-      --an;
+  len = ulbn_merge_usize(buf, rl, rh);
+  buf[len] = ulbn_mul1(buf, buf, len, table_log2[base - 2][inv]);
+  len += (buf[len] != 0);
+  if(len) {
+    d = table_log2[base - 2][!inv];
+    shift = _ulbn_clz_(d);
+    d <<= shift;
+    ulbn_divmod_inv1(buf, &_ULBN_SHORT_DIV_R, buf, len, d, ulbn_divinv1(d), shift);
+    len -= (buf[len - 1] == 0);
   }
-  *p_cp = cp;
-  *p_cn = cn;
-  return ci;
+
+  if(len == 0)
+    return 0;
+  if(len * CHAR_BIT - ul_static_cast(size_t, _ulbn_clz_(buf[len - 1])) > sizeof(size_t) * CHAR_BIT)
+    return _ULBN_SIZET_MAX;
+  do {
+    ret <<= ULBN_LIMB_BITS - 1;
+    ret <<= 1;
+    ret |= buf[--len];
+  } while(len > 0);
+  return ret;
 }
-/**
- * Convert the base-b representation from `ulbn_convbase` to a string.
- *
- * \note To boost conversion speed, `ulbn_convbase` can use {b^B_pow} as the base.
- *=
- * \param ci The length of the base-b representation. (Return value of `ulbn_convbase`)
- * \param cp The base-b representation. (Alloced by `ulbn_convbase`)
- * \param op The output buffer.
- * \param on The length of the output buffer.
- * \param b The base casted to string.
- * \param B_pow The value that {B=b^B_pow}.
- * \param char_table The character table.
- *
- * \return String length;
- * \return If memory is insufficient, return 0;
- * \return If op[0:on] is not enough to hold the string, do not write and return required length.
- */
-ULBN_INTERNAL ulbn_usize_t ulbn_conv2str(
-  ulbn_usize_t ci, const ulbn_limb_t* ul_restrict cp,               /* */
-  char* ul_restrict op, ulbn_usize_t on,                            /* */
-  ulbn_limb_t b, unsigned B_pow, const char* ul_restrict char_table /* */
-) {
-  ulbn_usize_t i, n;
-  ulbn_limb_t t;
-  unsigned j;
 
-  ulbn_assert(b >= 2);
-
-  ULBN_RETURN_IF_USIZE_COND(ci >= ULBN_USIZE_MAX / B_pow, 0);
-  n = (ci - 1) * B_pow;
-  for(t = cp[ci - 1]; t; t /= b)
-    ++n;
-  if(n > on)
-    return n;
-
-  op += n;
-  --ci;
-  for(i = 0; i < ci; ++i) {
-    t = cp[i];
-    for(j = 0; j < B_pow; ++j) {
-      *--op = char_table[t % b];
-      t /= b;
-    }
-  }
-  for(t = cp[ci]; t; t /= b)
-    *--op = char_table[t % b];
-  return n;
-}
-/**
- * Convert the base-b representation from `ulbn_convbase` to a string.
- *
- * \note To boost conversion speed, `ulbn_convbase` can use {b^B_pow} as the base.
- *=
- * \param ci The length of the base-b representation. (Return value of `ulbn_convbase`)
- * \param cp The base-b representation. (Alloced by `ulbn_convbase`)
- * \param b The base casted to string.
- * \param B_pow The value that {B=b^B_pow}.
- * \param char_table The character table.
- *
- * \return `ULBN_ERR_EXTERNAL` if printer returns non-zero;
- * \return `0` otherwise.
- */
-ULBN_INTERNAL int ulbn_conv2print(
-  ulbn_usize_t ci, ulbn_limb_t* ul_restrict cp,                     /* */
-  ulbn_printer_t* printer, void* opaque,                            /* */
-  ulbn_limb_t b, unsigned B_pow, const char* ul_restrict char_table /* */
-) {
-  ulbn_usize_t i = 0;
-  ulbn_limb_t t;
-  unsigned j;
-  char buf[_ULBN_LIMB_BITS];
-  char* op;
-
-  for(t = cp[ci - 1]; t; t /= b)
-    ++i;
-  op = buf + i;
-  for(t = cp[ci - 1]; t; t /= b)
-    *--op = char_table[t % b];
-  if(ul_unlikely(printer(opaque, buf, i)))
-    return ULBN_ERR_EXTERNAL;
-
-  --ci;
-  while(ci) {
-    t = cp[--ci];
-    op += B_pow;
-    for(j = 0; j < B_pow; ++j) {
-      *--op = char_table[t % b];
-      t /= b;
-    }
-    if(ul_unlikely(printer(opaque, buf, B_pow)))
-      return ULBN_ERR_EXTERNAL;
-  }
-  return 0;
-}
-ULBN_INTERNAL ulbn_limb_t ulbn_conv2str_base(int base, unsigned* pB_pow) {
+typedef struct ulbn_baseconv_t {
+  ulbn_limb_t b;     /* = base**base_pow */
+  ulbn_limb_t bi;    /* _ulbn_divinv1(b<<shift) */
+  unsigned base_pow; /* the maximum power to make `b` <= ULBN_LIMB_MAX */
+  int shift;         /* = _ulbn_ctz_(b) */
+  ulbn_limb_t base;
+  const char* char_table;
+} ulbn_baseconv_t;
+ULBN_INTERNAL ulbn_baseconv_t ulbn_prepare_baseconv(ulbn_limb_t base) {
 #if ULBN_LIMB_MAX == 0xFFu
-  static const ulbn_limb_t B_TABLE[] = {0x80, 0xF3, 0x40, 0x7D, 0xD8, 0x31, 0x40, 0x51, 0x64, 0x79, 0x90, 0xa9,
+  static const ulbn_limb_t table_b[] = {0x80, 0xF3, 0x40, 0x7D, 0xD8, 0x31, 0x40, 0x51, 0x64, 0x79, 0x90, 0xA9,
                                         0xC4, 0xE1, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
                                         0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24};
-  static const unsigned B_pow[] = {7, 5, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
-                                   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-  #define ULBN_CONV2STR_BASE_TABLE_DEFINED
+  static const unsigned char table_power[] = {7, 5, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
+                                              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  static const signed char table_shift[] = {0, 0, 1, 1, 0, 2, 1, 1, 1, 1, 0, 0, 0, 0, 3, 3, 3, 3,
+                                            3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2};
+  static const ulbn_limb_t table_bi[] = {0xFF, 0xD,  0xFF, 0x6,  0x2F, 0x4E, 0xFF, 0x94, 0x47, 0xE,  0xC7, 0x83,
+                                         0x4E, 0x23, 0xFF, 0xE1, 0xC7, 0xAF, 0x99, 0x86, 0x74, 0x64, 0x55, 0x47,
+                                         0x3B, 0x2F, 0x24, 0x1A, 0x11, 0x8,  0xFF, 0xF0, 0xE1, 0xD4, 0xC7};
+  #define _ULBN_BASECONV_TABLE_DEFINED
 #elif ULBN_LIMB_MAX == 0xFFFFu
-  static const ulbn_limb_t B_TABLE[] = {0x8000, 0xE6A9, 0x4000, 0x3D09, 0xB640, 0x41A7, 0x8000, 0xE6A9, 0x2710,
+  static const ulbn_limb_t table_b[] = {0x8000, 0xE6A9, 0x4000, 0x3D09, 0xB640, 0x41A7, 0x8000, 0xE6A9, 0x2710,
                                         0x3931, 0x5100, 0x6F91, 0x9610, 0xC5C1, 0x1000, 0x1331, 0x16C8, 0x1ACB,
                                         0x1F40, 0x242D, 0x2998, 0x2F87, 0x3600, 0x3D09, 0x44A8, 0x4CE3, 0x55C0,
                                         0x5F45, 0x6978, 0x745F, 0x8000, 0x8C61, 0x9988, 0xA77B, 0xB640};
-  static const unsigned B_pow[] = {15, 10, 7, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3,
-                                   3,  3,  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
-  #define ULBN_CONV2STR_BASE_TABLE_DEFINED
+  static const unsigned char table_power[] = {15, 10, 7, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3,
+                                              3,  3,  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
+  static const signed char table_shift[] = {0, 0, 1, 2, 0, 1, 0, 0, 2, 2, 1, 1, 0, 0, 3, 3, 3, 3,
+                                            3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0};
+  static const ulbn_limb_t table_bi[] = {0xFFFF, 0x1C1F, 0xFFFF, 0xC6F,  0x6798, 0xF31D, 0xFFFF, 0x1C1F, 0xA36E,
+                                         0x1E7A, 0x948B, 0x25B5, 0xB4B9, 0x4B66, 0xFFFF, 0xAADB, 0x6798, 0x31C0,
+                                         0x624,  0xC4E6, 0x89E7, 0x58BA, 0x2F68, 0xC6F,  0xDD46, 0xAA2F, 0x7E22,
+                                         0x57F3, 0x36B0, 0x1994, 0xFFFF, 0xD2D9, 0xAADB, 0x874E, 0x6798};
+  #define _ULBN_BASECONV_TABLE_DEFINED
 #elif ULBN_LIMB_MAX == 0xFFFFFFFFu
-  static const ulbn_limb_t B_TABLE[] = {0x80000000, 0xCFD41B91, 0x40000000, 0x48C27395, 0x81BF1000, 0x75DB9C97,
+  static const ulbn_limb_t table_b[] = {0x80000000, 0xCFD41B91, 0x40000000, 0x48C27395, 0x81BF1000, 0x75DB9C97,
                                         0x40000000, 0xCFD41B91, 0x3B9ACA00, 0x8C8B6D2B, 0x19A10000, 0x309F1021,
                                         0x57F6C100, 0x98C29B81, 0x10000000, 0x18754571, 0x247DBC80, 0x3547667B,
-                                        0x4C4B4000, 0x6B5A6E1D, 0x94ACE180, 0xCAF18367, 0x0B640000, 0x0E8D4A51,
+                                        0x4C4B4000, 0x6B5A6E1D, 0x94ACE180, 0xCAF18367, 0xB640000,  0xE8D4A51,
                                         0x1269AE40, 0x17179149, 0x1CB91000, 0x23744899, 0x2B73A840, 0x34E63B41,
                                         0x40000000, 0x4CFA3CC1, 0x5C13D840, 0x6D91B519, 0x81BF1000};
-  static const unsigned B_pow[] = {31, 20, 15, 13, 12, 11, 10, 10, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7,
-                                   7,  7,  7,  7,  6,  6,  6,  6,  6, 6, 6, 6, 6, 6, 6, 6, 6};
-  #define ULBN_CONV2STR_BASE_TABLE_DEFINED
+  static const unsigned char table_power[] = {31, 20, 15, 13, 12, 11, 10, 10, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7,
+                                              7,  7,  7,  7,  6,  6,  6,  6,  6, 6, 6, 6, 6, 6, 6, 6, 6};
+  static const signed char table_shift[] = {0, 0, 1, 1, 0, 1, 1, 0, 2, 0, 3, 2, 1, 0, 3, 3, 2, 2,
+                                            1, 1, 0, 0, 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 0};
+  static const ulbn_limb_t table_bi[] = {0xFFFFFFFF, 0x3B563C24, 0xFFFFFFFF, 0xC25C2684, 0xF91BD1B6, 0x1607A2CB,
+                                         0xFFFFFFFF, 0x3B563C24, 0x12E0BE82, 0xD24CDE04, 0x3FA39AB5, 0x50F8AC5F,
+                                         0x74843B1E, 0xAD0326C2, 0xFFFFFFFF, 0x4EF0B6BD, 0xC0FC48A1, 0x33838942,
+                                         0xAD7F29AB, 0x313C3D15, 0xB8CCA9E0, 0x42ED6DE9, 0x67980E0B, 0x19799812,
+                                         0xBCE85396, 0x62C103A9, 0x1D353D43, 0xCE1DECEA, 0x790FC511, 0x35B865A0,
+                                         0xFFFFFFFF, 0xA9AED1B3, 0x63DFC229, 0x2B0FEE30, 0xF91BD1B6};
+  #define _ULBN_BASECONV_TABLE_DEFINED
 #elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
-  static const ulbn_limb_t B_TABLE[] = {0x8000000000000000, 0xA8B8B452291FE821, 0x4000000000000000, 0x6765C793FA10079D,
+  static const ulbn_limb_t table_b[] = {0x8000000000000000, 0xA8B8B452291FE821, 0x4000000000000000, 0x6765C793FA10079D,
                                         0x41C21CB8E1000000, 0x3642798750226111, 0x8000000000000000, 0xA8B8B452291FE821,
                                         0x8AC7230489E80000, 0x4D28CB56C33FA539, 0x1ECA170C00000000, 0x780C7372621BD74D,
                                         0x1E39A5057D810000, 0x5B27AC993DF97701, 0x1000000000000000, 0x27B95E997E21D9F1,
                                         0x5DA0E1E53C5C8000, 0xD2AE3299C1C4AEDB, 0x16BCC41E90000000, 0x2D04B7FDD9C0EF49,
-                                        0x5658597BCAA24000, 0xA0E2073737609371, 0x0C29E98000000000, 0x14ADF4B7320334B9,
+                                        0x5658597BCAA24000, 0xA0E2073737609371, 0xC29E98000000000,  0x14ADF4B7320334B9,
                                         0x226ED36478BFA000, 0x383D9170B85FF80B, 0x5A3C23E39C000000, 0x8E65137388122BCD,
-                                        0xDD41BB36D259E000, 0x0AEE5720EE830681, 0x1000000000000000, 0x172588AD4F5F0981,
+                                        0xDD41BB36D259E000, 0xAEE5720EE830681,  0x1000000000000000, 0x172588AD4F5F0981,
                                         0x211E44F7D02C1000, 0x2EE56725F06E5C71, 0x41C21CB8E1000000};
-  static const unsigned B_pow[] = {63, 40, 31, 27, 24, 22, 21, 20, 19, 18, 17, 17, 16, 16, 15, 15, 15, 15,
-                                   14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12};
-  #define ULBN_CONV2STR_BASE_TABLE_DEFINED
+  static const unsigned char table_power[] = {63, 40, 31, 27, 24, 22, 21, 20, 19, 18, 17, 17, 16, 16, 15, 15, 15, 15,
+                                              14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12};
+  static const signed char table_shift[] = {0, 0, 1, 1, 1, 2, 0, 0, 0, 1, 3, 1, 3, 1, 3, 2, 1, 0,
+                                            3, 2, 1, 0, 4, 3, 2, 2, 1, 0, 0, 4, 3, 3, 2, 2, 1};
+  static const ulbn_limb_t table_bi[] = {0xFFFFFFFFFFFFFFFF, 0x846D550E37B5063D, 0xFFFFFFFFFFFFFFFF, 0x3CE9A36F23C0FC90,
+                                         0xF24F62335024A295, 0x2DF495CCAA57147B, 0xFFFFFFFFFFFFFFFF, 0x846D550E37B5063D,
+                                         0xD83C94FB6D2AC34A, 0xA8ADF7AE45E7577B, 0xA10C2BEC5DA8F8F,  0x10F4BECAFE412EC3,
+                                         0xF08480F672B4E86,  0x6779C7F90DC42F48, 0xFFFFFFFFFFFFFFFF, 0x9C71E11BAB279323,
+                                         0x5DFAA697EC6F6A1C, 0x3711783F6BE7E9EC, 0x6849B86A12B9B01E, 0x6BF097BA5CA5E239,
+                                         0x7B8015C8D7AF8F08, 0x975A24B3A3151B38, 0x50BD367972689DB1, 0x8C240C4AECB13BB5,
+                                         0xDBD2E56854E118C9, 0x2351FFCAA9C7C4AE, 0x6B24188CA33B0636, 0xCC3DCEAF2B8BA99D,
+                                         0x2832E835C6C7D6B6, 0x76B6AA272E1873C5, 0xFFFFFFFFFFFFFFFF, 0x61EAF5D402C7BF4F,
+                                         0xEEB658123FFB27EC, 0x5D5E3762E6FDF509, 0xF24F62335024A295};
+  #define _ULBN_BASECONV_TABLE_DEFINED
 #endif
 
-#ifdef ULBN_CONV2STR_BASE_TABLE_DEFINED
-  *pB_pow = B_pow[base - 2];
-  return B_TABLE[base - 2];
-  #undef ULBN_CONV2STR_BASE_TABLE_DEFINED
+  ulbn_baseconv_t conv;
+#ifdef _ULBN_BASECONV_TABLE_DEFINED
+  ulbn_assert(base >= 2 && base <= 36);
+  conv.b = table_b[base - 2];
+  conv.bi = table_bi[base - 2];
+  conv.shift = table_shift[base - 2];
+  conv.base_pow = table_power[base - 2];
+  conv.base = base;
 #else
-  ulbn_limb_t B_guard, B;
-  unsigned B_pow;
-  B_guard = ul_static_cast(ulbn_limb_t, ULBN_LIMB_MAX / ul_static_cast(unsigned, base));
-  B_pow = 1;
-  for(B = ul_static_cast(ulbn_limb_t, base); B <= B_guard; B *= ul_static_cast(ulbn_limb_t, base))
-    ++B_pow;
-  *pB_pow = B_pow;
-  return B;
+  ulbn_limb_t b_guard;
+  b_guard = ul_static_cast(ulbn_limb_t, ULBN_LIMB_MAX / base);
+  conv.base_pow = 1;
+  conv.base = base;
+  for(conv.b = base; conv.b <= b_guard; conv.b *= base)
+    ++conv.base_pow;
+  conv.bi = ulbn_divinv1(conv.b);
 #endif
+  conv.char_table = _ULBN_UPPER_TABLE;
+  return conv;
 }
-ULBN_PRIVATE int _ulbn_cfile_print(void* file, const char* buf, size_t len) {
+ULBN_INTERNAL int ulbn_conv2print_generic(
+  const ulbn_alloc_t* alloc, ulbn_printer_t* printer, void* opaque, /* */
+  const ulbn_limb_t* ap, ulbn_usize_t an,                           /* */
+  ulbn_baseconv_t conv                                              /* */
+) {
+  ulbn_limb_t* cp;
+  size_t ccap = 0, ci = 0;
+  ulbn_limb_t* tp;
+  int err = ULBN_ERR_NOMEM;
+  char buf[_ULBN_LIMB_BITS];
+  char *pbuf, *const buf_end = buf + ULBN_LIMB_BITS;
+  ulbn_limb_t c;
+
+  ulbn_assert(an > 0);
+
+  tp = ulbn_allocT(ulbn_limb_t, alloc, an);
+  ULBN_DO_IF_ALLOC_FAILED(tp, return err;);
+  cp = ulbn_allocT(ulbn_limb_t, alloc, an);
+  ULBN_DO_IF_ALLOC_FAILED(cp, goto cleanup;);
+  ccap = an;
+
+  ulbn_copy(tp, ap, an);
+  do {
+    if(ul_unlikely(ci >= ccap)) {
+      ulbn_limb_t* new_cp;
+      size_t new_ccap;
+      new_ccap = ccap + (ccap >> 1) + 1u;
+      if(ul_unlikely(new_ccap < ccap || new_ccap > ULBN_ALLOC_LIMIT))
+        goto cleanup;
+      new_cp = ulbn_reallocT(ulbn_limb_t, alloc, cp, ccap, new_ccap);
+      ULBN_DO_IF_ALLOC_COND(new_cp == ul_nullptr, goto cleanup;);
+      cp = new_cp;
+      ccap = new_ccap;
+    }
+
+    ulbn_divmod_inv1(tp, cp + (ci++), tp, an, conv.b << conv.shift, conv.bi, conv.shift);
+    if(ul_likely(tp[an - 1] == 0))
+      --an;
+  } while(an > 0);
+
+  err = ULBN_ERR_EXTERNAL;
+  c = cp[--ci];
+  for(pbuf = buf_end; c; c /= conv.base)
+    *--pbuf = conv.char_table[c % conv.base];
+  if(ul_unlikely(printer(opaque, pbuf, ul_static_cast(size_t, buf_end - pbuf))))
+    goto cleanup;
+  while(ci > 0) {
+    c = cp[--ci];
+    for(pbuf = buf + conv.base_pow; c; c /= conv.base)
+      *--pbuf = conv.char_table[c % conv.base];
+    memset(buf, conv.char_table[0], ul_static_cast(size_t, pbuf - buf));
+    if(ul_unlikely(printer(opaque, buf, conv.base_pow)))
+      goto cleanup;
+  }
+  err = 0;
+
+cleanup:
+  ulbn_deallocT(ulbn_limb_t, alloc, cp, ccap);
+  ulbn_deallocT(ulbn_limb_t, alloc, tp, an);
+  return err;
+}
+
+ULBN_INTERNAL int ulbn_conv2print(
+  const ulbn_alloc_t* alloc, const ulbn_limb_t* ptr, ulbn_usize_t num, /* */
+  ulbn_printer_t* printer, void* opaque,                               /* */
+  ulbn_limb_t base, const char* char_table                             /* */
+) {
+  ulbn_baseconv_t conv = ulbn_prepare_baseconv(base);
+  conv.char_table = char_table;
+  return ulbn_conv2print_generic(alloc, printer, opaque, ptr, num, conv);
+}
+
+ULBN_PRIVATE int _ulbn_fileprinter(void* file, const char* buf, size_t len) {
   return fwrite(buf, 1, len, ul_reinterpret_cast(FILE*, file)) != len;
+}
+typedef struct ulbn_strprinter_t {
+  char* data;
+  size_t len;
+  size_t cap;
+  ulbn_alloc_func_t* alloc;
+  void* alloc_opaque;
+} ulbn_strprinter_t;
+ULBN_PRIVATE int _ulbn_strprinter(void* opaque, const char* str, size_t len) {
+  ulbn_strprinter_t* printer = ul_reinterpret_cast(ulbn_strprinter_t*, opaque);
+  if(ul_unlikely(printer->len > _ULBN_SIZET_MAX - len))
+    return -1;
+  if(ul_unlikely(printer->len + len > printer->cap)) {
+    size_t new_cap = printer->cap + (printer->cap >> 1);
+    char* new_data;
+    if(ul_unlikely(new_cap < printer->len + len))
+      new_cap = printer->len + len;
+    new_data = ul_reinterpret_cast(char*, printer->alloc(printer->alloc_opaque, printer->data, printer->cap, new_cap));
+    ULBN_RETURN_IF_ALLOC_FAILED(new_data, -1);
+    printer->data = new_data;
+    printer->cap = new_cap;
+  }
+  memcpy(printer->data + printer->len, str, len);
+  printer->len += len;
+  return 0;
 }
 
 
@@ -5824,42 +5952,48 @@ ULBN_PUBLIC ulbn_usize_t ulbi_abs_bit_width_usize(const ulbi_t* ro, ulbn_usize_t
     return ulbn_bit_width(_ulbi_limbs(ro), n, p_rh);
 }
 
-ULBN_PRIVATE int _ulbi_merge_usize2(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t h, ulbn_usize_t l) {
-  ulbi_t tmp = ULBI_INIT;
-  int err;
-
-  err = ulbi_set_usize(alloc, dst, h);
-  ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
-  err = ulbi_sal_usize(alloc, dst, dst, sizeof(ulbn_usize_t) * CHAR_BIT);
-  ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
-  ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
-
-  err = ulbi_set_usize(alloc, &tmp, l);
-  ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
-  err = ulbi_or(alloc, dst, dst, &tmp);
-  ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
-  ulbi_deinit(alloc, &tmp);
-  return err;
-}
 ULBN_PUBLIC int ulbi_ctz(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* ro) {
-  ulbn_usize_t l, h;
-  l = ulbi_ctz_usize(ro, &h);
-  return _ulbi_merge_usize2(alloc, dst, h, l);
+  ulbn_usize_t rl, rh;
+  ulbn_limb_t* ptr = _ulbi_res(alloc, dst, ULBN_MERGE_USIZE_LEN);
+  if(ul_unlikely(ptr == ul_nullptr))
+    return ULBN_ERR_NOMEM;
+  rl = ulbn_ctz(_ulbi_limbs(ro), _ulbn_abs_size(ro->len), &rh);
+  dst->len = ulbn_cast_ssize(ulbn_merge_usize(ptr, rl, rh));
+  return 0;
 }
 ULBN_PUBLIC int ulbi_cto(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* ro) {
-  ulbn_usize_t l, h;
-  l = ulbi_cto_usize(ro, &h);
-  return _ulbi_merge_usize2(alloc, dst, h, l);
+  ulbn_usize_t rl, rh;
+  ulbn_limb_t* ptr = _ulbi_res(alloc, dst, ULBN_MERGE_USIZE_LEN);
+  if(ul_unlikely(ptr == ul_nullptr))
+    return ULBN_ERR_NOMEM;
+  rl = ulbn_cto(_ulbi_limbs(ro), _ulbn_abs_size(ro->len), &rh);
+  dst->len = ulbn_cast_ssize(ulbn_merge_usize(ptr, rl, rh));
+  return 0;
 }
 ULBN_PUBLIC int ulbi_abs_popcount(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* ro) {
-  ulbn_usize_t l, h;
-  l = ulbi_abs_popcount_usize(ro, &h);
-  return _ulbi_merge_usize2(alloc, dst, h, l);
+  ulbn_usize_t rl, rh;
+  ulbn_limb_t* ptr = _ulbi_res(alloc, dst, ULBN_MERGE_USIZE_LEN);
+  if(ul_unlikely(ptr == ul_nullptr))
+    return ULBN_ERR_NOMEM;
+  rl = ulbn_popcount(_ulbi_limbs(ro), _ulbn_abs_size(ro->len), &rh);
+  dst->len = ulbn_cast_ssize(ulbn_merge_usize(ptr, rl, rh));
+  return 0;
 }
 ULBN_PUBLIC int ulbi_abs_bit_width(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* ro) {
-  ulbn_usize_t l, h;
-  l = ulbi_abs_bit_width_usize(ro, &h);
-  return _ulbi_merge_usize2(alloc, dst, h, l);
+  ulbn_usize_t rl, rh;
+  ulbn_limb_t* ptr;
+
+  if(ro->len == 0) {
+    _ulbi_set_zero(dst);
+    return 0;
+  }
+
+  ptr = _ulbi_res(alloc, dst, ULBN_MERGE_USIZE_LEN);
+  if(ul_unlikely(ptr == ul_nullptr))
+    return ULBN_ERR_NOMEM;
+  rl = ulbn_bit_width(_ulbi_limbs(ro), _ulbn_abs_size(ro->len), &rh);
+  dst->len = ulbn_cast_ssize(ulbn_merge_usize(ptr, rl, rh));
+  return 0;
 }
 
 
@@ -5998,107 +6132,71 @@ ULBN_PUBLIC int ulbi_fit_ssize(const ulbi_t* src) {
 
 
 ULBN_PUBLIC char* ulbi_to_string_alloc(
-  const ulbn_alloc_t* alloc, ulbn_usize_t* p_len,    /* */
-  ulbn_alloc_func_t* alloc_func, void* alloc_opaque, /* */
-  const ulbi_t* ao, int base                         /* */
+  const ulbn_alloc_t* alloc, size_t* p_len, size_t* p_alloced, /* */
+  ulbn_alloc_func_t* alloc_func, void* alloc_opaque,           /* */
+  const ulbi_t* ao, int base                                   /* */
 ) {
   const ulbn_usize_t an = _ulbn_abs_size(ao->len);
-  const unsigned a_neg = ao->len < 0;
-  char* buf = ul_nullptr;
-  ulbn_limb_t* rp;
+  ulbn_strprinter_t printer;
+  int err;
 
-  ulbn_limb_t B;
-  unsigned B_pow;
+  *p_len = 0;
+  *p_alloced = 0;
 
-  ulbn_limb_t* cp = ul_nullptr;
-  ulbn_usize_t ci, c_alloc = 0;
-  ulbn_usize_t on = 0;
-
-  if(base < 2 || base > 36)
+  if(ul_unlikely(base < 2 || base > 36))
     return ul_nullptr;
-  if(an == 0) {
-    buf = ul_reinterpret_cast(char*, alloc_func(alloc_opaque, ul_nullptr, 0, 2));
-    ULBN_RETURN_IF_ALLOC_FAILED(buf, ul_nullptr);
-    buf[0] = '0';
-    buf[1] = 0;
-    if(p_len)
-      *p_len = 1;
-    return buf;
+
+  if(ao->len == 0) {
+    char* p = ul_reinterpret_cast(char*, alloc_func(alloc_opaque, ul_nullptr, 0, 2));
+    ULBN_RETURN_IF_ALLOC_FAILED(p, ul_nullptr);
+    p[0] = '0';
+    p[1] = 0;
+    *p_len = 1;
+    *p_alloced = 2;
+    return p;
   }
-  if(alloc_func == ul_nullptr) {
-    alloc_func = alloc->alloc_func;
-    alloc_opaque = alloc->alloc_opaque;
-  }
-
-  rp = ulbn_allocT(ulbn_limb_t, alloc, an);
-  ULBN_RETURN_IF_ALLOC_FAILED(rp, ul_nullptr);
-  ulbn_copy(rp, _ulbi_limbs(ao), an);
-
-  B = ulbn_conv2str_base(base, &B_pow);
-  ci = ulbn_convbase(alloc, &cp, &c_alloc, rp, an, B);
-  ULBN_DO_IF_ALLOC_COND(ci == 0, goto done;);
-
-  on = ulbn_conv2str(ci, cp, ul_nullptr, 0, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
-  ULBN_DO_IF_ALLOC_COND(on == 0, goto done;);
-  buf = ul_reinterpret_cast(char*, alloc_func(alloc_opaque, ul_nullptr, 0, ul_static_cast(size_t, on) + 1 + a_neg));
-  ULBN_DO_IF_ALLOC_FAILED(buf, goto done;);
-  if(ul_unlikely(a_neg))
-    buf[0] = '-';
-  ulbn_conv2str(ci, cp, buf + a_neg, on, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
-  on += a_neg;
-  buf[on] = 0;
-
-done:
-  ulbn_deallocT(ulbn_limb_t, alloc, cp, c_alloc);
-  ulbn_deallocT(ulbn_limb_t, alloc, rp, an);
-  if(p_len)
-    *p_len = on;
-  return buf;
+  printer.alloc = alloc_func;
+  printer.alloc_opaque = alloc_opaque;
+  printer.data = ul_reinterpret_cast(char*, alloc_func(alloc_opaque, ul_nullptr, 0, an + 1));
+  ULBN_RETURN_IF_ALLOC_FAILED(printer.data, ul_nullptr);
+  printer.len = 0;
+  printer.cap = an + 1;
+  if(ao->len < 0)
+    printer.data[printer.len++] = '-';
+  err = ulbn_conv2print(
+    alloc, _ulbi_limbs(ao), an, _ulbn_strprinter, &printer, ul_static_cast(ulbn_limb_t, base), _ULBN_UPPER_TABLE
+  );
+  ULBN_DO_IF_ALLOC_COND(err < 0, {
+    alloc_func(alloc_opaque, printer.data, printer.cap, 0);
+    return ul_nullptr;
+  });
+  err = _ulbn_strprinter(&printer, "", 1);
+  ULBN_DO_IF_ALLOC_COND(err < 0, {
+    alloc_func(alloc_opaque, printer.data, printer.cap, 0);
+    return ul_nullptr;
+  });
+  *p_alloced = printer.cap;
+  *p_len = printer.len - 1;
+  return printer.data;
 }
 ULBN_PUBLIC int ulbi_print_ex(
-  const ulbn_alloc_t* alloc, const ulbi_t* ao, int base, /* */
-  ulbn_printer_t* printer, void* opaque                  /* */
+  const ulbn_alloc_t* alloc,             /* */
+  ulbn_printer_t* printer, void* opaque, /* */
+  const ulbi_t* ao, int base             /* */
 ) {
-  const ulbn_usize_t an = _ulbn_abs_size(ao->len);
-  ulbn_limb_t* rp;
-
-  ulbn_limb_t B;
-  unsigned B_pow;
-
-  ulbn_limb_t* cp = ul_nullptr;
-  ulbn_usize_t ci, c_alloc = 0;
-  int ret = ULBN_ERR_NOMEM;
-
-  if(base < 2 || base > 36)
+  if(ul_unlikely(base < 2 || base > 36))
     return ULBN_ERR_EXCEED_RANGE;
-  if(printer == ul_nullptr) {
-    printer = _ulbn_cfile_print;
-    opaque = stdout;
-  }
-  if(an == 0)
-    return printer(opaque, "0", 1) ? ULBN_ERR_EXTERNAL : 0;
-  if(ao->len < 0) {
-    if(ul_unlikely(printer(opaque, "-", 1)))
-      return ULBN_ERR_EXTERNAL;
-  }
-
-  rp = ulbn_allocT(ulbn_limb_t, alloc, an);
-  ULBN_RETURN_IF_ALLOC_FAILED(rp, ULBN_ERR_NOMEM);
-  ulbn_copy(rp, _ulbi_limbs(ao), an);
-
-  B = ulbn_conv2str_base(base, &B_pow);
-  ci = ulbn_convbase(alloc, &cp, &c_alloc, rp, an, B);
-  ULBN_DO_IF_ALLOC_COND(ci == 0, goto done;);
-
-  ret = ulbn_conv2print(ci, cp, printer, opaque, ul_static_cast(ulbn_limb_t, base), B_pow, ulbn_string_table(0));
-
-done:
-  ulbn_deallocT(ulbn_limb_t, alloc, cp, c_alloc);
-  ulbn_deallocT(ulbn_limb_t, alloc, rp, an);
-  return ret ? ULBN_ERR_EXTERNAL : 0;
+  if(ao->len == 0)
+    return ul_unlikely(printer(opaque, "0", 1)) ? ULBN_ERR_EXTERNAL : 0;
+  if(ao->len < 0 && ul_unlikely(printer(opaque, "-", 1)))
+    return ULBN_ERR_EXTERNAL;
+  return ulbn_conv2print(
+    alloc, _ulbi_limbs(ao), _ulbn_abs_size(ao->len), printer, opaque, ul_static_cast(ulbn_limb_t, base),
+    _ULBN_UPPER_TABLE
+  );
 }
-ULBN_PUBLIC int ulbi_print(const ulbn_alloc_t* alloc, const ulbi_t* o, FILE* fp, int base) {
-  return ulbi_print_ex(alloc, o, base, _ulbn_cfile_print, fp);
+ULBN_PUBLIC int ulbi_print(const ulbn_alloc_t* alloc, FILE* fp, const ulbi_t* ao, int base) {
+  return ulbi_print_ex(alloc, _ulbn_fileprinter, fp, ao, base);
 }
 
 
