@@ -6205,6 +6205,7 @@ ULBN_PRIVATE int _ulbi_print_ex(
 
     err = _ulbi_print_ex(alloc, printer, opaque, qo, base, desire_len > pow ? desire_len - pow : 0);
     ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
+    desire_len = pow;
   }
 
   if(ao->len != 0)

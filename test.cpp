@@ -336,6 +336,12 @@ void testCastTo() {
     auto str = x.toString();
     T_assert(str == BigInt(str));
   }
+
+  for(int t = TEST_SMALL; t--;) {
+    BigInt x = BigInt(10).pow(BigInt::fromRandom(12));
+    auto str = x.toString();
+    T_assert(str == BigInt(str));
+  }
 }
 
 void testCompare() {
