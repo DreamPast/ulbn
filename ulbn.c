@@ -2716,12 +2716,15 @@ ULBN_INTERNAL ulbn_baseconv_t ulbn_prepare_baseconv(ulbn_limb_t base) {
 ULBN_INTERNAL int ulbn_conv2print_generic(
   const ulbn_alloc_t* alloc, size_t desire_len, /* */
   ulbn_printer_t* printer, void* opaque,        /* */
-  const ulbn_limb_t* ap, ulbn_usize_t an,       /* */
+  const ulbn_limb_t* ap, const ulbn_usize_t an, /* */
   ulbn_baseconv_t conv                          /* */
 ) {
   ulbn_limb_t* cp;
   size_t ccap = 0, ci = 0;
+
   ulbn_limb_t* tp;
+  ulbn_usize_t tn = an;
+
   int err = ULBN_ERR_NOMEM;
   char buf[_ULBN_LIMB_BITS];
   char *pbuf, *const buf_end = buf + ULBN_LIMB_BITS;
@@ -2736,7 +2739,7 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
   ULBN_DO_IF_ALLOC_FAILED(cp, goto cleanup;);
   ccap = an;
 
-  ulbn_copy(tp, ap, an);
+  ulbn_copy(tp, ap, tn);
   do {
     if(ul_unlikely(ci >= ccap)) {
       ulbn_limb_t* new_cp;
@@ -2750,10 +2753,10 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
       ccap = new_ccap;
     }
 
-    ulbn_divmod_inv1(tp, cp + (ci++), tp, an, conv.b << conv.shift, conv.bi, conv.shift);
-    if(ul_likely(tp[an - 1] == 0))
-      --an;
-  } while(an > 0);
+    ulbn_divmod_inv1(tp, cp + (ci++), tp, tn, conv.b << conv.shift, conv.bi, conv.shift);
+    if(ul_likely(tp[tn - 1] == 0))
+      --tn;
+  } while(tn > 0);
 
   err = ULBN_ERR_EXTERNAL;
   c = cp[--ci];
