@@ -782,17 +782,11 @@ ULBN_INTERNAL ulbn_usize_t ulbn_merge_usize(ulbn_limb_t* buf, ulbn_usize_t rl, u
 
 
 static const char _ULBN_UPPER_TABLE[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-static const char _ULBN_LOWER_TABLE[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-ULBN_INTERNAL const char* ulbn_string_table(int is_lower) {
-  return is_lower ? _ULBN_LOWER_TABLE : _ULBN_UPPER_TABLE;
-}
-
 #if 0
 ul_unused ULBN_INTERNAL void ulbn_dumplimb(FILE* fp, ulbn_limb_t l) {
-  const char* TABLE = ulbn_string_table(0);
   size_t j = sizeof(l) * CHAR_BIT / 4;
   while(j--)
-    putc(TABLE[(l >> (j << 2)) & 0xF], fp);
+    putc(_ULBN_UPPER_TABLE[(l >> (j << 2)) & 0xF], fp);
 }
 ul_unused ULBN_INTERNAL void ulbn_dump(FILE* fp, const ulbn_limb_t* p, ulbn_usize_t n) {
   ulbn_usize_t i;
@@ -2300,11 +2294,16 @@ ULBN_INTERNAL int ulbn_mul_guard(
   ulbn_limb_t *ul_restrict tap = ul_nullptr, *ul_restrict tbp = ul_nullptr;
   int err;
 
+  ulbn_assert_same_or_not_overlap(rp, an + bn, ap, an);
+  ulbn_assert_same_or_not_overlap(rp, an + bn, bp, bn);
+
   ulbn_assert(an + bn >= an);
   if(ul_unlikely(rp == ap)) {
     tap = ulbn_allocT(ulbn_limb_t, alloc, an);
     ULBN_RETURN_IF_ALLOC_FAILED(tap, ULBN_ERR_NOMEM);
     ulbn_copy(tap, ap, an);
+    if(ul_unlikely(ap == bp))
+      bp = tap;
     ap = tap;
   }
   if(ul_unlikely(rp == bp)) {
@@ -2615,73 +2614,6 @@ ULBN_INTERNAL int ulbn_divmod_guard(
 }
 
 
-ULBN_INTERNAL size_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t rh, int base, int inv) {
-  /* Store log2(base) as a fraction, only allowing overestimation */
-#if ULBN_LIMB_MAX >= 0xFFFFFFFF
-  static const ulbn_limb_t table_log2[][2] = {
-    /* clang-format off */
-    {0x1, 0x1},              {0x333A379, 0x51318AD},  {0x1, 0x2},             {0x2A30F19, 0x61F703B},
-    {0x333A379, 0x846BC26},  {0x1A90993, 0x4A93B18},  {0x1, 0x3},             {0x333A379, 0xA26315A},
-    {0x2A30F19, 0x8C27F54},  {0x42C29E7, 0xE6F3D3D},  {0x333A379, 0xB7A5F9F}, {0x1F11ECF, 0x72F905A},
-    {0x1A90993, 0x65244AB},  {0x1695FAD, 0x583D8FF},  {0x1, 0x4},             {0x1E3B74B, 0x7B92BCF},
-    {0x333A379, 0xD59D4D3},  {0x4F22C47, 0x15029C67}, {0x38DED52, 0xF5CA3A3}, {0xFC4D6E, 0x4543147},
-    {0x42C29E7, 0x129B6724}, {0x24269CB, 0xA387CFA},  {0x333A379, 0xEAE0318}, {0x2A30F19, 0xC3EE076},
-    {0x1F11ECF, 0x920AF29},  {0x333A379, 0xF394A07},  {0x1A90993, 0x7FB4E3E}, {0xE9F3DE2, 0x470898E1},
-    {0x1695FAD, 0x6ED38AC},  {0x376B249, 0x1128DE40}, {0x1, 0x5},             {0x21F31B1, 0xAB415CD},
-    {0x1E3B74B, 0x99CE31A},  {0x1D61D65, 0x96B5A1B},  {0x333A379, 0x108D784C}
-    /* clang-format on */
-  };
-#elif ULBN_LIMB_MAX >= 0xFFFF
-  static const ulbn_limb_t table_log2[][2] = {
-    {1, 1},         {15601, 24727}, {1, 2},         {21306, 49471}, {15601, 40328}, {2964, 8321},   {1, 3},
-    {15601, 49454}, {8651, 28738},  {4856, 16799},  {15601, 55929}, {5458, 20197},  {2964, 11285},  {15659, 61178},
-    {1, 4},         {12451, 50893}, {15601, 65055}, {11701, 49705}, {8651, 37389},  {13433, 59002}, {4856, 21655},
-    {5963, 26974},  {14271, 65432}, {10653, 49471}, {5458, 25655},  {10179, 48400}, {2964, 14249},  {10738, 52165},
-    {11610, 56969}, {10676, 52891}, {1, 5},         {10159, 51246}, {12451, 63344}, {3473, 17814},  {7468, 38609}
-  };
-#else
-  static const ulbn_limb_t table_log2[][2] = {
-    {1, 1},    {147, 233}, {1, 2},    {59, 137}, {94, 243}, {26, 73},  {1, 3},    {47, 149}, {59, 196},
-    {37, 128}, {41, 147},  {67, 248}, {26, 99},  {43, 168}, {1, 4},    {57, 233}, {47, 196}, {4, 17},
-    {59, 255}, {28, 123},  {37, 165}, {21, 95},  {41, 188}, {45, 209}, {47, 221}, {49, 233}, {26, 125},
-    {50, 243}, {43, 211},  {22, 109}, {1, 5},    {45, 227}, {34, 173}, {23, 118}, {47, 243}
-    /* clang-format off */
-    /* clang-format on */
-  };
-#endif
-
-  ulbn_limb_t buf[_ULBN_MERGE_USIZE_LEN];
-  ulbn_usize_t len;
-  ulbn_limb_t d;
-  size_t ret = 0;
-  int shift;
-
-  ulbn_assert(2 <= base && base <= 36);
-  ulbn_assert(inv == 0 && inv == 1);
-
-  len = ulbn_merge_usize(buf, rl, rh);
-  buf[len] = ulbn_mul1(buf, buf, len, table_log2[base - 2][inv]);
-  len += (buf[len] != 0);
-  if(len) {
-    d = table_log2[base - 2][!inv];
-    shift = _ulbn_clz_(d);
-    d <<= shift;
-    ulbn_divmod_inv1(buf, &_ULBN_SHORT_DIV_R, buf, len, d, ulbn_divinv1(d), shift);
-    len -= (buf[len - 1] == 0);
-  }
-
-  if(len == 0)
-    return 0;
-  if(len * CHAR_BIT - ul_static_cast(size_t, _ulbn_clz_(buf[len - 1])) > sizeof(size_t) * CHAR_BIT)
-    return _ULBN_SIZET_MAX;
-  do {
-    ret <<= ULBN_LIMB_BITS - 1;
-    ret <<= 1;
-    ret |= buf[--len];
-  } while(len > 0);
-  return ret;
-}
-
 typedef struct ulbn_baseconv_t {
   ulbn_limb_t b;     /* = base**base_pow */
   ulbn_limb_t bi;    /* _ulbn_divinv1(b<<shift) */
@@ -2782,9 +2714,10 @@ ULBN_INTERNAL ulbn_baseconv_t ulbn_prepare_baseconv(ulbn_limb_t base) {
   return conv;
 }
 ULBN_INTERNAL int ulbn_conv2print_generic(
-  const ulbn_alloc_t* alloc, ulbn_printer_t* printer, void* opaque, /* */
-  const ulbn_limb_t* ap, ulbn_usize_t an,                           /* */
-  ulbn_baseconv_t conv                                              /* */
+  const ulbn_alloc_t* alloc, size_t desire_len, /* */
+  ulbn_printer_t* printer, void* opaque,        /* */
+  const ulbn_limb_t* ap, ulbn_usize_t an,       /* */
+  ulbn_baseconv_t conv                          /* */
 ) {
   ulbn_limb_t* cp;
   size_t ccap = 0, ci = 0;
@@ -2793,6 +2726,7 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
   char buf[_ULBN_LIMB_BITS];
   char *pbuf, *const buf_end = buf + ULBN_LIMB_BITS;
   ulbn_limb_t c;
+  size_t writen;
 
   ulbn_assert(an > 0);
 
@@ -2825,8 +2759,27 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
   c = cp[--ci];
   for(pbuf = buf_end; c; c /= conv.base)
     *--pbuf = conv.char_table[c % conv.base];
+  writen = ul_static_cast(size_t, buf_end - pbuf);
+  if(ul_unlikely(desire_len / conv.base_pow >= ci)) {
+    size_t diff = desire_len - conv.base_pow * ci;
+    if(diff > writen) {
+      char tbuf[8];
+      diff -= writen;
+      memset(tbuf, conv.char_table[0], 8);
+      while(diff > 8) {
+        err = printer(opaque, tbuf, 8);
+        if(ul_unlikely(err))
+          goto cleanup;
+        diff -= 8;
+      }
+      err = printer(opaque, tbuf, diff);
+      if(ul_unlikely(err))
+        goto cleanup;
+    }
+  }
   if(ul_unlikely(printer(opaque, pbuf, ul_static_cast(size_t, buf_end - pbuf))))
     goto cleanup;
+
   while(ci > 0) {
     c = cp[--ci];
     for(pbuf = buf + conv.base_pow; c; c /= conv.base)
@@ -2843,28 +2796,96 @@ cleanup:
   return err;
 }
 
-ULBN_INTERNAL int ulbn_conv2print(
-  const ulbn_alloc_t* alloc, const ulbn_limb_t* ptr, ulbn_usize_t num, /* */
-  ulbn_printer_t* printer, void* opaque,                               /* */
-  ulbn_limb_t base, const char* char_table                             /* */
-) {
-  ulbn_baseconv_t conv = ulbn_prepare_baseconv(base);
-  conv.char_table = char_table;
-  return ulbn_conv2print_generic(alloc, printer, opaque, ptr, num, conv);
+ULBN_INTERNAL ulbn_usize_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t rh, int base, int inv) {
+  /* Store log2(base) as a fraction, only allowing overestimation */
+#if ULBN_LIMB_MAX >= 0xFFFFFFFF
+  static const ulbn_limb_t table_log2[][2] = {
+    /* clang-format off */
+    {0x1, 0x1},              {0x333A379, 0x51318AD},  {0x1, 0x2},             {0x2A30F19, 0x61F703B},
+    {0x333A379, 0x846BC26},  {0x1A90993, 0x4A93B18},  {0x1, 0x3},             {0x333A379, 0xA26315A},
+    {0x2A30F19, 0x8C27F54},  {0x42C29E7, 0xE6F3D3D},  {0x333A379, 0xB7A5F9F}, {0x1F11ECF, 0x72F905A},
+    {0x1A90993, 0x65244AB},  {0x1695FAD, 0x583D8FF},  {0x1, 0x4},             {0x1E3B74B, 0x7B92BCF},
+    {0x333A379, 0xD59D4D3},  {0x4F22C47, 0x15029C67}, {0x38DED52, 0xF5CA3A3}, {0xFC4D6E, 0x4543147},
+    {0x42C29E7, 0x129B6724}, {0x24269CB, 0xA387CFA},  {0x333A379, 0xEAE0318}, {0x2A30F19, 0xC3EE076},
+    {0x1F11ECF, 0x920AF29},  {0x333A379, 0xF394A07},  {0x1A90993, 0x7FB4E3E}, {0xE9F3DE2, 0x470898E1},
+    {0x1695FAD, 0x6ED38AC},  {0x376B249, 0x1128DE40}, {0x1, 0x5},             {0x21F31B1, 0xAB415CD},
+    {0x1E3B74B, 0x99CE31A},  {0x1D61D65, 0x96B5A1B},  {0x333A379, 0x108D784C}
+    /* clang-format on */
+  };
+#elif ULBN_LIMB_MAX >= 0xFFFF
+  static const ulbn_limb_t table_log2[][2] = {
+    {1, 1},         {15601, 24727}, {1, 2},         {21306, 49471}, {15601, 40328}, {2964, 8321},   {1, 3},
+    {15601, 49454}, {8651, 28738},  {4856, 16799},  {15601, 55929}, {5458, 20197},  {2964, 11285},  {15659, 61178},
+    {1, 4},         {12451, 50893}, {15601, 65055}, {11701, 49705}, {8651, 37389},  {13433, 59002}, {4856, 21655},
+    {5963, 26974},  {14271, 65432}, {10653, 49471}, {5458, 25655},  {10179, 48400}, {2964, 14249},  {10738, 52165},
+    {11610, 56969}, {10676, 52891}, {1, 5},         {10159, 51246}, {12451, 63344}, {3473, 17814},  {7468, 38609}
+  };
+#else
+  static const ulbn_limb_t table_log2[][2] = {
+    {1, 1},    {147, 233}, {1, 2},    {59, 137}, {94, 243}, {26, 73},  {1, 3},    {47, 149}, {59, 196},
+    {37, 128}, {41, 147},  {67, 248}, {26, 99},  {43, 168}, {1, 4},    {57, 233}, {47, 196}, {4, 17},
+    {59, 255}, {28, 123},  {37, 165}, {21, 95},  {41, 188}, {45, 209}, {47, 221}, {49, 233}, {26, 125},
+    {50, 243}, {43, 211},  {22, 109}, {1, 5},    {45, 227}, {34, 173}, {23, 118}, {47, 243}
+    /* clang-format off */
+    /* clang-format on */
+  };
+#endif
+
+  ulbn_limb_t buf[_ULBN_MERGE_USIZE_LEN + 1];
+  ulbn_usize_t len;
+  ulbn_limb_t d;
+  int shift;
+
+  ulbn_assert(2 <= base && base <= 36);
+  ulbn_assert(inv == 0 || inv == 1);
+
+  len = ulbn_merge_usize(buf, rl, rh);
+  buf[len] = ulbn_mul1(buf, buf, len, table_log2[base - 2][inv]);
+  len += (buf[len] != 0);
+  if(len) {
+    d = table_log2[base - 2][!inv];
+    shift = _ulbn_clz_(d);
+    d <<= shift;
+    ulbn_divmod_inv1(buf, &_ULBN_SHORT_DIV_R, buf, len, d, ulbn_divinv1(d), shift);
+    len -= (buf[len - 1] == 0);
+  }
+
+  if(len == 0)
+    return 0;
+
+#if ULBN_USIZE_MAX <= ULBN_LIMB_MAX
+  #if ULBN_USIZE_MAX < ULBN_LIMB_MAX
+  if(ul_unlikely(buf[0] > ULBN_USIZE_MAX))
+    return ULBN_USIZE_MAX;
+  #endif
+  return ul_static_cast(ulbn_usize_t, buf[0]);
+#else
+  do {
+    ulbn_usize_t ret = 0;
+    if(ul_unlikely(len * CHAR_BIT - ul_static_cast(size_t, _ulbn_clz_(buf[len - 1])) > sizeof(ulbn_usize_t) * CHAR_BIT))
+      return ULBN_USIZE_MAX;
+    do {
+      ret <<= ULBN_LIMB_BITS - 1;
+      ret <<= 1;
+      ret |= buf[--len];
+    } while(len > 0);
+    return ret;
+  } while(0);
+#endif
 }
 
 ULBN_PRIVATE int _ulbn_fileprinter(void* file, const char* buf, size_t len) {
   return fwrite(buf, 1, len, ul_reinterpret_cast(FILE*, file)) != len;
 }
-typedef struct ulbn_strprinter_t {
+typedef struct _ulbn_strprinter_t {
   char* data;
   size_t len;
   size_t cap;
   ulbn_alloc_func_t* alloc;
   void* alloc_opaque;
-} ulbn_strprinter_t;
+} _ulbn_strprinter_t;
 ULBN_PRIVATE int _ulbn_strprinter(void* opaque, const char* str, size_t len) {
-  ulbn_strprinter_t* printer = ul_reinterpret_cast(ulbn_strprinter_t*, opaque);
+  _ulbn_strprinter_t* printer = ul_reinterpret_cast(_ulbn_strprinter_t*, opaque);
   if(ul_unlikely(printer->len > _ULBN_SIZET_MAX - len))
     return -1;
   if(ul_unlikely(printer->len + len > printer->cap)) {
@@ -3786,7 +3807,10 @@ ULBN_PUBLIC int ulbi_set_copy(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi
   if(dst != src) {
     ulbn_limb_t* limb;
     ulbn_usize_t n = _ulbn_abs_size(src->len);
-    if(ul_likely(n)) {
+    if(n <= ULBN_SHORT_LIMB_SIZE_VAL) {
+      limb = _ulbi_limbs(dst);
+      ulbn_copy(limb, _ulbi_limbs(src), n);
+    } else {
       limb = _ulbi_res(alloc, dst, n);
       ULBN_RETURN_IF_ALLOC_FAILED(limb, ULBN_ERR_NOMEM);
       ulbn_copy(limb, _ulbi_limbs(src), n);
@@ -4397,7 +4421,16 @@ ULBN_PUBLIC int ulbi_init_data(
 ULBN_PRIVATE void ulbi_dprint(FILE* fp, const char* prefix, const ulbi_t* bi) {
   if(prefix)
     fputs(prefix, fp);
-  ulbi_print(ulbn_default_alloc(), bi, fp, 10);
+  if(bi->len == 0)
+    fputc('0', fp);
+  else {
+    if(bi->len < 0)
+      fputc('-', fp);
+    ulbn_conv2print_generic(
+      ulbn_default_alloc(), 0, _ulbn_fileprinter, fp, _ulbi_limbs(bi), _ulbn_abs_size(bi->len),
+      ulbn_prepare_baseconv(10)
+    );
+  }
   fputc('\n', fp);
 }
 #endif
@@ -6131,13 +6164,94 @@ ULBN_PUBLIC int ulbi_fit_ssize(const ulbi_t* src) {
 }
 
 
+ULBN_PRIVATE int _ulbi_write0(ulbn_printer_t* printer, void* opaque, size_t len) {
+  static const char ONLY_ZERO[9] = "00000000";
+  while(len >= 8) {
+    if(ul_unlikely(printer(opaque, ONLY_ZERO, 8)))
+      return ULBN_ERR_EXTERNAL;
+    len -= 8;
+  }
+  if(ul_unlikely(printer(opaque, ONLY_ZERO, len)))
+    return ULBN_ERR_EXTERNAL;
+  return 0;
+}
+#define ULBN_CONV2PRINT_GENERIC_THRESHOLD 2048
+ULBN_PRIVATE int _ulbi_print_ex(
+  const ulbn_alloc_t* alloc,              /* */
+  ulbn_printer_t* printer, void* opaque,  /* */
+  ulbi_t* ao, int base, size_t desire_len /* */
+) {
+  ulbn_usize_t bitw_low, bitw_high;
+  ulbn_usize_t pow;
+  ulbi_t qo[1] = {ULBI_INIT}, _do[1] = {ULBI_INIT};
+  int err;
+
+  ulbn_assert(ao->len > 0);
+
+  while(ao->len > ULBN_CONV2PRINT_GENERIC_THRESHOLD) {
+    bitw_low = ulbn_bit_width(_ulbi_limbs(ao), ulbn_cast_usize(ao->len), &bitw_high);
+    ++bitw_low;
+    bitw_high += (bitw_low == 0);
+    pow = ulbn_measure_conv2_size(bitw_low, bitw_high, base, 0) >> 1;
+    if(ul_unlikely(pow == ULBN_USIZE_MAX))
+      return ULBN_ERR_EXCEED_RANGE;
+    ulbi_set_limb(_do, ul_static_cast(ulbn_limb_t, base));
+    err = ulbi_pow_usize(alloc, _do, _do, pow);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
+
+    err = ulbi_divmod(alloc, qo, ao, ao, _do);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
+    ulbi_deinit(alloc, _do);
+
+    err = _ulbi_print_ex(alloc, printer, opaque, qo, base, desire_len > pow ? desire_len - pow : 0);
+    ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
+  }
+
+  if(ao->len != 0)
+    err = ulbn_conv2print_generic(
+      alloc, desire_len, printer, opaque, _ulbi_limbs(ao), ulbn_cast_usize(ao->len),
+      ulbn_prepare_baseconv(ul_static_cast(ulbn_limb_t, base))
+    );
+  else
+    err = _ulbi_write0(printer, opaque, desire_len);
+
+cleanup:
+  ulbi_deinit(alloc, qo);
+  ulbi_deinit(alloc, _do);
+  return err;
+}
+
+ULBN_PUBLIC int ulbi_print_ex(
+  const ulbn_alloc_t* alloc,             /* */
+  ulbn_printer_t* printer, void* opaque, /* */
+  const ulbi_t* ao, int base             /* */
+) {
+  ulbi_t ro[1] = {ULBI_INIT};
+  int err;
+
+  if(ul_unlikely(base < 2 || base > 36))
+    return ULBN_ERR_EXCEED_RANGE;
+  if(ao->len == 0)
+    return ul_unlikely(printer(opaque, "0", 1)) ? ULBN_ERR_EXTERNAL : 0;
+  if(ao->len < 0 && ul_unlikely(printer(opaque, "-", 1)))
+    return ULBN_ERR_EXTERNAL;
+
+  err = ulbi_abs(alloc, ro, ao);
+  ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
+  err = _ulbi_print_ex(alloc, printer, opaque, ro, base, 0);
+  ulbi_deinit(alloc, ro);
+  return err;
+}
+ULBN_PUBLIC int ulbi_print(const ulbn_alloc_t* alloc, FILE* fp, const ulbi_t* ao, int base) {
+  return ulbi_print_ex(alloc, _ulbn_fileprinter, fp, ao, base);
+}
 ULBN_PUBLIC char* ulbi_to_string_alloc(
   const ulbn_alloc_t* alloc, size_t* p_len, size_t* p_alloced, /* */
   ulbn_alloc_func_t* alloc_func, void* alloc_opaque,           /* */
   const ulbi_t* ao, int base                                   /* */
 ) {
   const ulbn_usize_t an = _ulbn_abs_size(ao->len);
-  ulbn_strprinter_t printer;
+  _ulbn_strprinter_t printer;
   int err;
 
   *p_len = 0;
@@ -6145,27 +6259,13 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
 
   if(ul_unlikely(base < 2 || base > 36))
     return ul_nullptr;
-
-  if(ao->len == 0) {
-    char* p = ul_reinterpret_cast(char*, alloc_func(alloc_opaque, ul_nullptr, 0, 2));
-    ULBN_RETURN_IF_ALLOC_FAILED(p, ul_nullptr);
-    p[0] = '0';
-    p[1] = 0;
-    *p_len = 1;
-    *p_alloced = 2;
-    return p;
-  }
   printer.alloc = alloc_func;
   printer.alloc_opaque = alloc_opaque;
   printer.data = ul_reinterpret_cast(char*, alloc_func(alloc_opaque, ul_nullptr, 0, an + 1));
   ULBN_RETURN_IF_ALLOC_FAILED(printer.data, ul_nullptr);
   printer.len = 0;
   printer.cap = an + 1;
-  if(ao->len < 0)
-    printer.data[printer.len++] = '-';
-  err = ulbn_conv2print(
-    alloc, _ulbi_limbs(ao), an, _ulbn_strprinter, &printer, ul_static_cast(ulbn_limb_t, base), _ULBN_UPPER_TABLE
-  );
+  err = ulbi_print_ex(alloc, _ulbn_strprinter, &printer, ao, base);
   ULBN_DO_IF_ALLOC_COND(err < 0, {
     alloc_func(alloc_opaque, printer.data, printer.cap, 0);
     return ul_nullptr;
@@ -6178,25 +6278,6 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
   *p_alloced = printer.cap;
   *p_len = printer.len - 1;
   return printer.data;
-}
-ULBN_PUBLIC int ulbi_print_ex(
-  const ulbn_alloc_t* alloc,             /* */
-  ulbn_printer_t* printer, void* opaque, /* */
-  const ulbi_t* ao, int base             /* */
-) {
-  if(ul_unlikely(base < 2 || base > 36))
-    return ULBN_ERR_EXCEED_RANGE;
-  if(ao->len == 0)
-    return ul_unlikely(printer(opaque, "0", 1)) ? ULBN_ERR_EXTERNAL : 0;
-  if(ao->len < 0 && ul_unlikely(printer(opaque, "-", 1)))
-    return ULBN_ERR_EXTERNAL;
-  return ulbn_conv2print(
-    alloc, _ulbi_limbs(ao), _ulbn_abs_size(ao->len), printer, opaque, ul_static_cast(ulbn_limb_t, base),
-    _ULBN_UPPER_TABLE
-  );
-}
-ULBN_PUBLIC int ulbi_print(const ulbn_alloc_t* alloc, FILE* fp, const ulbi_t* ao, int base) {
-  return ulbi_print_ex(alloc, _ulbn_fileprinter, fp, ao, base);
 }
 
 

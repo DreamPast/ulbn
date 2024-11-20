@@ -38,11 +38,22 @@ int _getExceptionCode(Func&& func) {
 
 template<class To, class From>
 bool fitType(From from) {
-  if constexpr(!std::is_integral_v<To>)
+  static_assert(std::is_arithmetic_v<To> && std::is_integral_v<From>);
+  if constexpr(std::is_floating_point_v<To>)
     return static_cast<To>(from) == from;
-  if(from >= 0)
-    return from <= std::numeric_limits<To>::max();
-  return std::is_signed_v<To> && from >= std::numeric_limits<To>::min();
+  if constexpr(std::is_signed_v<To>) {
+    if constexpr(std::is_signed_v<From>) {
+      return from >= std::numeric_limits<To>::min() && from <= std::numeric_limits<To>::max();
+    } else {
+      return from <= static_cast<std::make_unsigned_t<To>>(std::numeric_limits<To>::max());
+    }
+  } else {
+    if constexpr(std::is_signed_v<From>) {
+      return 0 <= from && static_cast<std::make_unsigned_t<From>>(from) <= std::numeric_limits<To>::max();
+    } else {
+      return from <= std::numeric_limits<To>::max();
+    }
+  }
 }
 
 template<class LT1, class LT2, class RT1, class RT2>
