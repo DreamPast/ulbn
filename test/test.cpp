@@ -99,9 +99,9 @@ void _checkSetString(
 void subtestSetString() {
   puts("===Subtest Set String");
 
-  for(auto zero: {"0", "0.", "0.0", "0.00", "0.000"})
-    for(auto sign: {"", "+", "-"})
-      for(auto prefix: {"", "0x", "0o", "0b"}) {
+  for(auto zero: { "0", "0.", "0.0", "0.00", "0.000" })
+    for(auto sign: { "", "+", "-" })
+      for(auto prefix: { "", "0x", "0o", "0b" }) {
         std::string str = std::string(sign) + prefix + zero;
         _checkSetString(str.c_str(), 0, -1, strcmp(sign, "-") == 0 ? ULBN_ERR_INEXACT : 0);
         _checkSetString(
@@ -243,9 +243,9 @@ void testCastFrom() {
   T_assert(BigInt(static_cast<ulbn_slimb_t>(12)) == 12);
 
   static const double _INF = HUGE_VAL;
-  T_assert_exception([] { BigInt x{_INF}; }, ULBN_ERR_INVALID);
-  T_assert_exception([] { BigInt x{-_INF}; }, ULBN_ERR_INVALID);
-  T_assert_exception([] { BigInt x{nan("")}; }, ULBN_ERR_INVALID);
+  T_assert_exception([] { BigInt x{ _INF }; }, ULBN_ERR_INVALID);
+  T_assert_exception([] { BigInt x{ -_INF }; }, ULBN_ERR_INVALID);
+  T_assert_exception([] { BigInt x{ nan("") }; }, ULBN_ERR_INVALID);
 
   T_assert(BigInt(+0.0) == 0);
   T_assert(BigInt(-0.0) == 0);
@@ -933,7 +933,7 @@ void subtestRoot() {
   }
 
   for(int64_t i = 1; i <= 0xFFF; i += 3) {
-    for(int e: {1, 2, 3, 4, 5, 7, 9}) {
+    for(int e: { 1, 2, 3, 4, 5, 7, 9 }) {
       BigInt x = BigInt(i);
       auto obj = x.rootrem(e);
       BigInt pow = obj.first.pow(e);

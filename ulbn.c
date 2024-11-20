@@ -176,7 +176,7 @@ ULBN_PRIVATE void* _ulbn_default_alloc(void* opaque, void* ptr, size_t on, size_
   return realloc(ptr, nn);
 }
 ULBN_PUBLIC ulbn_alloc_t* ulbn_default_alloc(void) {
-  static ulbn_alloc_t alloc = {&_ulbn_default_alloc, ul_nullptr};
+  static ulbn_alloc_t alloc = { &_ulbn_default_alloc, ul_nullptr };
   return &alloc;
 }
 
@@ -2565,7 +2565,7 @@ ULBN_INTERNAL int ulbn_divmod_guard(
   const ulbn_limb_t* ap, ulbn_usize_t an,                      /* */
   const ulbn_limb_t* dp, ulbn_usize_t dn                       /* */
 ) {
-  ulbn_limb_t rp_buf[2] = {0, 0};
+  ulbn_limb_t rp_buf[2] = { 0, 0 };
   int shift = _ulbn_clz_(dp[dn - 1]);
   ulbn_limb_t rem = 0;
 
@@ -2624,72 +2624,72 @@ typedef struct ulbn_baseconv_t {
 } ulbn_baseconv_t;
 ULBN_INTERNAL ulbn_baseconv_t ulbn_prepare_baseconv(ulbn_limb_t base) {
 #if ULBN_LIMB_MAX == 0xFFu
-  static const ulbn_limb_t table_b[] = {0x80, 0xF3, 0x40, 0x7D, 0xD8, 0x31, 0x40, 0x51, 0x64, 0x79, 0x90, 0xA9,
-                                        0xC4, 0xE1, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
-                                        0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24};
-  static const unsigned char table_power[] = {7, 5, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
-                                              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-  static const signed char table_shift[] = {0, 0, 1, 1, 0, 2, 1, 1, 1, 1, 0, 0, 0, 0, 3, 3, 3, 3,
-                                            3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2};
-  static const ulbn_limb_t table_bi[] = {0xFF, 0xD,  0xFF, 0x6,  0x2F, 0x4E, 0xFF, 0x94, 0x47, 0xE,  0xC7, 0x83,
-                                         0x4E, 0x23, 0xFF, 0xE1, 0xC7, 0xAF, 0x99, 0x86, 0x74, 0x64, 0x55, 0x47,
-                                         0x3B, 0x2F, 0x24, 0x1A, 0x11, 0x8,  0xFF, 0xF0, 0xE1, 0xD4, 0xC7};
+  static const ulbn_limb_t table_b[] = { 0x80, 0xF3, 0x40, 0x7D, 0xD8, 0x31, 0x40, 0x51, 0x64, 0x79, 0x90, 0xA9,
+                                         0xC4, 0xE1, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+                                         0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24 };
+  static const unsigned char table_power[] = { 7, 5, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
+                                               1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+  static const signed char table_shift[] = { 0, 0, 1, 1, 0, 2, 1, 1, 1, 1, 0, 0, 0, 0, 3, 3, 3, 3,
+                                             3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2 };
+  static const ulbn_limb_t table_bi[] = { 0xFF, 0xD,  0xFF, 0x6,  0x2F, 0x4E, 0xFF, 0x94, 0x47, 0xE,  0xC7, 0x83,
+                                          0x4E, 0x23, 0xFF, 0xE1, 0xC7, 0xAF, 0x99, 0x86, 0x74, 0x64, 0x55, 0x47,
+                                          0x3B, 0x2F, 0x24, 0x1A, 0x11, 0x8,  0xFF, 0xF0, 0xE1, 0xD4, 0xC7 };
   #define _ULBN_BASECONV_TABLE_DEFINED
 #elif ULBN_LIMB_MAX == 0xFFFFu
-  static const ulbn_limb_t table_b[] = {0x8000, 0xE6A9, 0x4000, 0x3D09, 0xB640, 0x41A7, 0x8000, 0xE6A9, 0x2710,
-                                        0x3931, 0x5100, 0x6F91, 0x9610, 0xC5C1, 0x1000, 0x1331, 0x16C8, 0x1ACB,
-                                        0x1F40, 0x242D, 0x2998, 0x2F87, 0x3600, 0x3D09, 0x44A8, 0x4CE3, 0x55C0,
-                                        0x5F45, 0x6978, 0x745F, 0x8000, 0x8C61, 0x9988, 0xA77B, 0xB640};
-  static const unsigned char table_power[] = {15, 10, 7, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3,
-                                              3,  3,  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
-  static const signed char table_shift[] = {0, 0, 1, 2, 0, 1, 0, 0, 2, 2, 1, 1, 0, 0, 3, 3, 3, 3,
-                                            3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0};
-  static const ulbn_limb_t table_bi[] = {0xFFFF, 0x1C1F, 0xFFFF, 0xC6F,  0x6798, 0xF31D, 0xFFFF, 0x1C1F, 0xA36E,
-                                         0x1E7A, 0x948B, 0x25B5, 0xB4B9, 0x4B66, 0xFFFF, 0xAADB, 0x6798, 0x31C0,
-                                         0x624,  0xC4E6, 0x89E7, 0x58BA, 0x2F68, 0xC6F,  0xDD46, 0xAA2F, 0x7E22,
-                                         0x57F3, 0x36B0, 0x1994, 0xFFFF, 0xD2D9, 0xAADB, 0x874E, 0x6798};
+  static const ulbn_limb_t table_b[] = { 0x8000, 0xE6A9, 0x4000, 0x3D09, 0xB640, 0x41A7, 0x8000, 0xE6A9, 0x2710,
+                                         0x3931, 0x5100, 0x6F91, 0x9610, 0xC5C1, 0x1000, 0x1331, 0x16C8, 0x1ACB,
+                                         0x1F40, 0x242D, 0x2998, 0x2F87, 0x3600, 0x3D09, 0x44A8, 0x4CE3, 0x55C0,
+                                         0x5F45, 0x6978, 0x745F, 0x8000, 0x8C61, 0x9988, 0xA77B, 0xB640 };
+  static const unsigned char table_power[] = { 15, 10, 7, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3,
+                                               3,  3,  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 };
+  static const signed char table_shift[] = { 0, 0, 1, 2, 0, 1, 0, 0, 2, 2, 1, 1, 0, 0, 3, 3, 3, 3,
+                                             3, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 };
+  static const ulbn_limb_t table_bi[] = { 0xFFFF, 0x1C1F, 0xFFFF, 0xC6F,  0x6798, 0xF31D, 0xFFFF, 0x1C1F, 0xA36E,
+                                          0x1E7A, 0x948B, 0x25B5, 0xB4B9, 0x4B66, 0xFFFF, 0xAADB, 0x6798, 0x31C0,
+                                          0x624,  0xC4E6, 0x89E7, 0x58BA, 0x2F68, 0xC6F,  0xDD46, 0xAA2F, 0x7E22,
+                                          0x57F3, 0x36B0, 0x1994, 0xFFFF, 0xD2D9, 0xAADB, 0x874E, 0x6798 };
   #define _ULBN_BASECONV_TABLE_DEFINED
 #elif ULBN_LIMB_MAX == 0xFFFFFFFFu
-  static const ulbn_limb_t table_b[] = {0x80000000, 0xCFD41B91, 0x40000000, 0x48C27395, 0x81BF1000, 0x75DB9C97,
-                                        0x40000000, 0xCFD41B91, 0x3B9ACA00, 0x8C8B6D2B, 0x19A10000, 0x309F1021,
-                                        0x57F6C100, 0x98C29B81, 0x10000000, 0x18754571, 0x247DBC80, 0x3547667B,
-                                        0x4C4B4000, 0x6B5A6E1D, 0x94ACE180, 0xCAF18367, 0xB640000,  0xE8D4A51,
-                                        0x1269AE40, 0x17179149, 0x1CB91000, 0x23744899, 0x2B73A840, 0x34E63B41,
-                                        0x40000000, 0x4CFA3CC1, 0x5C13D840, 0x6D91B519, 0x81BF1000};
-  static const unsigned char table_power[] = {31, 20, 15, 13, 12, 11, 10, 10, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7,
-                                              7,  7,  7,  7,  6,  6,  6,  6,  6, 6, 6, 6, 6, 6, 6, 6, 6};
-  static const signed char table_shift[] = {0, 0, 1, 1, 0, 1, 1, 0, 2, 0, 3, 2, 1, 0, 3, 3, 2, 2,
-                                            1, 1, 0, 0, 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 0};
-  static const ulbn_limb_t table_bi[] = {0xFFFFFFFF, 0x3B563C24, 0xFFFFFFFF, 0xC25C2684, 0xF91BD1B6, 0x1607A2CB,
-                                         0xFFFFFFFF, 0x3B563C24, 0x12E0BE82, 0xD24CDE04, 0x3FA39AB5, 0x50F8AC5F,
-                                         0x74843B1E, 0xAD0326C2, 0xFFFFFFFF, 0x4EF0B6BD, 0xC0FC48A1, 0x33838942,
-                                         0xAD7F29AB, 0x313C3D15, 0xB8CCA9E0, 0x42ED6DE9, 0x67980E0B, 0x19799812,
-                                         0xBCE85396, 0x62C103A9, 0x1D353D43, 0xCE1DECEA, 0x790FC511, 0x35B865A0,
-                                         0xFFFFFFFF, 0xA9AED1B3, 0x63DFC229, 0x2B0FEE30, 0xF91BD1B6};
+  static const ulbn_limb_t table_b[] = { 0x80000000, 0xCFD41B91, 0x40000000, 0x48C27395, 0x81BF1000, 0x75DB9C97,
+                                         0x40000000, 0xCFD41B91, 0x3B9ACA00, 0x8C8B6D2B, 0x19A10000, 0x309F1021,
+                                         0x57F6C100, 0x98C29B81, 0x10000000, 0x18754571, 0x247DBC80, 0x3547667B,
+                                         0x4C4B4000, 0x6B5A6E1D, 0x94ACE180, 0xCAF18367, 0xB640000,  0xE8D4A51,
+                                         0x1269AE40, 0x17179149, 0x1CB91000, 0x23744899, 0x2B73A840, 0x34E63B41,
+                                         0x40000000, 0x4CFA3CC1, 0x5C13D840, 0x6D91B519, 0x81BF1000 };
+  static const unsigned char table_power[] = { 31, 20, 15, 13, 12, 11, 10, 10, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7,
+                                               7,  7,  7,  7,  6,  6,  6,  6,  6, 6, 6, 6, 6, 6, 6, 6, 6 };
+  static const signed char table_shift[] = { 0, 0, 1, 1, 0, 1, 1, 0, 2, 0, 3, 2, 1, 0, 3, 3, 2, 2,
+                                             1, 1, 0, 0, 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 0 };
+  static const ulbn_limb_t table_bi[] = { 0xFFFFFFFF, 0x3B563C24, 0xFFFFFFFF, 0xC25C2684, 0xF91BD1B6, 0x1607A2CB,
+                                          0xFFFFFFFF, 0x3B563C24, 0x12E0BE82, 0xD24CDE04, 0x3FA39AB5, 0x50F8AC5F,
+                                          0x74843B1E, 0xAD0326C2, 0xFFFFFFFF, 0x4EF0B6BD, 0xC0FC48A1, 0x33838942,
+                                          0xAD7F29AB, 0x313C3D15, 0xB8CCA9E0, 0x42ED6DE9, 0x67980E0B, 0x19799812,
+                                          0xBCE85396, 0x62C103A9, 0x1D353D43, 0xCE1DECEA, 0x790FC511, 0x35B865A0,
+                                          0xFFFFFFFF, 0xA9AED1B3, 0x63DFC229, 0x2B0FEE30, 0xF91BD1B6 };
   #define _ULBN_BASECONV_TABLE_DEFINED
 #elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
-  static const ulbn_limb_t table_b[] = {0x8000000000000000, 0xA8B8B452291FE821, 0x4000000000000000, 0x6765C793FA10079D,
-                                        0x41C21CB8E1000000, 0x3642798750226111, 0x8000000000000000, 0xA8B8B452291FE821,
-                                        0x8AC7230489E80000, 0x4D28CB56C33FA539, 0x1ECA170C00000000, 0x780C7372621BD74D,
-                                        0x1E39A5057D810000, 0x5B27AC993DF97701, 0x1000000000000000, 0x27B95E997E21D9F1,
-                                        0x5DA0E1E53C5C8000, 0xD2AE3299C1C4AEDB, 0x16BCC41E90000000, 0x2D04B7FDD9C0EF49,
-                                        0x5658597BCAA24000, 0xA0E2073737609371, 0xC29E98000000000,  0x14ADF4B7320334B9,
-                                        0x226ED36478BFA000, 0x383D9170B85FF80B, 0x5A3C23E39C000000, 0x8E65137388122BCD,
-                                        0xDD41BB36D259E000, 0xAEE5720EE830681,  0x1000000000000000, 0x172588AD4F5F0981,
-                                        0x211E44F7D02C1000, 0x2EE56725F06E5C71, 0x41C21CB8E1000000};
-  static const unsigned char table_power[] = {63, 40, 31, 27, 24, 22, 21, 20, 19, 18, 17, 17, 16, 16, 15, 15, 15, 15,
-                                              14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12};
-  static const signed char table_shift[] = {0, 0, 1, 1, 1, 2, 0, 0, 0, 1, 3, 1, 3, 1, 3, 2, 1, 0,
-                                            3, 2, 1, 0, 4, 3, 2, 2, 1, 0, 0, 4, 3, 3, 2, 2, 1};
-  static const ulbn_limb_t table_bi[] = {0xFFFFFFFFFFFFFFFF, 0x846D550E37B5063D, 0xFFFFFFFFFFFFFFFF, 0x3CE9A36F23C0FC90,
-                                         0xF24F62335024A295, 0x2DF495CCAA57147B, 0xFFFFFFFFFFFFFFFF, 0x846D550E37B5063D,
-                                         0xD83C94FB6D2AC34A, 0xA8ADF7AE45E7577B, 0xA10C2BEC5DA8F8F,  0x10F4BECAFE412EC3,
-                                         0xF08480F672B4E86,  0x6779C7F90DC42F48, 0xFFFFFFFFFFFFFFFF, 0x9C71E11BAB279323,
-                                         0x5DFAA697EC6F6A1C, 0x3711783F6BE7E9EC, 0x6849B86A12B9B01E, 0x6BF097BA5CA5E239,
-                                         0x7B8015C8D7AF8F08, 0x975A24B3A3151B38, 0x50BD367972689DB1, 0x8C240C4AECB13BB5,
-                                         0xDBD2E56854E118C9, 0x2351FFCAA9C7C4AE, 0x6B24188CA33B0636, 0xCC3DCEAF2B8BA99D,
-                                         0x2832E835C6C7D6B6, 0x76B6AA272E1873C5, 0xFFFFFFFFFFFFFFFF, 0x61EAF5D402C7BF4F,
-                                         0xEEB658123FFB27EC, 0x5D5E3762E6FDF509, 0xF24F62335024A295};
+  static const ulbn_limb_t table_b[] = { 0x8000000000000000, 0xA8B8B452291FE821, 0x4000000000000000, 0x6765C793FA10079D,
+                                         0x41C21CB8E1000000, 0x3642798750226111, 0x8000000000000000, 0xA8B8B452291FE821,
+                                         0x8AC7230489E80000, 0x4D28CB56C33FA539, 0x1ECA170C00000000, 0x780C7372621BD74D,
+                                         0x1E39A5057D810000, 0x5B27AC993DF97701, 0x1000000000000000, 0x27B95E997E21D9F1,
+                                         0x5DA0E1E53C5C8000, 0xD2AE3299C1C4AEDB, 0x16BCC41E90000000, 0x2D04B7FDD9C0EF49,
+                                         0x5658597BCAA24000, 0xA0E2073737609371, 0xC29E98000000000,  0x14ADF4B7320334B9,
+                                         0x226ED36478BFA000, 0x383D9170B85FF80B, 0x5A3C23E39C000000, 0x8E65137388122BCD,
+                                         0xDD41BB36D259E000, 0xAEE5720EE830681,  0x1000000000000000, 0x172588AD4F5F0981,
+                                         0x211E44F7D02C1000, 0x2EE56725F06E5C71, 0x41C21CB8E1000000 };
+  static const unsigned char table_power[] = { 63, 40, 31, 27, 24, 22, 21, 20, 19, 18, 17, 17, 16, 16, 15, 15, 15, 15,
+                                               14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12 };
+  static const signed char table_shift[] = { 0, 0, 1, 1, 1, 2, 0, 0, 0, 1, 3, 1, 3, 1, 3, 2, 1, 0,
+                                             3, 2, 1, 0, 4, 3, 2, 2, 1, 0, 0, 4, 3, 3, 2, 2, 1 };
+  static const ulbn_limb_t table_bi[] = {
+    0xFFFFFFFFFFFFFFFF, 0x846D550E37B5063D, 0xFFFFFFFFFFFFFFFF, 0x3CE9A36F23C0FC90, 0xF24F62335024A295,
+    0x2DF495CCAA57147B, 0xFFFFFFFFFFFFFFFF, 0x846D550E37B5063D, 0xD83C94FB6D2AC34A, 0xA8ADF7AE45E7577B,
+    0xA10C2BEC5DA8F8F,  0x10F4BECAFE412EC3, 0xF08480F672B4E86,  0x6779C7F90DC42F48, 0xFFFFFFFFFFFFFFFF,
+    0x9C71E11BAB279323, 0x5DFAA697EC6F6A1C, 0x3711783F6BE7E9EC, 0x6849B86A12B9B01E, 0x6BF097BA5CA5E239,
+    0x7B8015C8D7AF8F08, 0x975A24B3A3151B38, 0x50BD367972689DB1, 0x8C240C4AECB13BB5, 0xDBD2E56854E118C9,
+    0x2351FFCAA9C7C4AE, 0x6B24188CA33B0636, 0xCC3DCEAF2B8BA99D, 0x2832E835C6C7D6B6, 0x76B6AA272E1873C5,
+    0xFFFFFFFFFFFFFFFF, 0x61EAF5D402C7BF4F, 0xEEB658123FFB27EC, 0x5D5E3762E6FDF509, 0xF24F62335024A295
+  };
   #define _ULBN_BASECONV_TABLE_DEFINED
 #endif
 
@@ -2817,18 +2817,20 @@ ULBN_INTERNAL ulbn_usize_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t
   };
 #elif ULBN_LIMB_MAX >= 0xFFFF
   static const ulbn_limb_t table_log2[][2] = {
-    {1, 1},         {15601, 24727}, {1, 2},         {21306, 49471}, {15601, 40328}, {2964, 8321},   {1, 3},
-    {15601, 49454}, {8651, 28738},  {4856, 16799},  {15601, 55929}, {5458, 20197},  {2964, 11285},  {15659, 61178},
-    {1, 4},         {12451, 50893}, {15601, 65055}, {11701, 49705}, {8651, 37389},  {13433, 59002}, {4856, 21655},
-    {5963, 26974},  {14271, 65432}, {10653, 49471}, {5458, 25655},  {10179, 48400}, {2964, 14249},  {10738, 52165},
-    {11610, 56969}, {10676, 52891}, {1, 5},         {10159, 51246}, {12451, 63344}, {3473, 17814},  {7468, 38609}
+    { 1, 1 },        { 15601, 24727 }, { 1, 2 },         { 21306, 49471 }, { 15601, 40328 }, { 2964, 8321 },
+    { 1, 3 },        { 15601, 49454 }, { 8651, 28738 },  { 4856, 16799 },  { 15601, 55929 }, { 5458, 20197 },
+    { 2964, 11285 }, { 15659, 61178 }, { 1, 4 },         { 12451, 50893 }, { 15601, 65055 }, { 11701, 49705 },
+    { 8651, 37389 }, { 13433, 59002 }, { 4856, 21655 },  { 5963, 26974 },  { 14271, 65432 }, { 10653, 49471 },
+    { 5458, 25655 }, { 10179, 48400 }, { 2964, 14249 },  { 10738, 52165 }, { 11610, 56969 }, { 10676, 52891 },
+    { 1, 5 },        { 10159, 51246 }, { 12451, 63344 }, { 3473, 17814 },  { 7468, 38609 }
   };
 #else
   static const ulbn_limb_t table_log2[][2] = {
-    {1, 1},    {147, 233}, {1, 2},    {59, 137}, {94, 243}, {26, 73},  {1, 3},    {47, 149}, {59, 196},
-    {37, 128}, {41, 147},  {67, 248}, {26, 99},  {43, 168}, {1, 4},    {57, 233}, {47, 196}, {4, 17},
-    {59, 255}, {28, 123},  {37, 165}, {21, 95},  {41, 188}, {45, 209}, {47, 221}, {49, 233}, {26, 125},
-    {50, 243}, {43, 211},  {22, 109}, {1, 5},    {45, 227}, {34, 173}, {23, 118}, {47, 243}
+    { 1, 1 },    { 147, 233 }, { 1, 2 },    { 59, 137 }, { 94, 243 }, { 26, 73 },  { 1, 3 },    { 47, 149 },
+    { 59, 196 }, { 37, 128 },  { 41, 147 }, { 67, 248 }, { 26, 99 },  { 43, 168 }, { 1, 4 },    { 57, 233 },
+    { 47, 196 }, { 4, 17 },    { 59, 255 }, { 28, 123 }, { 37, 165 }, { 21, 95 },  { 41, 188 }, { 45, 209 },
+    { 47, 221 }, { 49, 233 },  { 26, 125 }, { 50, 243 }, { 43, 211 }, { 22, 109 }, { 1, 5 },    { 45, 227 },
+    { 34, 173 }, { 23, 118 },  { 47, 243 }
     /* clang-format off */
     /* clang-format on */
   };
@@ -4971,7 +4973,7 @@ ULBN_PUBLIC int ulbi_divmod_ex(
   const ulbi_t* ao, const ulbi_t* bo,                /* */
   enum ULBN_ROUND_ENUM round_mode                    /* */
 ) {
-  ulbi_t tqo[1] = {ULBI_INIT}, tro[1] = {ULBI_INIT};
+  ulbi_t tqo[1] = { ULBI_INIT }, tro[1] = { ULBI_INIT };
   int err, op = 0;
 
   if(round_mode == ULBN_ROUND_DOWN)
@@ -5333,8 +5335,8 @@ ULBN_PUBLIC int ulbi_sqrt(const ulbn_alloc_t* alloc, ulbi_t* so, const ulbi_t* a
   return ulbi_sqrtrem(alloc, so, ul_nullptr, ao);
 }
 ULBN_PUBLIC int ulbi_rootrem(const ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* eo) {
-  ulbi_t eo_n1[1] = {ULBI_INIT};
-  ulbi_t xo[1] = {ULBI_INIT}, yo[1] = {ULBI_INIT}, to[1] = {ULBI_INIT};
+  ulbi_t eo_n1[1] = { ULBI_INIT };
+  ulbi_t xo[1] = { ULBI_INIT }, yo[1] = { ULBI_INIT }, to[1] = { ULBI_INIT };
   int err, cy;
   const int sign = ao->len < 0;
 
@@ -6186,7 +6188,7 @@ ULBN_PRIVATE int _ulbi_print_ex(
 ) {
   ulbn_usize_t bitw_low, bitw_high;
   ulbn_usize_t pow;
-  ulbi_t qo[1] = {ULBI_INIT}, _do[1] = {ULBI_INIT};
+  ulbi_t qo[1] = { ULBI_INIT }, _do[1] = { ULBI_INIT };
   int err;
 
   ulbn_assert(ao->len > 0);
@@ -6230,7 +6232,7 @@ ULBN_PUBLIC int ulbi_print_ex(
   ulbn_printer_t* printer, void* opaque, /* */
   const ulbi_t* ao, int base             /* */
 ) {
-  ulbi_t ro[1] = {ULBI_INIT};
+  ulbi_t ro[1] = { ULBI_INIT };
   int err;
 
   if(ul_unlikely(base < 2 || base > 36))
@@ -6589,11 +6591,11 @@ ULBN_PUBLIC int ulbi_gcdext(
    *   return (a, u, v);
    * }
    */
-  ulbi_t tuo[1] = {ULBI_INIT};
-  ulbi_t wo[1] = {ULBI_INIT}, xo[1] = {ULBI_INIT};
-  ulbi_t qo[1] = {ULBI_INIT}, tro[1] = {ULBI_INIT};
-  ulbi_t to[1] = {ULBI_INIT};
-  ulbi_t bo[1] = {ULBI_INIT};
+  ulbi_t tuo[1] = { ULBI_INIT };
+  ulbi_t wo[1] = { ULBI_INIT }, xo[1] = { ULBI_INIT };
+  ulbi_t qo[1] = { ULBI_INIT }, tro[1] = { ULBI_INIT };
+  ulbi_t to[1] = { ULBI_INIT };
+  ulbi_t bo[1] = { ULBI_INIT };
   int err;
   const int a_sign = ao->len < 0, b_sign = _bo->len < 0;
 

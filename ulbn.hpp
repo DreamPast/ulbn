@@ -11,11 +11,11 @@
 namespace ul {
 namespace bn {
 
-class Exception: public std::runtime_error {
+class Exception : public std::runtime_error {
 public:
-  explicit Exception(int err): std::runtime_error(_makeMessage(err)), _error(err) { }
-  explicit Exception(int err, const char* message): std::runtime_error(message), _error(err) { }
-  explicit Exception(int err, const std::string& message): std::runtime_error(message), _error(err) { }
+  explicit Exception(int err) : std::runtime_error(_makeMessage(err)), _error(err) { }
+  explicit Exception(int err, const char* message) : std::runtime_error(message), _error(err) { }
+  explicit Exception(int err, const std::string& message) : std::runtime_error(message), _error(err) { }
 
   int getError() const {
     return _error;
@@ -565,7 +565,7 @@ public:
   std::pair<BigInt, BigInt> divmod(const BigInt& other) const {
     BigInt q, r;
     _check(ulbi_divmod(_ctx(), q._value, r._value, _value, other._value));
-    return {q, r};
+    return { q, r };
   }
   std::pair<BigInt, BigInt> divmod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode) const {
     BigInt q, r;
@@ -573,7 +573,7 @@ public:
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
     _check(err);
-    return {q, r};
+    return { q, r };
   }
   BigInt div(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt q;
@@ -597,54 +597,54 @@ public:
   std::pair<BigInt, BigInt> divmod2Exp(T n) {
     BigInt q, r;
     _check(ulbi_divmod_2exp_usize(_ctx(), q._value, r._value, _value, static_cast<ulbn_usize_t>(n)));
-    return {q, r};
+    return { q, r };
   }
   template<FitSsize T>
   std::pair<BigInt, BigInt> divmod2Exp(T n) {
     BigInt q, r;
     _check(ulbi_divmod_2exp_ssize(_ctx(), q._value, r._value, _value, static_cast<ulbn_ssize_t>(n)));
-    return {q, r};
+    return { q, r };
   }
   std::pair<BigInt, BigInt> divmod2Exp(const BigInt& other) {
     BigInt q, r;
     _check(ulbi_divmod_2exp(_ctx(), q._value, r._value, _value, other._value));
-    return {q, r};
+    return { q, r };
   }
 
   template<FitUsize T>
   std::pair<BigInt, BigInt> div2Exp(T n) {
     BigInt q, r;
     _check(ulbi_div_2exp_usize(_ctx(), q._value, _value, static_cast<ulbn_usize_t>(n)));
-    return {q, r};
+    return { q, r };
   }
   template<FitSsize T>
   std::pair<BigInt, BigInt> div2Exp(T n) {
     BigInt q, r;
     _check(ulbi_div_2exp_ssize(_ctx(), q._value, _value, static_cast<ulbn_ssize_t>(n)));
-    return {q, r};
+    return { q, r };
   }
   std::pair<BigInt, BigInt> div2Exp(const BigInt& other) {
     BigInt q, r;
     _check(ulbi_div_2exp(_ctx(), q._value, _value, other._value));
-    return {q, r};
+    return { q, r };
   }
 
   template<FitUsize T>
   std::pair<BigInt, BigInt> mod2Exp(T n) {
     BigInt q, r;
     _check(ulbi_mod_2exp_usize(_ctx(), q._value, _value, static_cast<ulbn_usize_t>(n)));
-    return {q, r};
+    return { q, r };
   }
   template<FitSsize T>
   std::pair<BigInt, BigInt> mod2Exp(T n) {
     BigInt q, r;
     _check(ulbi_mod_2exp_ssize(_ctx(), q._value, _value, static_cast<ulbn_ssize_t>(n)));
-    return {q, r};
+    return { q, r };
   }
   std::pair<BigInt, BigInt> mod2Exp(const BigInt& other) {
     BigInt q, r;
     _check(ulbi_mod_2exp(_ctx(), q._value, _value, other._value));
-    return {q, r};
+    return { q, r };
   }
 
 
@@ -870,7 +870,7 @@ public:
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the value is negative");
     _check(err);
-    return {q, r};
+    return { q, r };
   }
   BigInt root(const BigInt& e) const {
     BigInt ret;
@@ -886,7 +886,7 @@ public:
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the result is illegal");
     _check(err);
-    return {q, r};
+    return { q, r };
   }
 
 
@@ -1005,7 +1005,7 @@ public:
       std::exception_ptr exception;
       std::ostream& ost;
     };
-    OstreamWrapper wrapper = {{}, ost};
+    OstreamWrapper wrapper = { {}, ost };
     int err = ulbi_print_ex(
       _ctx(),
       [](void* opaque, const char* ptr, size_t len) -> int {
@@ -1032,7 +1032,7 @@ public:
       std::exception_ptr exception;
       Iter& iter;
     };
-    IterWrapper wrapper = {{}, iter};
+    IterWrapper wrapper = { {}, iter };
     int err = ulbi_print_ex(
       _ctx(), _value, base,
       [](void* opaque, const char* ptr, size_t len) -> int {
@@ -1242,7 +1242,7 @@ public:
   std::tuple<BigInt, BigInt, BigInt> gcdext(const BigInt& other) {
     BigInt g, x, y;
     _check(ulbi_gcdext(_ctx(), g._value, x._value, y._value, _value, other._value));
-    return {g, x, y};
+    return { g, x, y };
   }
   BigInt invert(const BigInt& m) {
     BigInt ret;

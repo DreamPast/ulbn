@@ -5,52 +5,41 @@ BasedOnStyle: Google
 SortIncludes: false
 ColumnLimit: 120
 
-# 缩进和对齐
-AccessModifierOffset: -2 # 访问修饰符反向缩进
-IndentWidth: 2 # 缩进宽度
-ContinuationIndentWidth: 2 # 换行后缩进
-IndentCaseLabels: false # case标签不缩进
-IndentPPDirectives: BeforeHash # 宏在'#'前缩进
-AlignAfterOpenBracket: BlockIndent # 开括号中的参数作为块缩进（长参数的左圆括号在上一行，右圆括号在下一行）
-# AlignOperands: Align # 运算符对齐
+# indent and spaces
+AccessModifierOffset: -2
+IndentWidth: 2
+ContinuationIndentWidth: 2
+IndentCaseLabels: false
+IndentPPDirectives: BeforeHash
+AlignAfterOpenBracket: BlockIndent
+# AlignOperands: Align
 
-# 空格
-SpaceBeforeCtorInitializerColon: false # 构造函数初始化列表冒号前不加空格
-SpaceBeforeInheritanceColon: false # 继承列表冒号前不加空格
-SpaceBeforeParens: Custom
-SpaceBeforeParensOptions:
-  AfterControlStatements: false # 控制语句后不加空格
-  AfterForeachMacros: false # FOREACH宏后不加空格
-  # AfterFunctionDefinitionName: false # 函数定义名后不加空格
-  # AfterFunctionDeclarationName: false # 函数声明名后不加空格
-  AfterIfMacros: false # IF宏后不加空格
-  # AfterOverloadedOperator: false # 重载运算符后不加空格
-# AfterPlacementOperator: false # 就地new/delete后不加空格
-  # AfterRequiresInClause: false # requires从句后不加空格
-  # AfterRequiresInExpression: false # requires表达式后不加空格
-  # BeforeNonEmptyParentheses: false # 非空括号前不加空格
-SpaceBeforeRangeBasedForLoopColon: false # 基于范围的for循环前不加空格
-# SpaceBeforeSquareBrackets: false # 多维数组前不加空格
-SpaceInEmptyBlock: true # 空块加空格
-# Cpp11BracedListStyle: true # C++11花括号列表风格
-SpacesBeforeTrailingComments: 2 # 行注释前空格数
-SpaceAfterTemplateKeyword: false # 模板关键字后不加空格
+# spaces
+# SpaceBeforeCtorInitializerColon: true
+# SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: Never
+SpaceBeforeRangeBasedForLoopColon: false
+# SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: true
+Cpp11BracedListStyle: false
+SpacesBeforeTrailingComments: 2
+SpaceAfterTemplateKeyword: false
 
-# 空行
-InsertNewlineAtEOF: true # 文件末尾加空行
-MaxEmptyLinesToKeep: 10 # 最大空行数
+# empty line
+InsertNewlineAtEOF: true
+MaxEmptyLinesToKeep: 10
 
-# 换行
-AllowShortBlocksOnASingleLine: Empty # 允许短块在一行
-AllowShortCaseLabelsOnASingleLine: false # 短case标签在一行
-# AllowShortCompoundRequirementOnASingleLine: true # 短require语句在一行
-AllowShortEnumsOnASingleLine: false # 短枚举在一行
-AllowShortFunctionsOnASingleLine: Empty # 允许短函数在一行
-AllowShortIfStatementsOnASingleLine: Never # 所以短if/else语句在一行
-# AllowShortLambdasOnASingleLine: All # 允许短lambda语句在一行
-AllowShortLoopsOnASingleLine: false # 短循环在一行
-BreakBeforeBinaryOperators: NonAssignment # 在非赋值运算符前换行（搭配AlignOperands）
+# break line
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+# AllowShortCompoundRequirementOnASingleLine: true
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+# AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBinaryOperators: NonAssignment
 
-# 自定义
-MacroBlockBegin: "JSUnitTestBegin"
-MacroBlockEnd: "JSUnitTestEnd"
+# custom
+# MacroBlockBegin: 
+# MacroBlockEnd: 
