@@ -25,6 +25,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-c++98-compat-pedantic
         -Wno-c++11-long-long
         -Wno-padded
+        -Wno-disabled-macro-expansion
         # Following warnings are "test.cpp" specific
         -Wno-float-equal
         -Wno-global-constructors

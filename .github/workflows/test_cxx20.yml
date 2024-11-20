@@ -18,11 +18,11 @@ jobs:
       matrix:
         build_type: [Debug, Release]
         os: [windows-latest, ubuntu-latest]
-        c_compiler: [clang, gcc, cl]
+        compiler: [[clang, clang++], [gcc, g++], [cl, cl]]
         exclude:
           - os: ubuntu-latest
-            c_compiler: cl
-    
+            compiler: [cl, cl]
+
     steps:
       - uses: actions/checkout@v4
       - name: set reusable strings
@@ -34,8 +34,8 @@ jobs:
         run: >
           cmake -B ${{ github.workspace }}/build -S ${{ github.workspace }}/test
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-          -DCMAKE_CXX_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.compiler[0] }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.compiler[1] }}
           -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install
       - name: build
         run: cmake --build ${{ github.workspace }}/build --config ${{ matrix.build_type }}
