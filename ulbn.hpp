@@ -969,25 +969,29 @@ public:
 
 
   std::string toString(int base = 10) const {
-    std::string ret;
-    size_t len, cap;
-    char* ret_ptr;
+    struct OstreamWrapper {
+      std::exception_ptr exception;
+      std::string ret;
+    } wrapper;
 
-    ret_ptr = ulbi_to_string_alloc(
-      _ctx(), &len, &cap,
-      [](void* opaque, void* ptr, size_t on, size_t nn) -> void* {
-        (void)on;
-        (void)ptr;
-        std::string* o = reinterpret_cast<std::string*>(opaque);
-        o->resize(nn);
-        return o->data();
+    int err = ulbi_print_ex(
+      _ctx(),
+      [](void* opaque, const char* str, size_t len) -> int {
+        OstreamWrapper* o = reinterpret_cast<OstreamWrapper*>(opaque);
+        try {
+          o->ret.append(str, len);
+        } catch(...) {
+          o->exception = std::current_exception();
+          return -1;
+        }
+        return 0;
       },
-      &ret, _value, base
+      &wrapper, _value, base
     );
-    if(ul_unlikely(ret_ptr == nullptr))
-      throw Exception((base < 2 || base > 36) ? ULBN_ERR_EXCEED_RANGE : ULBN_ERR_NOMEM);
-    ret.resize(len);
-    return ret;
+    if(err == ULBN_ERR_EXTERNAL)
+      std::rethrow_exception(wrapper.exception);
+    _check(err);
+    return wrapper.ret;
   }
   friend std::ostream& operator<<(std::ostream& ost, const BigInt& value) {
     value.print(ost);
