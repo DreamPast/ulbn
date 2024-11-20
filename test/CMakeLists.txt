@@ -5,13 +5,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_executable(test test.cpp)
-target_include_directories(test PRIVATE ${CMAKE_SOURCE_DIR}/../)
+add_executable(ulbn-test test.cpp)
+target_include_directories(ulbn-test PRIVATE ${CMAKE_SOURCE_DIR}/../)
 
+# enable most warnings
 if(CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(test PRIVATE -Wall -Wextra)
+    target_compile_options(ulbn-test PRIVATE -Wall -Wextra)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(test PRIVATE
+    target_compile_options(ulbn-test PRIVATE
         -Weverything
         -Wno-unused-macros
         -Wno-zero-as-null-pointer-constant
@@ -28,5 +29,8 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-global-constructors
     )
 elseif(MSVC)
-    target_compile_options(test PRIVATE /W4)
+    target_compile_options(ulbn-test PRIVATE /W4)
 endif()
+
+enable_testing()
+add_test(NAME ${PROJECT_NAME} COMMAND ulbn-test)
