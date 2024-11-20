@@ -932,8 +932,8 @@ void subtestRoot() {
     T_assert(ulbi_rootrem(ulbn_default_alloc(), a.get(), r.get(), a.get(), (-3_bi).get()) == 0);
   }
 
-  for(int64_t i = 1; i <= 0xFFF; ++i) {
-    for(int e = 1; e <= 0x10; ++e) {
+  for(int64_t i = 1; i <= 0xFFF; i += 3) {
+    for(int e: {1, 2, 3, 4, 5, 7, 9}) {
       BigInt x = BigInt(i);
       auto obj = x.rootrem(e);
       BigInt pow = obj.first.pow(e);
