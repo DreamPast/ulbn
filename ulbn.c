@@ -2615,12 +2615,12 @@ ULBN_INTERNAL int ulbn_divmod_guard(
 
 
 typedef struct ulbn_baseconv_t {
+  const char* char_table;
   ulbn_limb_t b;     /* = base**base_pow */
   ulbn_limb_t bi;    /* _ulbn_divinv1(b<<shift) */
+  ulbn_limb_t base;
   unsigned base_pow; /* the maximum power to make `b` <= ULBN_LIMB_MAX */
   int shift;         /* = _ulbn_ctz_(b) */
-  ulbn_limb_t base;
-  const char* char_table;
 } ulbn_baseconv_t;
 ULBN_INTERNAL ulbn_baseconv_t ulbn_prepare_baseconv(ulbn_limb_t base) {
 #if ULBN_LIMB_MAX == 0xFFu

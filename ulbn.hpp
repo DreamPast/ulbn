@@ -5,6 +5,8 @@
 #include <bit>
 #include <iostream>
 #include <cstring>
+#include <tuple>
+#include <cstdio>
 
 #include "ulbn.h"
 

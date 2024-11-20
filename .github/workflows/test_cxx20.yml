@@ -20,7 +20,7 @@ jobs:
         os: [windows-latest, ubuntu-latest]
         c_compiler: [clang, gcc, cl]
         exclude:
-          - os: ubuntu
+          - os: ubuntu-latest
             c_compiler: cl
     
     steps:

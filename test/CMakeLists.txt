@@ -10,7 +10,7 @@ target_include_directories(ulbn-test PRIVATE ${CMAKE_SOURCE_DIR}/../)
 
 # enable most warnings
 if(CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(ulbn-test PRIVATE -Wall -Wextra)
+    target_compile_options(ulbn-test PRIVATE -Wall -Wextra -Wno-misleading-indentation)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(ulbn-test PRIVATE
         -Weverything
@@ -24,6 +24,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-c++98-compat
         -Wno-c++98-compat-pedantic
         -Wno-c++11-long-long
+        -Wno-padded
         # Following warnings are "test.cpp" specific
         -Wno-float-equal
         -Wno-global-constructors
