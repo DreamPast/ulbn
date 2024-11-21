@@ -6298,7 +6298,7 @@ ULBN_PRIVATE int _ulbn_feq(double a, double b) {
 ULBN_PUBLIC int ulbi_set_double(const ulbn_alloc_t* alloc, ulbi_t* dst, double x) {
   static ul_constexpr const double B = ul_static_cast(double, _ULBN_LIMB_SIGNBIT) * 2.0;
   static ul_constexpr const double Bi = 1.0 / (ul_static_cast(double, _ULBN_LIMB_SIGNBIT) * 2.0);
-  ulbn_ssize_t ri, rn;
+  ulbn_usize_t rn;
   ulbn_limb_t* rp;
   double xl;
   int positive;
@@ -6317,16 +6317,17 @@ ULBN_PUBLIC int ulbi_set_double(const ulbn_alloc_t* alloc, ulbi_t* dst, double x
   }
   for(rn = 1; x >= B; ++rn)
     x *= Bi;
+  ULBN_RETURN_IF_SSIZE_OVERFLOW(rn, ULBN_ERR_EXCEED_RANGE);
 
-  rp = _ulbi_res(alloc, dst, ulbn_cast_usize(rn));
+  rp = _ulbi_res(alloc, dst, rn);
   ULBN_RETURN_IF_ALLOC_FAILED(rp, ULBN_ERR_NOMEM);
-  for(ri = rn - 1; ri >= 0; --ri) {
+  dst->len = _ulbn_to_ssize(positive, rn);
+  while(rn) {
     xl = floor(x);
     x -= xl;
-    rp[ri] = ul_static_cast(ulbn_limb_t, xl);
+    rp[--rn] = ul_static_cast(ulbn_limb_t, xl);
     x = B * x;
   }
-  dst->len = positive ? rn : -rn;
   return x <= 0 ? 0 : ULBN_ERR_INEXACT;
 }
 ULBN_PUBLIC int ulbi_init_double(const ulbn_alloc_t* alloc, ulbi_t* dst, double x) {
