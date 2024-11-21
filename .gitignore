@@ -14,5 +14,5 @@
 dev/**
 
 # Build results
-build/**
+build*/**
 Testing/**

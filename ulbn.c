@@ -468,7 +468,7 @@ ULBN_INTERNAL ulbn_limb_t _ulbn_divinv2(ulbn_limb_t d1, ulbn_limb_t d0) {
    * As 0 < -d0/d1 <= 2 - 2/B,
    * -2 <= <B-1-d1, B-1-d0>//d1 - <B-1-d1, B-1>//d1 <= 0
    */
-  p = d1 * di + d0;
+  p = ul_static_cast(ulbn_limb_t, d1 * di) + d0;
   if(p < d0) {
     --di;
     if(p >= d1) {
@@ -1120,6 +1120,13 @@ ULBN_INTERNAL void ulbn_mul_school(
   #error "ulbn: toom-4 and toom-3.5 thresholds must be at least 9"
 #endif
 
+#define _ULBN_USE_TOOM3 1
+#if _ULBN_TOOM_3_THRESHOLD < ULBN_USIZE_MAX
+  #define _ULBN_USE_TOOM4 1
+#else
+  #define _ULBN_USE_TOOM4 0
+#endif
+
 ULBN_INTERNAL void ulbn_divmod_inv1(
   ulbn_limb_t* qp, ulbn_limb_t* rp,        /* */
   const ulbn_limb_t* ap, ulbn_usize_t an,  /* */
@@ -1315,6 +1322,7 @@ cleanup_p1:
   return err;
 }
 
+#if _ULBN_USE_TOOM3
 ULBN_PRIVATE int _ulbn_mul_toom_32(
   const ulbn_alloc_t* alloc,                         /* */
   ulbn_limb_t* ul_restrict rp, const ulbn_usize_t m, /* */
@@ -1406,17 +1414,17 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   ulbn_mul(alloc, rp, a0, m, b0, m);
   ulbn_mul(alloc, rinf, a2, am, b1, bm);
 
-  /*****************
-   * interpolation *
-   *****************/
+    /*****************
+     * interpolation *
+     *****************/
 
-#if 0
+  #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
   printf("vm1 = %c", vm1_sign ? '-' : '+');
   ulbn_dprint(stdout, ul_nullptr, vm1, m2 + 1);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
-#endif
+  #endif
 
   /* t1 = v1 + vm1 = (0, 2, 0, 2) */
   /* v1 = v1 - vm1 = (2, 0, 2, 0) */
@@ -1438,16 +1446,16 @@ ULBN_PRIVATE int _ulbn_mul_toom_32(
   ulbn_shr(v1, v1, m2 + 1, 1);
   ulbn_sub(v1, v1, m2 + 1, rinf, abm);
 
-  /*****************
-   * recomposition *
-   *****************/
+    /*****************
+     * recomposition *
+     *****************/
 
-#if 0
+  #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
   ulbn_dprint(stdout, "t1 = ", vm1, m2 + 1);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
-#endif
+  #endif
 
   ulbn_copy(rp + m2, t1, m);
   ulbn_assert(ulbn_rnorm(t1, m2 + 1) <= m + abm);
@@ -1580,18 +1588,18 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   } else
     ulbn_fill0(vm1, m2 + 2);
 
-    /*****************
-     * interpolation *
-     *****************/
+      /*****************
+       * interpolation *
+       *****************/
 
-#if 0
+  #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
   printf("vm1 = %c", vm1_sign ? '-' : '+');
   ulbn_dprint(stdout, ul_nullptr, vm1, m2 + 1);
   ulbn_dprint(stdout, "v2 = ", v2, m2 + 1);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
-#endif
+  #endif
 
   /* v2 = v2 - vm1 = (15, 9, 3, 3, 0) */
   /* vm1 = v1 - vm1 = (0, 2, 0, 2, 0) */
@@ -1626,17 +1634,17 @@ ULBN_PRIVATE int _ulbn_mul_toom_33(
   ulbn_sub(v1, v1, m2 + 1, t2, abm + 1);
   ulbn_sub(vm1, vm1, m2 + 1, v1, m2 + 1);
 
-  /*****************
-   * recomposition *
-   *****************/
+    /*****************
+     * recomposition *
+     *****************/
 
-#if 0
+  #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "vm1 = ", vm1, m2 + 1);
   ulbn_dprint(stdout, "t1 = ", t1, m2 + 1);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
-#endif
+  #endif
 
   ulbn_copy(rp + m2, t1, m2);
   ulbn_add1(rinf, rinf, abm, t1[m2]);
@@ -1656,7 +1664,9 @@ cleanup_vm1:
 cleanup_v1:
   return err;
 }
+#endif /* _ULBN_USE_TOOM3 */
 
+#if _ULBN_USE_TOOM4
 ULBN_INTERNAL ulbn_limb_t ulbn_neg(ulbn_limb_t* rp, const ulbn_limb_t* ap, ulbn_usize_t an, ulbn_limb_t cy);
 ULBN_PRIVATE int _ulbn_mul_toom_43(
   const ulbn_alloc_t* alloc,                         /* */
@@ -1818,11 +1828,11 @@ ULBN_PRIVATE int _ulbn_mul_toom_43(
   /* vinf = a4 * b3 */
   ulbn_mul(alloc, rinf, a3, am, b2, bm);
 
-  /*****************
-   * interpolation *
-   *****************/
+    /*****************
+     * interpolation *
+     *****************/
 
-#if 0
+  #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
   printf("vm1 = %c", vm1_sign ? '-' : '+');
@@ -1831,7 +1841,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_43(
   printf("vm2 = %c", vm2_sign ? '-' : '+');
   ulbn_dprint(stdout, ul_nullptr, vm2, m2 + 1);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
-#endif
+  #endif
 
   /* t1 = v1 - vm1 = (2, 0, 2, 0, 2, 0) */
   /* v1 = v1 + vm1 = (0, 2, 0, 2, 0, 2) */
@@ -1882,18 +1892,18 @@ ULBN_PRIVATE int _ulbn_mul_toom_43(
   /* t1 = t1 - t2 = (0, 0, 0, 0, 1, 0) */
   ulbn_sub(t1, t1, m2 + 1, t2, m2 + 1);
 
-  /*****************
-   * recomposition *
-   *****************/
+    /*****************
+     * recomposition *
+     *****************/
 
-#if 0
+  #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "t1 = ", t1, m2 + 1);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + 1);
   ulbn_dprint(stdout, "t2 = ", t2, m2 + 1);
   ulbn_dprint(stdout, "v2 = ", v2, m2 + 1);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
-#endif
+  #endif
 
   ulbn_fill0(rinf - m + 1, m - 1);
   ulbn_add(rp + m, rp + m, an + bn - m, t1, m2 + 1);
@@ -1921,28 +1931,28 @@ ULBN_PRIVATE int _ulbn_mul_toom_44(
   const ulbn_limb_t* ap, ulbn_usize_t an,            /* */
   const ulbn_limb_t* bp, ulbn_usize_t bn             /* */
 ) {
-  /*
-    Toom-4
+    /*
+      Toom-4
 
-                                                  |     a(x)      |   |     b(x)      |
-    v(  0) = (  0   0   0   0   0   0   1)        (  0   0   0   1) * (  0   0   0   1)   ranging [0, 1)
-    v(  1) = (  1   1   1   1   1   1   1)        (  1   1   1   1) * (  1   1   1   1)   ranging [0, 64)
-    v( -1) = (  1  -1   1  -1   1  -1   1)        ( -1   1  -1   1) * ( -1   1  -1   1)   ranging (-32, 32)
-    v(  2) = ( 64  32  16   8   4   2   1)        (  8   4   2   1) * (  8   4   2   1)   ranging [0, 729)
-    v( -2) = ( 64 -32  16  -8   4  -2   1)        ( -8   4  -2   1) * ( -8   4  -2   1)   ranging (-364, 365)
-    v(1/2) = (  1   2   4   8  16  32  64) / 64   (  1   2   4   8) * (  1   2   4   8)   ranging [0, 729)
-    v(inf) = (  1   0   0   0   0   0   0)        (  1   0   0   0) * (  1   0   0   0)   ranging [0, 1)
-  */
+                                                    |     a(x)      |   |     b(x)      |
+      v(  0) = (  0   0   0   0   0   0   1)        (  0   0   0   1) * (  0   0   0   1)   ranging [0, 1)
+      v(  1) = (  1   1   1   1   1   1   1)        (  1   1   1   1) * (  1   1   1   1)   ranging [0, 64)
+      v( -1) = (  1  -1   1  -1   1  -1   1)        ( -1   1  -1   1) * ( -1   1  -1   1)   ranging (-32, 32)
+      v(  2) = ( 64  32  16   8   4   2   1)        (  8   4   2   1) * (  8   4   2   1)   ranging [0, 729)
+      v( -2) = ( 64 -32  16  -8   4  -2   1)        ( -8   4  -2   1) * ( -8   4  -2   1)   ranging (-364, 365)
+      v(1/2) = (  1   2   4   8  16  32  64) / 64   (  1   2   4   8) * (  1   2   4   8)   ranging [0, 729)
+      v(inf) = (  1   0   0   0   0   0   0)        (  1   0   0   0) * (  1   0   0   0)   ranging [0, 1)
+    */
 
-  /*************
-   * splitting *
-   *************/
+    /*************
+     * splitting *
+     *************/
 
-#if ULBN_LIMB_MAX < 1458
-  #define _ULBN_FLEN 2
-#else
-  #define _ULBN_FLEN 1
-#endif
+  #if ULBN_LIMB_MAX < 1458
+    #define _ULBN_FLEN 2
+  #else
+    #define _ULBN_FLEN 1
+  #endif
   const ulbn_usize_t m2 = m << 1, m3 = m2 + m, m4 = m2 + m2, am = an - m3, bm = bn - m3, abm = am + bm;
   const ulbn_limb_t *const a0 = ap, *const a1 = ap + m, *const a2 = ap + m2, *const a3 = ap + m3;
   const ulbn_limb_t *const b0 = bp, *const b1 = bp + m, *const b2 = bp + m2, *const b3 = bp + m3;
@@ -2117,11 +2127,11 @@ ULBN_PRIVATE int _ulbn_mul_toom_44(
   /* vinf = a4 * b4 */
   ulbn_mul(alloc, rinf, a3, am, b3, bm);
 
-  /*****************
-   * interpolation *
-   *****************/
+    /*****************
+     * interpolation *
+     *****************/
 
-#if 0
+  #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + _ULBN_FLEN);
   ulbn_dprint(stdout, "vm1 = ", vm1, m2 + _ULBN_FLEN);
@@ -2129,7 +2139,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_44(
   ulbn_dprint(stdout, "vm2 = ", vm2, m2 + _ULBN_FLEN);
   ulbn_dprint(stdout, "vh = ", vh, m2 + _ULBN_FLEN);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
-#endif
+  #endif
 
   /* vh = vh + v2 = (65, 34, 20, 16, 20, 34, 65)        ranging [0, 1458) */
   ulbn_add(vh, vh, m2 + _ULBN_FLEN, v2, m2 + _ULBN_FLEN);
@@ -2182,11 +2192,11 @@ ULBN_PRIVATE int _ulbn_mul_toom_44(
   /* vh = vh - vm2 = (0, 1, 0, 0, 0, 0, 0)              ranging [0, 6) */
   ulbn_sub(vh, vh, m2 + _ULBN_FLEN, vm2, m2 + _ULBN_FLEN);
 
-  /*****************
-   * recomposition *
-   *****************/
+    /*****************
+     * recomposition *
+     *****************/
 
-#if 0
+  #if 0
   ulbn_dprint(stdout, "v0 = ", rp, m2);
   ulbn_dprint(stdout, "vm2 = ", vm2, m2 + _ULBN_FLEN);
   ulbn_dprint(stdout, "v1 = ", v1, m2 + _ULBN_FLEN);
@@ -2194,7 +2204,7 @@ ULBN_PRIVATE int _ulbn_mul_toom_44(
   ulbn_dprint(stdout, "v2 = ", v2, m2 + _ULBN_FLEN);
   ulbn_dprint(stdout, "vh = ", vh, m2 + _ULBN_FLEN);
   ulbn_dprint(stdout, "vinf = ", rinf, abm);
-#endif
+  #endif
 
   ulbn_fill0(rinf - m2 + _ULBN_FLEN, m2 - _ULBN_FLEN);
   ulbn_add(rp + m, rp + m, an + bn - m, vm2, m2 + _ULBN_FLEN);
@@ -2220,8 +2230,9 @@ cleanup_vm1:
   ulbn_deallocT(ulbn_limb_t, alloc, v2, m2 + 2);
 cleanup_v2:
   return err;
-#undef _ULBN_FLEN
+  #undef _ULBN_FLEN
 }
+#endif /* _ULBN_USE_TOOM4 */
 
 /* Note: If allocation fails, it falls back to using a version with less cache,
   eventually falling back to the school method (time complexity O(n^2)) */
@@ -2262,6 +2273,8 @@ ULBN_PRIVATE void ulbn_mul(
     return;
   }
 
+#if _ULBN_USE_TOOM3
+  #if _ULBN_USE_TOOM4
   if(an <= _ULBN_TOOM_3_THRESHOLD) {
   fallback_toom3:
     m = (an + 2) / 3;
@@ -2273,7 +2286,23 @@ ULBN_PRIVATE void ulbn_mul(
     _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_32(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
     return;
   }
+  #else
+  {
+    m = (an + 2) / 3;
+    if(bn > m + m) {
+      _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_33(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
+      return;
+    }
+    /* if(bn > m) */
+    _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_32(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
+    return;
+  }
+  #endif
+#else
+  goto fallback_toom2;
+#endif
 
+#if _ULBN_USE_TOOM4
   m = (an + 3) >> 2;
   if(bn > m * 3) {
     _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_44(alloc, rp, m, ap, an, bp, bn), goto fallback_toom3;);
@@ -2283,7 +2312,8 @@ ULBN_PRIVATE void ulbn_mul(
     _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_43(alloc, rp, m, ap, an, bp, bn), goto fallback_toom3;);
     return;
   }
-  goto fallback_toom3;
+#endif
+
 #undef _ULBN_DO_IF_MUL_FAILED
 }
 
@@ -2619,11 +2649,11 @@ ULBN_INTERNAL int ulbn_divmod_guard(
 
 typedef struct ulbn_baseconv_t {
   const char* char_table;
-  ulbn_limb_t b;  /* = base**base_pow */
-  ulbn_limb_t bi; /* _ulbn_divinv1(b<<shift) */
-  ulbn_limb_t base;
   unsigned base_pow; /* the maximum power to make `b` <= ULBN_LIMB_MAX */
   int shift;         /* = _ulbn_ctz_(b) */
+  ulbn_limb_t b;     /* = base**base_pow */
+  ulbn_limb_t bi;    /* _ulbn_divinv1(b<<shift) */
+  ulbn_limb_t base;
 } ulbn_baseconv_t;
 ULBN_INTERNAL void ulbn_prepare_baseconv(ulbn_baseconv_t* conv, ulbn_limb_t base) {
 #if ULBN_LIMB_MAX == 0xFFu
@@ -3074,7 +3104,7 @@ ULBN_INTERNAL ulbn_limb_t ulbn_limb(const ulbn_limb_t* p, ulbn_usize_t n, ulbn_l
   const ulbn_limb_t l = (k < n ? p[k] : 0) ^ mask;
   /* If it is a positive number, cy == 0, mask == 0, at this time i will be
     equal to k, and the loop will terminate directly */
-  ulbn_usize_t i = ~mask & k;
+  ulbn_usize_t i = ul_static_cast(ulbn_usize_t, ~mask) & k;
 
   ulbn_assert(cy == 0 || cy == 1);
 
@@ -3496,7 +3526,7 @@ ULBN_INTERNAL int ulbn_sqrtrem_guard(
   if(rp) {
     if(shift2) {
       ulbn_limb_t cr;
-      cr = nsp[0] & (ULBN_LIMB_SHL(1u, shift2 >> 1) - 1u);
+      cr = nsp[0] & ul_static_cast(ulbn_limb_t, ULBN_LIMB_SHL(1u, shift2 >> 1) - 1u);
       rh += ulbn_addmul1(nrp, nsp, nh, cr);
       rh += ulbn_addmul1(nrp, nsp, nh, cr);
       rh -= ulbn_sub1(nrp, nrp, nh, cr * cr);
@@ -3708,7 +3738,8 @@ ULBN_PRIVATE ulbn_limb_t* _ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ul
   return new_limb;
 }
 #define _ulbi_limbs(o) ((o)->cap <= ULBN_SHORT_LIMB_SIZE_VAL ? (o)->u.shrt : (o)->u.lng)
-#define _ulbi_res(alloc, o, n) (((n) <= (o)->cap) ? _ulbi_limbs(o) : _ulbi_reserve((alloc), (o), (n)))
+#define _ulbi_res(alloc, o, n) \
+  ((ul_static_cast(ulbn_usize_t, n) <= (o)->cap) ? _ulbi_limbs(o) : _ulbi_reserve((alloc), (o), (n)))
 ULBN_PUBLIC ulbn_limb_t* ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n) {
   return _ulbi_res(alloc, o, n);
 }
@@ -5736,7 +5767,7 @@ ULBN_PRIVATE int _ulbi_setbit(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t
       ULBN_RETURN_IF_ALLOC_FAILED(op, ULBN_ERR_NOMEM);
       ulbn_fill0(op + n, idx - n);
       op[idx] = ULBN_LIMB_SHL(1, shift);
-      ULBN_RETURN_IF_SSIZE_OVERFLOW(idx + 1, ULBN_ERR_EXCEED_RANGE);
+      ULBN_RETURN_IF_SSIZE_OVERFLOW(ul_static_cast(ulbn_usize_t, idx + 1), ULBN_ERR_EXCEED_RANGE);
       o->len = ulbn_cast_ssize(idx + 1);
     } else {
       op = _ulbi_limbs(o);
@@ -6199,6 +6230,7 @@ ULBN_PRIVATE int _ulbi_print_ex(
 
   ulbn_assert(ao->len > 0);
 
+#if ULBN_CONV2PRINT_GENERIC_THRESHOLD < ULBN_USIZE_MAX
   while(ao->len > ULBN_CONV2PRINT_GENERIC_THRESHOLD) {
     bitw_low = ulbn_bit_width(_ulbi_limbs(ao), ulbn_cast_usize(ao->len), &bitw_high);
     ++bitw_low;
@@ -6218,6 +6250,7 @@ ULBN_PRIVATE int _ulbi_print_ex(
     ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
     desire_len = pow;
   }
+#endif
 
   if(ao->len != 0) {
     ulbn_baseconv_t conv;
@@ -6349,6 +6382,7 @@ ULBN_PUBLIC double ulbi_to_double(const ulbi_t* src) {
   return src->len >= 0 ? r : -r;
 }
   #include <float.h>
+ul_static_assert(DBL_MANT_DIG <= ULBN_USIZE_MAX || _ULBN_SIZET_MAX / ULBN_USIZE_MAX >= ULBN_USIZE_MAX, "");
 ULBN_PUBLIC int ulbi_fit_double(const ulbi_t* src) {
   ulbn_usize_t bitwidth, bitwidth_h;
   ulbn_usize_t ctz, ctz_h;
@@ -6356,19 +6390,29 @@ ULBN_PUBLIC int ulbi_fit_double(const ulbi_t* src) {
   bitwidth = ulbi_abs_bit_width_usize(src, &bitwidth_h);
   ctz = ulbi_ctz_usize(src, &ctz_h);
 
-  #if ULBN_USIZE_MAX > DBL_MAX_EXP
+  #if DBL_MAX_EXP <= ULBN_USIZE_MAX
   if(ul_unlikely(bitwidth_h != 0))
     return 0;
   if(bitwidth > DBL_MAX_EXP)
     return 0;
   #else
-    #error "todo"
+  do {
+    ulbn_limb_t buf[_ULBN_MERGE_USIZE_LEN];
+    ulbn_usize_t len;
+    len = ulbn_merge_usize(buf, bitwidth, bitwidth_h);
+    #if DBL_MAX_EXP < ULBN_LIMB_MAX
+    if(len > 1 || buf[0] > DBL_MAX_EXP)
+      return 0;
+    #else
+      #error "todo"
+    #endif
+  } while(0);
   #endif
 
   bitwidth_h -= ctz_h + (bitwidth < ctz);
   bitwidth -= ctz;
 
-  #if ULBN_USIZE_MAX > DBL_MANT_DIG
+  #if DBL_MANT_DIG <= ULBN_USIZE_MAX
   if(ul_unlikely(bitwidth_h != 0))
     return 0;
   if(bitwidth > DBL_MANT_DIG)
@@ -6574,10 +6618,14 @@ ULBN_PUBLIC int ulbi_lcm(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
   err = ulbi_div(alloc, ro, ao, ro);
   ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
   err = ulbi_mul(alloc, ro, ro, bo);
-  ro->len = _ulbn_abs_(ro->len);
+  ro->len = ul_static_cast(ulbn_ssize_t, _ulbn_abs_(ro->len));
   return err;
 }
 
+#ifdef __GNUC__
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wstrict-overflow"
+#endif
 ULBN_PUBLIC int ulbi_gcdext(
   const ulbn_alloc_t* alloc, ulbi_t* ro, ulbi_t* uo, ulbi_t* vo, /* */
   const ulbi_t* ao, const ulbi_t* _bo                            /* */
@@ -6673,6 +6721,9 @@ cleanup:
   ulbi_deinit(alloc, bo);
   return err;
 }
+#ifdef __GNUC__
+  #pragma GCC diagnostic pop
+#endif
 ULBN_PUBLIC int ulbi_invert(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* mo) {
   return ulbi_gcdext(alloc, ul_nullptr, ro, ul_nullptr, ao, mo);
 }

@@ -72,6 +72,7 @@ set(GNUC_CLOSE_WARNINGS
     -Wno-conversion
     -Wno-unused
     -Wno-misleading-indentation
+    -Wno-padded
 )
 
 set(CLANG_ALL_C_WARNINGS
