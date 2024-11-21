@@ -8,11 +8,17 @@
 
 
 /**
+ * @def UL_PEDANTIC
+ * @brief Enable pedantic mode (disable all non-standard features)
+ */
+/* #define UL_PEDANTIC */
+
+/**
  * @def ul_unused
  * @brief Mark a variable or function may be unused
  */
 #if !defined(ul_unused) && defined(__has_attribute)
-  #if __has_attribute(unused)
+  #if __has_attribute(unused) && !defined(UL_PEDANTIC)
     #define ul_unused __attribute__((unused))
   #endif
 #endif /* ul_unused */
@@ -48,7 +54,7 @@
  * @brief Hint to the compiler that the condition is more likely to be false
  */
 #ifdef __has_builtin
-  #if __has_builtin(__builtin_expect)
+  #if __has_builtin(__builtin_expect) && !defined(UL_PEDANTIC)
     #ifndef ul_likely
       #define ul_likely(x) __builtin_expect(!!(x), 1)
     #endif
@@ -93,7 +99,7 @@
  * @brief Check if has builtin functions (GCC/Clang)
  */
 #ifndef ul_has_builtin
-  #if defined(__has_builtin)
+  #if defined(__has_builtin) && !defined(UL_PEDANTIC)
     #define ul_has_builtin(x) __has_builtin(x)
   #else
     #define ul_has_builtin(x) 0
@@ -155,13 +161,16 @@
  * @brief Restrict qualifier (C99/C++ extensions). Mark pointers with same types doesn't overlap.
  */
 #ifndef ul_restrict
-  #if defined(_MSC_VER) && _MSC_VER >= 1900
-    #define ul_restrict __restrict
-  #elif defined(__GNUC__) && __GNUC__ > 3
-    #define ul_restrict __restrict__
-  #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+  #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
     #define ul_restrict restrict
-  #else
+  #elif !defined(UL_PEDANTIC)
+    #if defined(_MSC_VER) && _MSC_VER >= 1900
+      #define ul_restrict __restrict
+    #elif defined(__GNUC__) && __GNUC__ > 3
+      #define ul_restrict __restrict__
+    #endif
+  #endif
+  #ifndef ul_restrict
     #define ul_restrict
   #endif
 #endif /* ul_restrict */
@@ -198,9 +207,11 @@
       #define UL_HAS_STDINT_H
     #endif
   #endif
-  #if defined(__MINGW32__) \
-    && (__MINGW32_MAJOR_VERSION > 2 || (__MINGW32_MAJOR_VERSION == 2 && __MINGW32_MINOR_VERSION >= 0))
-    #define UL_HAS_STDINT_H
+  #if defined(__MINGW32__)
+    #include <_mingw.h>
+    #if(__MINGW32_MAJOR_VERSION > 2 || (__MINGW32_MAJOR_VERSION == 2 && __MINGW32_MINOR_VERSION >= 0))
+      #define UL_HAS_STDINT_H
+    #endif
   #endif
   #if defined(unix) || defined(__unix) || defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE)
     #include <unistd.h>
@@ -248,6 +259,11 @@
     #else
       #define ul_export
     #endif
+  #endif
+
+  #ifdef UL_PEDANTIC
+    #undef ul_export
+    #define ul_export
   #endif
 #endif /* ul_export */
 
@@ -353,7 +369,7 @@ typedef signed long ulbn_slimb_t;
 #if !defined(ulbn_limb2_t) && defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
   #define ulbn_limb2_t unsigned long long
 #endif
-#if !defined(ulbn_limb2_t) && defined(__SIZEOF_INT128__) && defined(__GNUC__)
+#if !defined(ulbn_limb2_t) && !defined(UL_PEDANTIC) && defined(__SIZEOF_INT128__) && defined(__GNUC__)
   #if ULBN_LIMB_MAX <= 0xFFFFFFFFFFFFFFFFu
     #define ulbn_limb2_t unsigned __int128
   #endif

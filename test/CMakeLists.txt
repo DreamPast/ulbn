@@ -1,19 +1,19 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 project(ulbn-test)
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(ulbn-test test.cpp)
-target_include_directories(ulbn-test PRIVATE ${CMAKE_SOURCE_DIR}/../)
+set_target_properties(ulbn-test PROPERTIES CXX_STANDARD 20)
+target_include_directories(ulbn-test PRIVATE ${PROJECT_SOURCE_DIR}/../)
+target_link_libraries(ulbn-test PRIVATE ulbn)
 
-# enable most warnings
 if(CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(ulbn-test PRIVATE -Wall -Wextra -Wno-misleading-indentation)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(ulbn-test PRIVATE
-        -Weverything
+        ${CLANG_ALL_C_WARNINGS} ${CLANG_CLOSE_WARNINGS}
+
         -Wno-unused-macros
         -Wno-zero-as-null-pointer-constant
         -Wno-unsafe-buffer-usage
@@ -26,7 +26,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-c++11-long-long
         -Wno-padded
         -Wno-disabled-macro-expansion
-        # Following warnings are "test.cpp" specific
         -Wno-float-equal
         -Wno-global-constructors
     )
@@ -34,5 +33,4 @@ elseif(MSVC)
     target_compile_options(ulbn-test PRIVATE /W4)
 endif()
 
-enable_testing()
-add_test(NAME ${PROJECT_NAME} COMMAND ulbn-test)
+add_test(NAME ulbn-test COMMAND ulbn-test)

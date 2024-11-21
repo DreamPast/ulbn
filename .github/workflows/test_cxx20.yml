@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
 
       matrix:
-        build_type: [Debug, Release]
+        build_type: [Release, RelWithDebInfo, MinSizeRel]
         os: [windows-latest, ubuntu-latest]
         compiler: [[clang, clang++], [gcc, g++], [cl, cl]]
         exclude:
@@ -32,7 +32,7 @@ jobs:
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
       - name: configure CMake
         run: >
-          cmake -B ${{ github.workspace }}/build -S ${{ github.workspace }}/test
+          cmake -B ${{ github.workspace }}/build -S ${{ github.workspace }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DCMAKE_C_COMPILER=${{ matrix.compiler[0] }}
           -DCMAKE_CXX_COMPILER=${{ matrix.compiler[1] }}

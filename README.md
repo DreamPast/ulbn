@@ -32,7 +32,7 @@ Depends on the following C++20 features:
 - Three-way comparison
 - `<bit>` header file
 
-### test.cpp
+### test
 
 Depends on the following assumptions for modern platforms:
 

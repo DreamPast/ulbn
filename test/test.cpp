@@ -1,10 +1,3 @@
-typedef unsigned char ulbn_limb_t;
-typedef signed char ulbn_slimb_t;
-#define ULBN_LIMB_MAX UCHAR_MAX
-#define ULBN_SLIMB_MAX SCHAR_MAX
-#define ULBN_SLIMB_MIN SCHAR_MIN
-
-#define ULBN_CONF_INCLUDE_IMPLEMENT 1
 #include "ulbn.hpp"
 using ul::bn::BigInt;
 using ul::bn::operator""_bi;
@@ -624,53 +617,14 @@ void subtestDivMod() {
 void subtestDivModRandom() {
   puts("======Subtest DivMod (Random)");
 
-  puts("=========1by1_random");
-  {
-    std::uniform_int_distribution<uint64_t> ud1;
-    std::uniform_int_distribution<uint64_t> ud2(1, 1ll << 8);
-    for(auto t = TEST_BIG; t--;) {
-      const uint64_t a = ud1(mt64);
-      const uint64_t b = ud2(mt64);
+  std::mt19937_64 mt(std::random_device{}());
+  std::uniform_int_distribution<uint64_t> ud1;
+  std::uniform_int_distribution<uint64_t> ud2(1);
+  for(auto t = TEST_BIG; t--;) {
+    const uint64_t a = ud1(mt);
+    const uint64_t b = ud2(mt);
 
-      T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
-    }
-  }
-
-  puts("=========2by1_random");
-  {
-    std::uniform_int_distribution<uint64_t> ud1;
-    std::uniform_int_distribution<uint64_t> ud2(1, 1ll << 16);
-    for(auto t = TEST_BIG; t--;) {
-      const uint64_t a = ud1(mt64);
-      const uint64_t b = ud2(mt64);
-
-      T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
-    }
-  }
-
-  puts("=========3by2_random");
-  {
-    std::uniform_int_distribution<uint64_t> ud1(1ll << 48);
-    std::uniform_int_distribution<uint64_t> ud2(1ll << 32, (1ll << 48) - 1);
-    for(auto t = TEST_BIG; t--;) {
-      const uint64_t a = ud1(mt64);
-      const uint64_t b = ud2(mt64);
-
-      T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
-    }
-  }
-
-  puts("=========%any%_random");
-  {
-    std::mt19937_64 mt(std::random_device{}());
-    std::uniform_int_distribution<uint64_t> ud1;
-    std::uniform_int_distribution<uint64_t> ud2(1);
-    for(auto t = TEST_BIG; t--;) {
-      const uint64_t a = ud1(mt);
-      const uint64_t b = ud2(mt);
-
-      T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
-    }
+    T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
   }
 }
 void subtestDivModOverlapRandom() {

@@ -11,5 +11,8 @@
 *.sln
 *.sw?
 
+dev/**
+
 # Build results
-**/build/**
+build/**
+Testing/**
