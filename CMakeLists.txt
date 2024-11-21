@@ -19,10 +19,16 @@ else()
     add_library(ulbn-cxx STATIC ulbn_build.cpp)
     set_target_properties(ulbn-cxx PROPERTIES CXX_STANDARD 98)
 endif()
+if(UNIX)
+    target_link_libraries(ulbn PRIVATE m)
+endif()
 
 set(GNUC_ALL_C_WARNINGS
     -Wall
     -Wextra
+    -Werror
+    # -Wpedantic
+
     -Wcast-align
     -Wcast-qual
     -Wdisabled-optimization
@@ -37,7 +43,6 @@ set(GNUC_ALL_C_WARNINGS
     -Wstrict-overflow=5
     -Wswitch-default
     -Wundef
-    -Werror
     # -Wabi
     -Waggregate-return
     -Wconversion

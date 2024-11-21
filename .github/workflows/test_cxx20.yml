@@ -20,15 +20,15 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-latest]
         compiler: [[clang, clang++], [gcc, g++]]
         include:
-          - os: windows-latest
+          - build_type: Release
+            os: windows-latest
             compiler: [cl, cl]
-            build_type: Release
-          - os: windows-latest
+          - build_type: RelWithDebInfo
+            os: windows-latest
             compiler: [cl, cl]
-            build_type: RelWithDebInfo
-          - os: windows-latest
+          - build_type: MinSizeRel
+            os: windows-latest
             compiler: [cl, cl]
-            build_type: MinSizeRel
 
     steps:
       - uses: actions/checkout@v4
