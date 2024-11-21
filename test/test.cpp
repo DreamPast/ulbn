@@ -1066,7 +1066,7 @@ void subtestGcdext() {
     try {
       T_assert(x == a.invert(b));
       T_assert(g == 1);
-    } catch(ul::bn::Exception e) {
+    } catch(const ul::bn::Exception& e) {
       if(e.getError() == ULBN_ERR_INVALID) {
         T_assert(g != 1);
       } else {

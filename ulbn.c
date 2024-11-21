@@ -3184,12 +3184,12 @@ ULBN_PUBLIC ulbn_rand_uint_t ulbn_rand_init(ulbn_rand_t* rng) {
   return seed;
 }
 
-ULBN_INTERNAL ulbn_limb_t ulbn_rand(ulbn_rand_t* rng, int n) {
-  int b = rng->bits;
+ULBN_INTERNAL ulbn_limb_t ulbn_rand(ulbn_rand_t* rng, unsigned n) {
+  unsigned b = rng->bits;
   unsigned c = rng->cache;
   ulbn_limb_t l = 0;
 
-  ulbn_assert(n >= 0 && ul_static_cast(size_t, n) <= ULBN_LIMB_BITS);
+  ulbn_assert(ul_static_cast(size_t, n) <= ULBN_LIMB_BITS);
 
 #if ULBN_LIMB_MAX >= 0xFFFFu
   while(n >= 16) {
@@ -3216,7 +3216,7 @@ ULBN_INTERNAL ulbn_limb_t ulbn_rand(ulbn_rand_t* rng, int n) {
 ULBN_INTERNAL void ulbn_rand_multi(ulbn_rand_t* rng, ulbn_limb_t* p, ulbn_usize_t n) {
   ulbn_usize_t i;
   for(i = 0; i < n; ++i)
-    p[i] = ulbn_rand(rng, ul_static_cast(int, ULBN_LIMB_BITS));
+    p[i] = ulbn_rand(rng, ul_static_cast(unsigned, ULBN_LIMB_BITS));
 }
 
 ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n) {
@@ -6395,7 +6395,7 @@ ULBN_PRIVATE int _ulbi_set_rand(
   ULBN_RETURN_IF_ALLOC_FAILED(p, ULBN_ERR_NOMEM);
   ulbn_rand_multi(rng, p, idx);
   if(shift != 0)
-    p[idx] = ulbn_rand(rng, shift);
+    p[idx] = ulbn_rand(rng, ul_static_cast(unsigned, shift));
   n = ulbn_rnorm(p, n);
   ULBN_RETURN_IF_SSIZE_OVERFLOW(n, ULBN_ERR_EXCEED_RANGE);
   dst->len = ulbn_cast_ssize(n);

@@ -592,7 +592,7 @@ typedef struct ulbn_rand_t {
   ulbn_rand_uint_t inc;
 
   unsigned cache;
-  int bits;
+  unsigned bits;
 } ulbn_rand_t;
 ULBN_PUBLIC ulbn_rand_uint_t ulbn_rand_init(ulbn_rand_t* rng);
 ULBN_PUBLIC void ulbn_rand_init2(ulbn_rand_t* rng, ulbn_rand_uint_t seed);

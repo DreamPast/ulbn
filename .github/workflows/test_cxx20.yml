@@ -17,10 +17,10 @@ jobs:
 
       matrix:
         build_type: [Release, RelWithDebInfo, MinSizeRel]
-        os: [windows-latest, ubuntu-latest]
-        compiler: [[clang, clang++], [gcc, g++], [cl, cl]]
-        exclude:
-          - os: ubuntu-latest
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        compiler: [[clang, clang++], [gcc, g++]]
+        include:
+          - os: windows-latest
             compiler: [cl, cl]
 
     steps:
