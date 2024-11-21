@@ -341,6 +341,7 @@ extern "C" {
 #define _ulbn_max_(a, b) ((a) > (b) ? (a) : (b))
 #define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
 
+
 #if !defined(ULBN_LIMB_MAX) || !defined(ULBN_SLIMB_MAX) || !defined(ULBN_SLIMB_MIN)
   #if defined(LLONG_MAX)
 typedef unsigned long long ulbn_limb_t;

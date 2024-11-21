@@ -69,7 +69,6 @@ set(GUNC_ALL_CXX_WARNINGS
     -Wold-style-cast
 )
 set(GNUC_CLOSE_WARNINGS
-    -Wno-conversion
     -Wno-unused
     -Wno-misleading-indentation
     -Wno-padded
@@ -95,6 +94,13 @@ set(CLANG_CLOSE_WARNINGS
     -Wno-c++11-long-long
 )
 
+set(MSVC_CLOSE_WARNINGS
+    /wd4711 # function 'function' selected for inline expansion
+    /wd4820 # 'bytes' bytes padding added after construct 'member_name'
+    /wd5045 # Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+    /wd5039 # pointer or reference to potentially throwing function passed to extern C function under -EHc. Undefined behavior may occur if this function throws an exception.
+)
+
 # enable most warnings
 if(CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(ulbn PRIVATE ${GNUC_ALL_C_WARNINGS} ${GNUC_CLOSE_WARNINGS})
@@ -103,8 +109,8 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(ulbn PRIVATE ${CLANG_ALL_C_WARNINGS} ${CLANG_CLOSE_WARNINGS})
     target_compile_options(ulbn-cxx PRIVATE ${CLANG_ALL_CXX_WARNINGS} ${CLANG_CLOSE_WARNINGS})
 elseif(MSVC)
-    target_compile_options(ulbn PRIVATE /W4)
-    target_compile_options(ulbn-cxx PRIVATE /W4)
+    target_compile_options(ulbn PRIVATE /Wall /WX ${MSVC_CLOSE_WARNINGS})
+    target_compile_options(ulbn-cxx PRIVATE /Wall /WX ${MSVC_CLOSE_WARNINGS})
 endif()
 
 if(BUILD_TEST)
