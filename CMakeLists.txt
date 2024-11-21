@@ -69,7 +69,6 @@ set(GUNC_ALL_CXX_WARNINGS
     -Wold-style-cast
 )
 set(GNUC_CLOSE_WARNINGS
-    -Wno-unused
     -Wno-misleading-indentation
     -Wno-padded
 )
@@ -82,11 +81,8 @@ set(CLANG_ALL_CXX_WARNINGS
 )
 set(CLANG_CLOSE_WARNINGS
     -Wno-unsafe-buffer-usage
-    -Wno-unused-macros
     -Wno-reserved-identifier
     -Wno-language-extension-token
-    -Wno-missing-prototypes
-    -Wno-unused-function
     
     -Wno-long-long
     -Wno-c++98-compat

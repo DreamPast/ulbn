@@ -1,6 +1,9 @@
 #ifndef ULBN_SOURCE
 #define ULBN_SOURCE
 
+#if(ULBN_SOURCE + 0)
+#endif
+
 #ifndef ULBN_HEADER
   #include "ulbn.h"
 #endif
@@ -83,7 +86,6 @@ static ul_constexpr const ulbn_limb_t ULBN_LOWMASK = _ULBN_LOWMASK;
 #define _ULBN_ALLOC_LIMIT ul_static_cast(size_t, _ULBN_SIZET_MAX / sizeof(ulbn_limb_t))
 /* The limitation of ulbn_usize_t, mainly to avoid overflow caused by the multiplication of ulbn_usize_t */
 #define _ULBN_SSIZE_LIMIT ulbn_cast_usize(_ulbn_min_(_ULBN_USIZE_LIMIT / 2, ulbn_cast_usize(ULBN_SSIZE_MAX)))
-#define _ULBN_USIZE_SHIFT_MASK ulbn_cast_usize(_ULBN_USIZE_SIGNBIT - 1u)
 
 ul_static_assert(sizeof(size_t) >= sizeof(ulbn_usize_t), "usbn_usize_t cannot be larger than size_t");
 ul_static_assert(ULBN_SHORT_LIMB_SIZE >= 1, "ULBN_SHORT_LIMB_SIZE is too small, must be at least 1");
@@ -125,13 +127,15 @@ static ul_constexpr const ulbn_usize_t ULBN_SHORT_LIMB_SIZE_VAL = ULBN_SHORT_LIM
 #define ULBN_DO_IF_USIZE_OVERFLOW(n, expr) ULBN_DO_IF_USIZE_COND((n) > ULBN_USIZE_LIMIT, expr)
 #define ULBN_RETURN_IF_USIZE_OVERFLOW(n, ret) ULBN_RETURN_IF_USIZE_COND((n) > ULBN_USIZE_LIMIT, ret)
 
+/*
 #define ULBN_DO_IF_SSIZE_COND(cond, expr) \
   if(ul_unlikely(cond))                   \
   expr((void)0)
+#define ULBN_DO_IF_SSIZE_OVERFLOW(n, expr) ULBN_DO_IF_SSIZE_COND((n) > ULBN_SSIZE_LIMIT, expr)
+*/
 #define ULBN_RETURN_IF_SSIZE_COND(cond, ret) \
   if(ul_unlikely(cond))                      \
   return (ret)
-#define ULBN_DO_IF_SSIZE_OVERFLOW(n, expr) ULBN_DO_IF_SSIZE_COND((n) > ULBN_SSIZE_LIMIT, expr)
 #define ULBN_RETURN_IF_SSIZE_OVERFLOW(n, ret) ULBN_RETURN_IF_SSIZE_COND((n) > ULBN_SSIZE_LIMIT, ret)
 
 #if ULBN_CONF_CHECK_ALLOCATION_FAILURE
@@ -151,9 +155,6 @@ static ul_constexpr const ulbn_usize_t ULBN_SHORT_LIMB_SIZE_VAL = ULBN_SHORT_LIM
 #define ULBN_DO_IF_PUBLIC_COND(cond, expr) \
   if(ul_unlikely(cond))                    \
   expr((void)0)
-#define ULBN_RETURN_IF_PUBLIC_COND(cond, ret) \
-  if(ul_unlikely(cond))                       \
-  return (ret)
 
 
 #ifdef __cplusplus
@@ -1159,10 +1160,12 @@ ULBN_PRIVATE void ulbn_mul(
 #elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
   #define _ULBN_DEF_SHORT_DIV(prefix, a, b, c) 0x##prefix##a##b##c##a##b##c##a##b##c##a##b##c##a##b##c##u
 #endif
-#ifdef __cplusplus
-  #define ulbn_may_static static
-#else
-  #define ulbn_may_static
+#ifndef _ULBN_DEF_SHORT_DIV
+  #ifdef __cplusplus
+    #define ulbn_may_static static
+  #else
+    #define ulbn_may_static
+  #endif
 #endif
 
 static ulbn_limb_t _ULBN_SHORT_DIV_R; /* write-only variable */

@@ -1,6 +1,9 @@
 #ifndef ULBN_HEADER
 #define ULBN_HEADER
 
+#if (ULBN_HEADER+0)
+#endif
+
 
 /***************************
  * Internal Utility Macros *
