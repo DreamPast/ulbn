@@ -8,20 +8,25 @@ option(BUILD_TEST "Build test" ON)
 
 if(BUILD_SHARED_LIBRARY)
     add_library(ulbn SHARED ulbn.c)
-    target_compile_definitions(ulbn PRIVATE ULBN_CONF_EXPORT_PUBLIC=1)
-
-    add_library(ulbn-cxx SHARED ulbn_build.cpp)
-    target_compile_definitions(ulbn-cxx PRIVATE ULBN_CONF_EXPORT_PUBLIC=1)
-    set_target_properties(ulbn-cxx PROPERTIES CXX_STANDARD 98)
+    add_library(ulbn-cxx SHARED ./test_build/ulbn_build.cpp)
+    add_library(ulbn-hxx SHARED ./test_build/ulbn_build_hpp.cpp)
 else()
     add_library(ulbn STATIC ulbn.c)
+    add_library(ulbn-cxx STATIC ./test_build/ulbn_build.cpp)
+    add_library(ulbn-hxx STATIC ./test_build/ulbn_build_hpp.cpp)
+endif()
 
-    add_library(ulbn-cxx STATIC ulbn_build.cpp)
-    set_target_properties(ulbn-cxx PROPERTIES CXX_STANDARD 98)
+if(BUILD_SHARED_LIBRARY)
+    target_compile_definitions(ulbn PRIVATE ULBN_CONF_EXPORT_PUBLIC=1)
+    target_compile_definitions(ulbn-cxx PRIVATE ULBN_CONF_EXPORT_PUBLIC=1)
+    target_compile_definitions(ulbn-hxx PRIVATE ULBN_CONF_EXPORT_PUBLIC=1)
 endif()
-if(UNIX)
-    target_link_libraries(ulbn PRIVATE m)
-endif()
+
+set_target_properties(ulbn-cxx PROPERTIES CXX_STANDARD 98)
+set_target_properties(ulbn-hxx PROPERTIES CXX_STANDARD 20)
+target_include_directories(ulbn-cxx PRIVATE ./)
+target_include_directories(ulbn-hxx PRIVATE ./)
+
 
 set(GNUC_ALL_C_WARNINGS
     -Wall
@@ -80,17 +85,23 @@ set(CLANG_ALL_CXX_WARNINGS
     -Weverything
 )
 set(CLANG_CLOSE_WARNINGS
-    -Wno-unsafe-buffer-usage
     -Wno-reserved-identifier
     -Wno-language-extension-token
-    
+    -Wno-padded
+    -Wno-weak-vtables
+
     -Wno-long-long
     -Wno-c++98-compat
     -Wno-c++98-compat-pedantic
     -Wno-c++11-long-long
 )
+if(WIN32)
+    set(CLANG_CLOSE_WARNINGS ${CLANG_CLOSE_WARNINGS} -Wno-unsafe-buffer-usage)
+endif()
 
 set(MSVC_CLOSE_WARNINGS
+    /wd4514 # 'function' : unreferenced inline function has been removed
+    /wd4710 # 'function' : function not inlined
     /wd4711 # function 'function' selected for inline expansion
     /wd4820 # 'bytes' bytes padding added after construct 'member_name'
     /wd5045 # Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
@@ -101,12 +112,15 @@ set(MSVC_CLOSE_WARNINGS
 if(CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(ulbn PRIVATE ${GNUC_ALL_C_WARNINGS} ${GNUC_CLOSE_WARNINGS})
     target_compile_options(ulbn-cxx PRIVATE ${GNUC_ALL_CXX_WARNINGS} ${GNUC_CLOSE_WARNINGS})
+    target_compile_options(ulbn-hxx PRIVATE ${GNUC_ALL_CXX_WARNINGS} ${GNUC_CLOSE_WARNINGS})
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(ulbn PRIVATE ${CLANG_ALL_C_WARNINGS} ${CLANG_CLOSE_WARNINGS})
     target_compile_options(ulbn-cxx PRIVATE ${CLANG_ALL_CXX_WARNINGS} ${CLANG_CLOSE_WARNINGS})
+    target_compile_options(ulbn-hxx PRIVATE ${CLANG_ALL_CXX_WARNINGS} ${CLANG_CLOSE_WARNINGS})
 elseif(MSVC)
     target_compile_options(ulbn PRIVATE /Wall /WX ${MSVC_CLOSE_WARNINGS})
     target_compile_options(ulbn-cxx PRIVATE /Wall /WX ${MSVC_CLOSE_WARNINGS})
+    target_compile_options(ulbn-hxx PRIVATE /Wall /WX ${MSVC_CLOSE_WARNINGS})
 endif()
 
 if(BUILD_TEST)

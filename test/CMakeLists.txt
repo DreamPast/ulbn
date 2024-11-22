@@ -19,7 +19,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-unsafe-buffer-usage
         -Wno-reserved-identifier
         -Wno-language-extension-token
-        -Wno-missing-prototypes
         -Wno-unused-function
         -Wno-c++98-compat
         -Wno-c++98-compat-pedantic
@@ -32,12 +31,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 elseif(MSVC)
     target_compile_options(ulbn-test PRIVATE
         /Wall /WX ${MSVC_CLOSE_WARNINGS}
-
-        /wd4514 # 'function' : unreferenced inline function has been removed
-        /wd4623 # 'derived class' : default constructor was implicitly defined as deleted because a base class default constructor is inaccessible or deleted
-        /wd5027 # 'type': move assignment operator was implicitly defined as deleted
-        /wd4626 # 'derived class' : assignment operator was implicitly defined as deleted because a base class assignment operator is inaccessible or deleted
-        /wd4710 # 'function' : function not inlined
     )
 endif()
 

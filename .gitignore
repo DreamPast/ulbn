@@ -5,6 +5,7 @@
 .vscode/*
 !.vscode/extensions.json
 .idea
+.vs
 *.suo
 *.ntvs*
 *.njsproj
@@ -16,3 +17,5 @@ dev/**
 # Build results
 build*/**
 Testing/**
+out/**
+CMakeSettings.json

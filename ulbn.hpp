@@ -7,6 +7,7 @@
 #include <cstring>
 #include <tuple>
 #include <cstdio>
+#include <algorithm>
 
 #include "ulbn.h"
 
@@ -59,7 +60,7 @@ private:
   int _error;
 };
 
-ulbn_rand_t* getCurrentRand() {
+inline ulbn_rand_t* getCurrentRand() {
   struct _RandManager {
     _RandManager() {
       ulbn_rand_init(&hold);
@@ -971,29 +972,15 @@ public:
 
 
   std::string toString(int base = 10) const {
-    struct OstreamWrapper {
-      std::exception_ptr exception;
-      std::string ret;
-    } wrapper;
-
+    Wrapper<std::string> wrapper(std::string{});
     int err = ulbi_print_ex(
       _ctx(),
       [](void* opaque, const char* str, size_t len) -> int {
-        OstreamWrapper* o = reinterpret_cast<OstreamWrapper*>(opaque);
-        try {
-          o->ret.append(str, len);
-        } catch(...) {
-          o->exception = std::current_exception();
-          return -1;
-        }
-        return 0;
+        return reinterpret_cast<Wrapper<std::string>*>(opaque)->call([&](std::string& s) { s.append(str, len); });
       },
       &wrapper, _value, base
     );
-    if(err == ULBN_ERR_EXTERNAL)
-      std::rethrow_exception(wrapper.exception);
-    _check(err);
-    return wrapper.ret;
+    return wrapper.check(err);
   }
   friend std::ostream& operator<<(std::ostream& ost, const BigInt& value) {
     value.print(ost);
@@ -1002,57 +989,31 @@ public:
   void print(FILE* fp, int base = 10) const {
     _check(ulbi_print(_ctx(), fp, _value, base));
   }
-  void print(std::ostream& ost, int base = 10) const {
-    struct OstreamWrapper {
-      std::exception_ptr exception;
-      std::ostream& ost;
-    };
-    OstreamWrapper wrapper = { {}, ost };
+  std::ostream& print(std::ostream& ost, int base = 10) const {
+    Wrapper<std::ostream&> wrapper(ost);
     int err = ulbi_print_ex(
       _ctx(),
       [](void* opaque, const char* ptr, size_t len) -> int {
-        OstreamWrapper* o = reinterpret_cast<OstreamWrapper*>(opaque);
-        try {
-          // todo: check std::streamsize?
-          o->ost.write(ptr, static_cast<std::streamsize>(len));
-        } catch(...) {
-          o->exception = std::current_exception();
-          return 1;
-        }
-        return 0;
+        return reinterpret_cast<Wrapper<std::ostream&>*>(opaque)->call([&](std::ostream& os) {
+          os.write(ptr, static_cast<std::streamsize>(len));
+        });
       },
       &wrapper, _value, base
     );
-    if(err == ULBN_ERR_EXTERNAL)
-      std::rethrow_exception(wrapper.exception);
-    _check(err);
+    return wrapper.check(err);
   }
   template<class Iter>
     requires std::output_iterator<Iter, char>
-  void print(Iter& iter, int base = 10) const {
-    struct IterWrapper {
-      std::exception_ptr exception;
-      Iter& iter;
-    };
-    IterWrapper wrapper = { {}, iter };
+  Iter print(Iter iter, int base = 10) const {
+    Wrapper<Iter&> wrapper(iter);
     int err = ulbi_print_ex(
       _ctx(), _value, base,
       [](void* opaque, const char* ptr, size_t len) -> int {
-        IterWrapper* o = reinterpret_cast<IterWrapper*>(opaque);
-        try {
-          for(size_t i = 0; i < len; ++i)
-            *o->iter++ = ptr[i];
-        } catch(...) {
-          o->exception = std::current_exception();
-          return 1;
-        }
-        return 0;
+        return reinterpret_cast<Wrapper<Iter&>*>(opaque)->call([&](Iter& itr) { std::copy_n(ptr, len, itr); });
       },
       &wrapper
     );
-    if(err == ULBN_ERR_EXTERNAL)
-      std::rethrow_exception(wrapper.exception);
-    _check(err);
+    return wrapper->check(err);
   }
 
 
@@ -1264,13 +1225,44 @@ private:
     return err;
   }
 
+  template<class T>
+  struct Wrapper {
+    Wrapper() = delete;
+    Wrapper(const Wrapper&) = default;
+    Wrapper(Wrapper&&) = delete;
+    Wrapper& operator=(const Wrapper&) = delete;
+    Wrapper& operator=(Wrapper&&) = delete;
+
+    template<class TValue>
+    Wrapper(TValue&& construct_value) : value(std::forward<TValue>(construct_value)) { }
+    template<class Func>
+    int call(Func&& func) noexcept {
+      try {
+        func(value);
+        return 0;
+      } catch(...) {
+        exception = std::current_exception();
+        return -1;
+      }
+    }
+    T check(int err) {
+      if(err == ULBN_ERR_EXTERNAL)
+        std::rethrow_exception(exception);
+      _check(err);
+      return value;
+    }
+
+    T value;
+    std::exception_ptr exception;
+  };
+
   ulbi_t _value[1];
 };
 
-BigInt operator""_bi(const char* str) {
+inline BigInt operator""_bi(const char* str) {
   return BigInt(str);
 }
-BigInt operator""_bi(const char* str, size_t len) {
+inline BigInt operator""_bi(const char* str, size_t len) {
   (void)len;
   return BigInt(str);
 }
