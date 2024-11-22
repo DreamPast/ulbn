@@ -14,16 +14,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(ulbn-test PRIVATE
         ${CLANG_ALL_C_WARNINGS} ${CLANG_CLOSE_WARNINGS}
 
-        -Wno-unused-macros
-        -Wno-zero-as-null-pointer-constant
-        -Wno-unsafe-buffer-usage
-        -Wno-reserved-identifier
-        -Wno-language-extension-token
-        -Wno-unused-function
-        -Wno-c++98-compat
-        -Wno-c++98-compat-pedantic
-        -Wno-c++11-long-long
-        -Wno-padded
+        -Wno-missing-prototypes
         -Wno-disabled-macro-expansion
         -Wno-float-equal
         -Wno-global-constructors

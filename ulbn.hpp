@@ -35,7 +35,7 @@ public:
   }
 
 private:
-  static std::string _makeMessage(int err) {
+  static const char* _makeMessage(int err) {
     switch(err) {
     case ULBN_ERR_EXCEED_RANGE:
       return "unexpected out-of-bounds error";
