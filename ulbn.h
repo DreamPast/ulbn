@@ -1,7 +1,7 @@
 #ifndef ULBN_HEADER
 #define ULBN_HEADER
 
-#if (ULBN_HEADER+0)
+#if(ULBN_HEADER + 0)
 #endif
 
 
@@ -346,19 +346,11 @@ extern "C" {
 
 
 #if !defined(ULBN_LIMB_MAX) || !defined(ULBN_SLIMB_MAX) || !defined(ULBN_SLIMB_MIN)
-  #if defined(LLONG_MAX)
-typedef unsigned long long ulbn_limb_t;
-typedef signed long long ulbn_slimb_t;
-    #define ULBN_LIMB_MAX ULLONG_MAX
-    #define ULBN_SLIMB_MAX LLONG_MAX
-    #define ULBN_SLIMB_MIN LLONG_MIN
-  #else
 typedef unsigned long ulbn_limb_t;
 typedef signed long ulbn_slimb_t;
-    #define ULBN_LIMB_MAX ULONG_MAX
-    #define ULBN_SLIMB_MAX LONG_MAX
-    #define ULBN_SLIMB_MIN LONG_MIN
-  #endif
+  #define ULBN_LIMB_MAX ULONG_MAX
+  #define ULBN_SLIMB_MAX LONG_MAX
+  #define ULBN_SLIMB_MIN LONG_MIN
 #endif
 
 #if !defined(ulbn_limb2_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX

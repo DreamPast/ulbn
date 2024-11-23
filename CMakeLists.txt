@@ -5,6 +5,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(BUILD_SHARED_LIBRARY "Build shared library" OFF)
 option(BUILD_TEST "Build test" ON)
+option(IGNORE_WARNINGS "Ignore warnings" OFF)
 
 if(BUILD_SHARED_LIBRARY)
     add_library(ulbn SHARED ulbn.c)
@@ -99,6 +100,8 @@ if(WIN32)
     set(CLANG_CLOSE_WARNINGS ${CLANG_CLOSE_WARNINGS} -Wno-unsafe-buffer-usage)
 endif()
 
+set(MSVC_ALL_WARNINGS
+    /Wall /WX)
 set(MSVC_CLOSE_WARNINGS
     /wd4514 # 'function' : unreferenced inline function has been removed
     /wd4710 # 'function' : function not inlined
@@ -107,6 +110,15 @@ set(MSVC_CLOSE_WARNINGS
     /wd5045 # Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
     /wd5039 # pointer or reference to potentially throwing function passed to extern C function under -EHc. Undefined behavior may occur if this function throws an exception.
 )
+
+if(IGNORE_WARNINGS)
+    set(GNUC_ALL_C_WARNINGS)
+    set(GNUC_ALL_CXX_WARNINGS)
+    set(CLANG_ALL_C_WARNINGS)
+    set(CLANG_ALL_CXX_WARNINGS)
+    set(MSVC_ALL_WARNINGS)
+    set(MSVC_CLOSE_WARNINGS)
+endif()
 
 # enable most warnings
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -118,9 +130,9 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(ulbn-cxx PRIVATE ${CLANG_ALL_CXX_WARNINGS} ${CLANG_CLOSE_WARNINGS})
     target_compile_options(ulbn-hxx PRIVATE ${CLANG_ALL_CXX_WARNINGS} ${CLANG_CLOSE_WARNINGS})
 elseif(MSVC)
-    target_compile_options(ulbn PRIVATE /Wall /WX ${MSVC_CLOSE_WARNINGS})
-    target_compile_options(ulbn-cxx PRIVATE /Wall /WX ${MSVC_CLOSE_WARNINGS})
-    target_compile_options(ulbn-hxx PRIVATE /Wall /WX ${MSVC_CLOSE_WARNINGS})
+    target_compile_options(ulbn PRIVATE ${MSVC_ALL_WARNINGS} ${MSVC_CLOSE_WARNINGS})
+    target_compile_options(ulbn-cxx PRIVATE ${MSVC_ALL_WARNINGS} ${MSVC_CLOSE_WARNINGS})
+    target_compile_options(ulbn-hxx PRIVATE ${MSVC_ALL_WARNINGS} ${MSVC_CLOSE_WARNINGS})
 endif()
 
 if(BUILD_TEST)

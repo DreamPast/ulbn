@@ -783,6 +783,15 @@ void subtestBigMulDiv() {
     T_assert(z / x == y && z % x == 0);
     T_assert(z / y == x && z % y == 0);
   }
+
+  for(int t = TEST_SMALL; t--;) {
+    BigInt x, y, z;
+    x = 1 + BigInt::fromRandom("0xFFF");
+    y = 1 + BigInt::fromRandom("0xFF");
+    z = x * y;
+    T_assert(z / x == y && z % x == 0);
+    T_assert(z / y == x && z % y == 0);
+  }
 }
 void subtestPower() {
   puts("======Subtest Power");

@@ -443,7 +443,7 @@ ULBN_INTERNAL ulbn_limb_t _ulbn_divinv1(ulbn_limb_t d1) {
   ulbn_limb_t n1, n0, di;
 
   n1 = _ulbn_neg_(d1 + 1u);
-  n0 = _ulbn_neg_(1u);
+  n0 = _ulbn_neg_(1);
   _ulbn_udiv_norm_(di, di, n1, n0, d1);
   return di;
 }
@@ -462,7 +462,7 @@ ULBN_INTERNAL ulbn_limb_t _ulbn_divinv2(ulbn_limb_t d1, ulbn_limb_t d0) {
    * di = <B-1-d1, B-1>//d1
    */
   n1 = _ulbn_neg_(d1 + 1u);
-  n0 = _ulbn_neg_(1u);
+  n0 = _ulbn_neg_(1);
   _ulbn_udiv_norm_(di, di, n1, n0, d1);
 
   /**
@@ -735,7 +735,7 @@ ULBN_INTERNAL ulbn_usize_t ulbn_merge_usize(ulbn_limb_t* buf, ulbn_usize_t rl, u
 #if ULBN_USIZE_MAX == ULBN_LIMB_MAX
   buf[1] = rh;
   buf[0] = rl;
-  return rh != 0 ? 2 : (rl != 0);
+  return rh != 0 ? ulbn_cast_usize(2) : (rl != 0);
 #elif ULBN_USIZE_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
   && ULBN_USIZE_MAX - ULBN_LIMB_MAX * ULBN_LIMB_MAX == 2u * ULBN_LIMB_MAX
   buf[3] = _ulbn_cast_limb(rh >> ULBN_LIMB_BITS);
@@ -1135,17 +1135,7 @@ ULBN_INTERNAL void ulbn_divmod_inv1(
   const ulbn_limb_t* ap, ulbn_usize_t an,  /* */
   ulbn_limb_t d, ulbn_limb_t di, int shift /* */
 );
-ULBN_INTERNAL void ulbn_divmod_inv2(
-  ulbn_limb_t* qp, ulbn_limb_t* rp,                         /* */
-  const ulbn_limb_t* ap, ulbn_usize_t an,                   /* */
-  ulbn_limb_t d1, ulbn_limb_t d0, ulbn_limb_t di, int shift /* */
-);
-ULBN_INTERNAL void ulbn_divmod_inv(
-  ulbn_limb_t* ul_restrict qp,                                       /* */
-  ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,      /* */
-  const ulbn_limb_t* ul_restrict dp, ulbn_usize_t dn, ulbn_limb_t di /* */
-);
-ULBN_PRIVATE void ulbn_mul(
+ULBN_INTERNAL void ulbn_mul(
   const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict rp, /* */
   const ulbn_limb_t* ap, ulbn_usize_t an,                 /* */
   const ulbn_limb_t* bp, ulbn_usize_t bn                  /* */
@@ -2241,7 +2231,7 @@ cleanup_v2:
 
 /* Note: If allocation fails, it falls back to using a version with less cache,
   eventually falling back to the school method (time complexity O(n^2)) */
-ULBN_PRIVATE void ulbn_mul(
+ULBN_INTERNAL void ulbn_mul(
   const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict rp, /* */
   const ulbn_limb_t* ap, ulbn_usize_t an,                 /* */
   const ulbn_limb_t* bp, ulbn_usize_t bn                  /* */
@@ -2488,6 +2478,76 @@ ULBN_INTERNAL void ulbn_divmod_inv(
   rp[dn - 1] = a2;
 }
 
+#define ULBN_DIVMOD_REC_THRESHOLD 256
+#if ULBN_DIVMOD_REC_THRESHOLD < 2
+  #error "ulbn: ulbn_divmod_rec threshold must be at least 2"
+#endif
+ULBN_PRIVATE void _ulbn_divmod_rec(
+  const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict tp, ulbn_limb_t* ul_restrict qp, /**/
+  ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,                        /* */
+  const ulbn_limb_t* ul_restrict dp, ulbn_usize_t dn, ulbn_limb_t di                   /* */
+) {
+  const ulbn_usize_t m = rn - dn, k = m >> 1, k2 = k << 1;
+  ulbn_limb_t q_tmp;
+
+  ulbn_assert(rn >= dn);
+  ulbn_assert(dp[dn - 1] & ULBN_LIMB_SIGNBIT);
+
+  ulbn_assert_overlap(qp, rn - dn + 1, rp, dn);
+  ulbn_assert_overlap(qp, rn - dn + 1, dp, dn);
+  ulbn_assert_overlap(rp, rn, dp, dn);
+
+  if(m >= dn || m <= ULBN_DIVMOD_REC_THRESHOLD || dn <= ULBN_DIVMOD_REC_THRESHOLD) {
+    ulbn_divmod_inv(qp, rp, rn, a2, dp, dn, di);
+    return;
+  }
+
+  _ulbn_divmod_rec(alloc, tp, qp + k, rp + k2, rn - k2, a2, dp + k, dn - k, di);
+  ulbn_mul(alloc, tp, qp + k, m - k + 1, dp, k);
+  a2 = ulbn_sub(rp + k, rp + k, dn, tp, m + 1);
+  while(a2) {
+    ulbn_sub1(qp + k, qp + k, m - k + 1, 1);
+    a2 -= ulbn_add(rp + k, rp + k, dn, dp, dn);
+  }
+
+  if(memcmp(rp + k2, dp + k, (dn - k) * sizeof(ulbn_limb_t)) == 0) {
+    ulbn_fill1(qp, k);
+    ulbn_add(rp, rp, dn + k, dp, dn);
+    ulbn_sub(rp + k, rp + k, dn, dp, dn);
+    return;
+  }
+
+  q_tmp = qp[k];
+  _ulbn_divmod_rec(alloc, tp, qp, rp + k, dn, 0, dp + k, dn - k, di);
+  ulbn_assert(qp[k] == 0);
+  qp[k] = q_tmp;
+  ulbn_mul(alloc, tp, qp, k, dp, k);
+  a2 = ulbn_sub(rp, rp, dn, tp, k2);
+  while(a2 != 0) {
+    ulbn_sub1(qp, qp, k, 1);
+    a2 -= ulbn_add(rp, rp, dn, dp, dn);
+  }
+}
+ULBN_INTERNAL void ulbn_divmod_rec(
+  const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict qp,            /**/
+  ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,      /* */
+  const ulbn_limb_t* ul_restrict dp, ulbn_usize_t dn, ulbn_limb_t di /* */
+) {
+  const ulbn_usize_t m = rn - dn;
+  ulbn_limb_t* tp;
+
+  if(m >= dn || m <= ULBN_DIVMOD_REC_THRESHOLD || dn <= ULBN_DIVMOD_REC_THRESHOLD) {
+  fallback:
+    ulbn_divmod_inv(qp, rp, rn, a2, dp, dn, di);
+    return;
+  }
+
+  tp = ulbn_allocT(ulbn_limb_t, alloc, m + 1);
+  ULBN_DO_IF_ALLOC_FAILED(tp, goto fallback;);
+  _ulbn_divmod_rec(alloc, tp, qp, rp, rn, a2, dp, dn, di);
+  ulbn_deallocT(ulbn_limb_t, alloc, tp, m + 1);
+}
+
 ULBN_INTERNAL int ulbn_divmod1(
   const ulbn_alloc_t* alloc, ulbn_limb_t* qp, ulbn_limb_t* rp, /* */
   const ulbn_limb_t* ap, ulbn_usize_t an, ulbn_limb_t d        /* */
@@ -2525,6 +2585,7 @@ ULBN_PRIVATE int _ulbn_divmod_large(
   ulbn_limb_t* tdp = ul_nullptr;
   int err;
 
+  ulbn_assert(dn > 2);
   ulbn_assert(qp != rp);
 
   /* Ensure `dp` is independent and normalized */
@@ -2568,7 +2629,7 @@ ULBN_PRIVATE int _ulbn_divmod_large(
     });
   }
 
-  ulbn_divmod_inv(nqp, nrp, an, a2, dp, dn, ulbn_divinv2(dp[dn - 1], dp[dn - 2]));
+  ulbn_divmod_rec(alloc, nqp, nrp, an, a2, dp, dn, ulbn_divinv2(dp[dn - 1], dp[dn - 2]));
 
   if(rp != ul_nullptr) {
     if(shift != 0)
@@ -3147,12 +3208,12 @@ ULBN_INTERNAL int ulbn_to_bit_info(const ulbn_limb_t* limb, ulbn_usize_t n, ulbn
   *p_idx = ul_static_cast(ulbn_usize_t, q);
   return ul_static_cast(int, r);
 #else
-  ulbn_limb_t q[(sizeof(ulbn_usize_t) * CHAR_BIT + ULBN_LIMB_BITS - 1u) / ULBN_LIMB_BITS];
+  ulbn_limb_t q[(sizeof(ulbn_usize_t) * CHAR_BIT + _ULBN_LIMB_BITS - 1u) / _ULBN_LIMB_BITS];
   ulbn_limb_t r[1];
   ulbn_usize_t qn;
   ulbn_usize_t idx = 0;
 
-  static const ulbn_usize_t N_LIMIT = (sizeof(ulbn_usize_t) * CHAR_BIT + ULBN_LIMB_BITS - 1u) / ULBN_LIMB_BITS;
+  static const ulbn_usize_t N_LIMIT = (sizeof(ulbn_usize_t) * CHAR_BIT + _ULBN_LIMB_BITS - 1u) / _ULBN_LIMB_BITS;
   const int shift =
     ul_static_cast(int, ULBN_LIMB_BITS - ul_static_cast(unsigned, _ulbn_clz_(_ulbn_cast_limb(ULBN_LIMB_BITS))));
   const ulbn_limb_t d_norm = _ulbn_cast_limb(_ulbn_cast_limb(ULBN_LIMB_BITS) << shift);
@@ -6093,7 +6154,7 @@ ULBN_PRIVATE ulbn_ulong_t _ulbi_to_ulong(const ulbi_t* src) {
   return src->len ? ul_static_cast(ulbn_ulong_t, _ulbi_limbs(src)[0]) : 0u;
 #else
   static ul_constexpr const ulbn_usize_t N_LIMIT =
-    (sizeof(ulbn_ulong_t) * CHAR_BIT + ULBN_LIMB_BITS - 1) / ULBN_LIMB_BITS;
+    (sizeof(ulbn_ulong_t) * CHAR_BIT + _ULBN_LIMB_BITS - 1) / _ULBN_LIMB_BITS;
   ulbn_usize_t n = _ulbn_abs_size(src->len);
   const ulbn_limb_t* p = _ulbi_limbs(src);
   ulbn_usize_t i;
@@ -6126,7 +6187,7 @@ ULBN_PRIVATE ulbn_usize_t _ulbi_to_usize(const ulbi_t* src) {
   return src->len ? ul_static_cast(ulbn_usize_t, _ulbi_limbs(src)[0]) : 0u;
 #else
   static ul_constexpr const ulbn_usize_t N_LIMIT =
-    (sizeof(ulbn_usize_t) * CHAR_BIT + ULBN_LIMB_BITS - 1) / ULBN_LIMB_BITS;
+    (sizeof(ulbn_usize_t) * CHAR_BIT + _ULBN_LIMB_BITS - 1) / _ULBN_LIMB_BITS;
   ulbn_usize_t n = _ulbn_abs_size(src->len);
   const ulbn_limb_t* p = _ulbi_limbs(src);
   ulbn_usize_t i;
