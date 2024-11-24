@@ -1110,20 +1110,23 @@ ULBN_INTERNAL void ulbn_mul_school(
 #define _ULBN_TOOM_2_THRESHOLD 128
 #define _ULBN_TOOM_3_THRESHOLD 1024
 
-#define _ULBN_TOOM_1_MIN_THRESHOLD 2
-#define _ULBN_TOOM_2_MIN_THRESHOLD 4
-#define _ULBN_TOOM_3_MIN_THRESHOLD 9
-#if _ULBN_TOOM_1_THRESHOLD < _ULBN_TOOM_1_MIN_THRESHOLD
+#if _ULBN_TOOM_1_THRESHOLD < 2
   #error "ulbn: toom-2 and toom-1.5 thresholds must be at least 2"
 #endif
-#if _ULBN_TOOM_2_THRESHOLD < _ULBN_TOOM_2_MIN_THRESHOLD
+#if _ULBN_TOOM_2_THRESHOLD < 4
   #error "ulbn: toom-3 and toom-2.5 thresholds must be at least 4"
 #endif
-#if _ULBN_TOOM_3_THRESHOLD < _ULBN_TOOM_3_MIN_THRESHOLD
+#if _ULBN_TOOM_3_THRESHOLD < 9
   #error "ulbn: toom-4 and toom-3.5 thresholds must be at least 9"
 #endif
 
-#define _ULBN_USE_TOOM3 1
+#if !(_ULBN_TOOM_1_THRESHOLD <= _ULBN_TOOM_2_THRESHOLD && _ULBN_TOOM_2_THRESHOLD <= _ULBN_TOOM_3_THRESHOLD)
+  #error "ulbn: toom thresholds must be in increasing order"
+#endif
+
+#if _ULBN_TOOM_2_THRESHOLD < ULBN_USIZE_MAX
+  #define _ULBN_USE_TOOM3 1
+#endif
 #if _ULBN_TOOM_3_THRESHOLD < ULBN_USIZE_MAX
   #define _ULBN_USE_TOOM4 1
 #else
@@ -2896,9 +2899,11 @@ cleanup:
   return err;
 }
 
+#define ULBN_CONV2PRINT_GENERIC_THRESHOLD 2048
+#if ULBN_CONV2PRINT_GENERIC_THRESHOLD < ULBN_USIZE_MAX
 ULBN_INTERNAL ulbn_usize_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t rh, int base, int inv) {
-  /* Store log2(base) as a fraction, only allowing overestimation */
-#if ULBN_LIMB_MAX >= 0xFFFFFFFF
+    /* Store log2(base) as a fraction, only allowing overestimation */
+  #if ULBN_LIMB_MAX >= 0xFFFFFFFF
   static const ulbn_limb_t table_log2[][2] = {
     /* clang-format off */
     {0x1, 0x1},              {0x333A379, 0x51318AD},  {0x1, 0x2},             {0x2A30F19, 0x61F703B},
@@ -2912,7 +2917,7 @@ ULBN_INTERNAL ulbn_usize_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t
     {0x1E3B74B, 0x99CE31A},  {0x1D61D65, 0x96B5A1B},  {0x333A379, 0x108D784C}
     /* clang-format on */
   };
-#elif ULBN_LIMB_MAX >= 0xFFFF
+  #elif ULBN_LIMB_MAX >= 0xFFFF
   static const ulbn_limb_t table_log2[][2] = {
     { 1, 1 },        { 15601, 24727 }, { 1, 2 },         { 21306, 49471 }, { 15601, 40328 }, { 2964, 8321 },
     { 1, 3 },        { 15601, 49454 }, { 8651, 28738 },  { 4856, 16799 },  { 15601, 55929 }, { 5458, 20197 },
@@ -2921,7 +2926,7 @@ ULBN_INTERNAL ulbn_usize_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t
     { 5458, 25655 }, { 10179, 48400 }, { 2964, 14249 },  { 10738, 52165 }, { 11610, 56969 }, { 10676, 52891 },
     { 1, 5 },        { 10159, 51246 }, { 12451, 63344 }, { 3473, 17814 },  { 7468, 38609 }
   };
-#else
+  #else
   static const ulbn_limb_t table_log2[][2] = {
     { 1, 1 },    { 147, 233 }, { 1, 2 },    { 59, 137 }, { 94, 243 }, { 26, 73 },  { 1, 3 },    { 47, 149 },
     { 59, 196 }, { 37, 128 },  { 41, 147 }, { 67, 248 }, { 26, 99 },  { 43, 168 }, { 1, 4 },    { 57, 233 },
@@ -2931,7 +2936,7 @@ ULBN_INTERNAL ulbn_usize_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t
     /* clang-format off */
     /* clang-format on */
   };
-#endif
+  #endif
 
   ulbn_limb_t buf[_ULBN_MERGE_USIZE_LEN + 1];
   ulbn_usize_t len;
@@ -2955,13 +2960,13 @@ ULBN_INTERNAL ulbn_usize_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t
   if(len == 0)
     return 0;
 
-#if ULBN_USIZE_MAX <= ULBN_LIMB_MAX
-  #if ULBN_USIZE_MAX < ULBN_LIMB_MAX
+  #if ULBN_USIZE_MAX <= ULBN_LIMB_MAX
+    #if ULBN_USIZE_MAX < ULBN_LIMB_MAX
   if(ul_unlikely(buf[0] > ULBN_USIZE_MAX))
     return ULBN_USIZE_MAX;
-  #endif
+    #endif
   return ul_static_cast(ulbn_usize_t, buf[0]);
-#else
+  #else
   do {
     ulbn_usize_t ret = 0;
     if(ul_unlikely(len * CHAR_BIT - ul_static_cast(size_t, _ulbn_clz_(buf[len - 1])) > sizeof(ulbn_usize_t) * CHAR_BIT))
@@ -2973,8 +2978,9 @@ ULBN_INTERNAL ulbn_usize_t ulbn_measure_conv2_size(ulbn_usize_t rl, ulbn_usize_t
     } while(len > 0);
     return ret;
   } while(0);
-#endif
+  #endif
 }
+#endif /* ULBN_CONV2PRINT_GENERIC_THRESHOLD < ULBN_USIZE_MAX */
 
 ULBN_PRIVATE int _ulbn_fileprinter(void* file, const char* buf, size_t len) {
   return fwrite(buf, 1, len, ul_reinterpret_cast(FILE*, file)) != len;
@@ -3248,6 +3254,7 @@ ULBN_INTERNAL int ulbn_to_bit_info(const ulbn_limb_t* limb, ulbn_usize_t n, ulbn
 }
 
 
+#if ULBN_CONF_USE_RAND
 ULBN_INTERNAL unsigned ulbn_rand_gen(ulbn_rand_t* rng) {
   ulbn_rand_uint_t state;
   unsigned ret, shift;
@@ -3285,13 +3292,13 @@ ULBN_INTERNAL ulbn_limb_t ulbn_rand(ulbn_rand_t* rng, unsigned n) {
 
   ulbn_assert(ul_static_cast(size_t, n) <= ULBN_LIMB_BITS);
 
-#if ULBN_LIMB_MAX >= 0xFFFFu
+  #if ULBN_LIMB_MAX >= 0xFFFFu
   while(n >= 16) {
     l <<= 16;
     l |= _ulbn_cast_limb(ulbn_rand_gen(rng));
     n -= 16;
   }
-#endif
+  #endif
 
   if(b < n) {
     l <<= b;
@@ -3319,6 +3326,7 @@ ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n) {
   for(i = 0; i < n; ++i)
     p[i] = ul_static_cast(unsigned char, ulbn_rand(rng, CHAR_BIT));
 }
+#endif /* ULBN_CONF_USE_RAND */
 
 
 #if ULBN_LIMB_MAX == 0xFFu || ULBN_LIMB_MAX == 0xFFFFu || ULBN_LIMB_MAX == 0xFFFFFFFFu || _ULBN_IS_64BIT(ULBN_LIMB_MAX)
@@ -6280,7 +6288,6 @@ ULBN_PRIVATE int _ulbi_write0(ulbn_printer_t* printer, void* opaque, size_t len)
     return ULBN_ERR_EXTERNAL;
   return 0;
 }
-#define ULBN_CONV2PRINT_GENERIC_THRESHOLD 2048
 ULBN_PRIVATE int _ulbi_print_ex(
   const ulbn_alloc_t* alloc,              /* */
   ulbn_printer_t* printer, void* opaque,  /* */
@@ -6489,6 +6496,7 @@ ULBN_PUBLIC int ulbi_fit_double(const ulbi_t* src) {
 #endif /* ULBN_CONF_HAS_DOUBLE */
 
 
+#if ULBN_CONF_USE_RAND
 ULBN_PRIVATE int _ulbi_set_rand(
   const ulbn_alloc_t* alloc, ulbn_rand_t* rng, /* */
   ulbi_t* dst, ulbn_usize_t idx, int shift     /* */
@@ -6622,6 +6630,8 @@ ULBN_PUBLIC int ulbi_init_rand_range2(
 ) {
   return ulbi_set_rand_range2(alloc, rng, ulbi_init(dst), lo, hi);
 }
+#endif /* ULBN_CONF_USE_RAND */
+
 
 ULBN_PUBLIC int ulbi_gcd(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo) {
   ulbn_limb_t *ap, *bp;

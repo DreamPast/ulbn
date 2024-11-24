@@ -324,12 +324,20 @@
 #endif /* ULBN_CONF_EXPORT_PUBLIC */
 
 /**
- * @def ULBN_CONF_INCLUDE_IMPLEMENT
+ * @def ULBN_CONF_IMPLE
  * @brief Configuration: Whether to include the implementation
  */
-#ifndef ULBN_CONF_INCLUDE_IMPLEMENT
-  #define ULBN_CONF_INCLUDE_IMPLEMENT 0
-#endif /* ULBN_CONF_INCLUDE_IMPLEMENT */
+#ifndef ULBN_CONF_IMPLE
+  #define ULBN_CONF_IMPLE 0
+#endif /* ULBN_CONF_IMPLE */
+
+/**
+ * @def ULBN_CONF_USE_RAND
+ * @brief Configuration: Whether to use random number generator
+ */
+#ifndef ULBN_CONF_USE_RAND
+  #define ULBN_CONF_USE_RAND 1
+#endif
 
 
 /*********************
@@ -421,7 +429,7 @@ typedef signed long ulbn_slong_t;
   #define ULBN_PUBLIC ul_export
 #endif
 
-#if ULBN_CONF_INCLUDE_IMPLEMENT
+#if ULBN_CONF_IMPLE
   #ifndef ULBN_PUBLIC
     #define ULBN_PUBLIC static ul_inline
   #endif /* ULBN_PUBLIC */
@@ -576,11 +584,12 @@ ULBN_PUBLIC ulbn_alloc_t* ulbn_default_alloc(void);
 typedef int ulbn_printer_t(void* opaque, const char* str, size_t len);
 
 
-#if UINT_MAX >= 0xFFFFFFFFu
+#if ULBN_CONF_USE_RAND
+  #if UINT_MAX >= 0xFFFFFFFFu
 typedef unsigned ulbn_rand_uint_t;
-#else
+  #else
 typedef unsigned long ulbn_rand_uint_t;
-#endif
+  #endif
 /* [PCG Random Number Generators](https://www.pcg-random.org/) */
 /* note: `ulbn_rand_t` is not thread-safe */
 typedef struct ulbn_rand_t {
@@ -593,6 +602,7 @@ typedef struct ulbn_rand_t {
 ULBN_PUBLIC ulbn_rand_uint_t ulbn_rand_init(ulbn_rand_t* rng);
 ULBN_PUBLIC void ulbn_rand_init2(ulbn_rand_t* rng, ulbn_rand_uint_t seed);
 ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n);
+#endif /* ULBN_CONF_USE_RAND */
 
 
 /********************
@@ -1643,6 +1653,7 @@ ULBN_PUBLIC int ulbi_fit_double(const ulbi_t* src);
 #endif /* ULBN_CONF_HAS_DOUBLE */
 
 
+#if ULBN_CONF_USE_RAND
 /**
  * @brief Set `dst` to a random number in the range [0, 2**n)
  */
@@ -1684,6 +1695,8 @@ ULBN_PUBLIC int ulbi_init_rand_range2(
   const ulbn_alloc_t* alloc, ulbn_rand_t* rng,    /* */
   ulbi_t* dst, const ulbi_t* lo, const ulbi_t* hi /* */
 );
+#endif /* ULBN_CONF_USE_RAND */
+
 
 /**
  * @brief `ro` = gcd(abs(`ao`), abs(`bo`))
@@ -1741,7 +1754,7 @@ ULBN_PUBLIC int ulbi_invert(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t*
 }
 #endif
 
-#if ULBN_CONF_INCLUDE_IMPLEMENT
+#if ULBN_CONF_IMPLE
   #ifndef ULBN_SOURCE
     #include "ulbn.c"
   #endif
