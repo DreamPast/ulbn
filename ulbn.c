@@ -1,3 +1,33 @@
+/*
+ulbn - Big Number Library
+
+# Dependence
+  - C89/C++98
+  - `CHAR_BIT` should be even
+
+# License
+  The MIT License (MIT)
+
+  Copyright (C) 2024 Jin Cai
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
 #ifndef ULBN_SOURCE
 #define ULBN_SOURCE
 
@@ -88,7 +118,11 @@ static ul_constexpr const ulbn_limb_t ULBN_LOWMASK = _ULBN_LOWMASK;
 #define _ULBN_SSIZE_LIMIT ulbn_cast_usize(_ulbn_min_(_ULBN_USIZE_LIMIT / 2, ulbn_cast_usize(ULBN_SSIZE_MAX)))
 
 ul_static_assert(sizeof(size_t) >= sizeof(ulbn_usize_t), "usbn_usize_t cannot be larger than size_t");
+#if ULBN_ULONG_MAX <= ULBN_LIMB_MAX
 ul_static_assert(ULBN_SHORT_LIMB_SIZE >= 1, "ULBN_SHORT_LIMB_SIZE is too small, must be at least 1");
+#else
+ul_static_assert(ULBN_SHORT_LIMB_SIZE >= 2, "ULBN_SHORT_LIMB_SIZE is too small, must be at least 2");
+#endif
 
 static ul_constexpr const size_t ULBN_ALLOC_LIMIT = _ULBN_ALLOC_LIMIT;
 static ul_constexpr const size_t ULBN_USIZE_LIMIT = _ULBN_USIZE_LIMIT;
@@ -3955,8 +3989,15 @@ ULBN_PUBLIC int ulbi_set_ulong(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_ulon
       l >>= ULBN_LIMB_BITS;
     } while(l);
 #endif
+
+#if ULBN_ULONG_MAX <= ULBN_LIMB_MAX || ULBN_ULONG_MAX / ULBN_LIMB_MAX <= ULBN_LIMB_MAX + 2
+    (void)alloc;
+    ulbn_assert(len <= ULBN_SHORT_LIMB_SIZE_VAL);
+    ptr = dst->u.shrt;
+#else
     ptr = _ulbi_res(alloc, dst, ulbn_cast_usize(len));
     ULBN_RETURN_IF_ALLOC_FAILED(ptr, ULBN_ERR_NOMEM);
+#endif
     ulbn_copy(ptr, limbs, ulbn_cast_usize(len));
     dst->len = len;
   }
