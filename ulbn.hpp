@@ -1006,17 +1006,34 @@ public:
   }
 
 
-  std::string toString(int base = 10) const {
-    Wrapper<std::string> wrapper(std::string{});
+  template<class StringAllocator = std::allocator<char>>
+  auto toString(int base = 10) const {
+    typedef std::basic_string<char, std::char_traits<char>, StringAllocator> String;
+    Wrapper<String> wrapper(String{});
     int err = ulbi_print_ex(
       _ctx(),
       [](void* opaque, const char* str, size_t len) -> int {
-        return reinterpret_cast<Wrapper<std::string>*>(opaque)->call([&](std::string& s) { s.append(str, len); });
+        return reinterpret_cast<Wrapper<String>*>(opaque)->call([&](String& s) { s.append(str, len); });
       },
       &wrapper, _value, base
     );
     return wrapper.check(err);
   }
+  template<class StringAllocator>
+  auto& toString(std::basic_string<char, std::char_traits<char>, StringAllocator>& dst, int base = 10) const {
+    typedef std::basic_string<char, std::char_traits<char>, StringAllocator> String;
+    Wrapper<String&> wrapper(dst);
+    dst.clear();
+    int err = ulbi_print_ex(
+      _ctx(),
+      [](void* opaque, const char* str, size_t len) -> int {
+        return reinterpret_cast<Wrapper<String>*>(opaque)->call([&](String& s) { s.append(str, len); });
+      },
+      &wrapper, _value, base
+    );
+    return wrapper.check(err);
+  }
+
   friend std::ostream& operator<<(std::ostream& ost, const BigInt& value) {
     value.print(ost);
     return ost;
