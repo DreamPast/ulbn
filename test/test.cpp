@@ -309,15 +309,11 @@ void testCastTo() {
     T_assert(BigInt(i).toUlong() == static_cast<ulbn_ulong_t>(i));
     T_assert(BigInt(i).toLimb() == static_cast<ulbn_limb_t>(static_cast<ulbn_ulong_t>(i)));
     T_assert(BigInt(i).toSlimb() == static_cast<ulbn_slimb_t>(i));
-    T_assert(BigInt(i).toUsize() == static_cast<ulbn_usize_t>(static_cast<ulbn_ulong_t>(i)));
-    T_assert(BigInt(i).toSsize() == static_cast<ulbn_ssize_t>(i));
 
     T_assert(BigInt(i).fitUlong() == fitType<ulbn_ulong_t>(i));
     T_assert(BigInt(i).fitSlong() == fitType<ulbn_slong_t>(i));
     T_assert(BigInt(i).fitLimb() == fitType<ulbn_limb_t>(i));
     T_assert(BigInt(i).fitSlimb() == fitType<ulbn_slimb_t>(i));
-    T_assert(BigInt(i).fitUsize() == fitType<ulbn_usize_t>(i));
-    T_assert(BigInt(i).fitSsize() == fitType<ulbn_ssize_t>(i));
 
     d = BigInt(i).toDouble();
     T_assert(d == static_cast<double>(i));
@@ -760,11 +756,11 @@ void subtestDivMod2Exp() {
 
       BigInt q = a;
       T_assert(
-        ulbi_div_2exp_ssize(ulbn_default_alloc(), q.get(), q.get(), i) == (ansPair.second ? ULBN_ERR_INEXACT : 0)
+        ulbi_div_2exp_sbits(ulbn_default_alloc(), q.get(), q.get(), i) == (ansPair.second ? ULBN_ERR_INEXACT : 0)
       );
       T_assert(q == ansPair.first);
       BigInt r = a;
-      T_assert(ulbi_mod_2exp_ssize(ulbn_default_alloc(), r.get(), r.get(), i) == 0);
+      T_assert(ulbi_mod_2exp_sbits(ulbn_default_alloc(), r.get(), r.get(), i) == 0);
       T_assert(r == ansPair.second);
     }
     for(int i = 0; i >= -4; --i) {
@@ -1122,44 +1118,10 @@ void testOther() {
     T_assert(r == 0);
   }
 
-  {  // ulbi_ctz_usize, ulbi_cto_usize, ulbi_abs_popcount_usize, ulbi_abs_floor_log2_usize: rh != nullptr
-    BigInt x = 12_bi;
-    ulbn_usize_t rh;
-
-    ulbi_ctz_usize(x.get(), &rh);
-    T_assert(rh == 0);
-
-    ulbi_cto_usize(x.get(), &rh);
-    T_assert(rh == 0);
-
-    ulbi_abs_popcount_usize(x.get(), &rh);
-    T_assert(rh == 0);
-
-    ulbi_abs_bit_width_usize(x.get(), &rh);
-    T_assert(rh == 0);
-  }
-
-  {  // ulbi_ctz_usize, ulbi_cto_usize, ulbi_abs_popcount_usize, ulbi_abs_floor_log2_usize: x = 0
-    BigInt x = 0;
-    ulbn_usize_t rh;
-
-    ulbi_ctz_usize(x.get(), &rh);
-    T_assert(rh == 0);
-
-    ulbi_cto_usize(x.get(), &rh);
-    T_assert(rh == 0);
-
-    ulbi_abs_popcount_usize(x.get(), &rh);
-    T_assert(rh == 0);
-
-    ulbi_abs_bit_width_usize(x.get(), &rh);
-    T_assert(rh == 0);
-  }
-
   {  // ulbi_init_2exp_usize
     for(unsigned i = 0; i <= 16; ++i) {
       ulbi_t x[1];
-      T_assert(ulbi_init_2exp_usize(ctx, x, i) == 0);
+      T_assert(ulbi_init_2exp_bits(ctx, x, i) == 0);
       T_assert(BigInt(x) == (1 << i));
       ulbi_deinit(ctx, x);
     }
