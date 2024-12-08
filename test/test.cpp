@@ -61,6 +61,7 @@ bool pairEqual(const std::pair<LT1, LT2>& l, RT1&& rt1, RT2&& rt2) {
 constexpr const int LIMIT = 1024;
 constexpr const int64_t TEST_BIG = 1000000ll;
 constexpr const int64_t TEST_SMALL = 3000;
+constexpr const int64_t TEST_VERY_SMALL = 30;
 static std::mt19937_64 mt64(std::random_device{}());
 
 void testException() {
@@ -273,6 +274,16 @@ void testCastFrom() {
   subtestSetString();
 }
 
+void subtestBigString() {
+  puts("===Subtest Big String");
+
+  const BigInt bits = "0xFFFF";
+  for(auto t = TEST_SMALL; t--;) {
+    BigInt x = BigInt::fromRandom(bits).asInt(bits);
+    auto str = x.toString();
+    T_assert(BigInt(str) == x);
+  }
+}
 void testCastTo() {
   puts("===Test Cast To");
 
@@ -331,6 +342,8 @@ void testCastTo() {
     auto str = x.toString();
     T_assert(str == BigInt(str));
   }
+
+  subtestBigString();
 }
 
 void testCompare() {
@@ -763,6 +776,11 @@ void subtestDivMod2Exp() {
       T_assert(ulbi_mod_2exp_sbits(ulbn_default_alloc(), r.get(), r.get(), i) == 0);
       T_assert(r == ansPair.second);
     }
+    for(short i = 0; i < 32; ++i) {
+      auto pair = a.divmod2Exp(BigInt(i));
+      auto ansPair = a.divmod(BigInt::from2Exp(BigInt(i)));
+      T_assert(pairEqual(pair, ansPair));
+    }
     for(int i = 0; i >= -4; --i) {
       T_assert(pairEqual(a.divmod2Exp(i), a * BigInt::from2Exp(-i), 0));
     }
@@ -787,6 +805,14 @@ void subtestBigMulDiv() {
     z = x * y;
     T_assert(z / x == y && z % x == 0);
     T_assert(z / y == x && z % y == 0);
+  }
+
+  for(int t = TEST_VERY_SMALL; t--;) {
+    BigInt x, y;
+    x = 1 + BigInt::fromRandom("0xFFFFFF");
+    y = 1 + BigInt::fromRandom("0xFFFF");
+    auto [q, r] = x.divmod(y);
+    T_assert(r > 0 && q > 0 && q * y + r == x);
   }
 }
 void subtestPower() {
@@ -998,6 +1024,10 @@ void subtestAsInt() {
     for(unsigned b = 1; b < INT_BITS - 1; ++b) {
       T_assert(BigInt(i).asUint(b) == (static_cast<unsigned>(i) << (INT_BITS - b) >> (INT_BITS - b)));
       T_assert(BigInt(i).asInt(b) == ((i) << (INT_BITS - b) >> (INT_BITS - b)));
+      T_assert(
+        BigInt(i).asUint(static_cast<ulbn_bits_t>(b)) == (static_cast<unsigned>(i) << (INT_BITS - b) >> (INT_BITS - b))
+      );
+      T_assert(BigInt(i).asInt(static_cast<ulbn_bits_t>(b)) == ((i) << (INT_BITS - b) >> (INT_BITS - b)));
       T_assert(BigInt(i).asUint(BigInt(b)) == (static_cast<unsigned>(i) << (INT_BITS - b) >> (INT_BITS - b)));
       T_assert(BigInt(i).asInt(BigInt(b)) == ((i) << (INT_BITS - b) >> (INT_BITS - b)));
     }

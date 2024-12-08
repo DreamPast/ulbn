@@ -688,7 +688,7 @@ ULBN_INTERNAL ulbn_bits_t ulbn_ctz(const ulbn_limb_t* p, ulbn_usize_t n) {
   ulbn_usize_t i;
 
   ulbn_assert(n <= ULBN_BITS_MAX / CHAR_BIT);
-  ulbn_assert(n == 0 || p[n - 1] >= 0);
+  ulbn_assert(n == 0 || p[n - 1] != 0);
   if(ul_unlikely(n == 0))
     return 0;
   for(i = 0; p[i] == 0; ++i)
@@ -700,7 +700,7 @@ ULBN_INTERNAL ulbn_bits_t ulbn_cto(const ulbn_limb_t* p, ulbn_usize_t n) {
   ulbn_usize_t i;
 
   ulbn_assert(n <= ULBN_BITS_MAX / CHAR_BIT);
-  ulbn_assert(n == 0 || p[n - 1] >= 0);
+  ulbn_assert(n == 0 || p[n - 1] != 0);
   if(ul_unlikely(n == 0))
     return 0;
   for(i = 0; p[i] == ULBN_LIMB_MAX; ++i)
@@ -712,7 +712,7 @@ ULBN_INTERNAL ulbn_bits_t ulbn_popcount(const ulbn_limb_t* p, ulbn_usize_t n) {
   ulbn_usize_t i;
 
   ulbn_assert(n <= ULBN_BITS_MAX / CHAR_BIT);
-  ulbn_assert(n == 0 || p[n - 1] >= 0);
+  ulbn_assert(n == 0 || p[n - 1] != 0);
   for(i = 0; i < n; ++i)
     r += ul_static_cast(unsigned, _ulbn_popcount_(p[i]));
   return r;
@@ -2445,6 +2445,11 @@ ULBN_PRIVATE void _ulbn_divmod_rec(
   const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict tp, ulbn_limb_t* ul_restrict qp, /**/
   ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,                        /* */
   const ulbn_limb_t* ul_restrict dp, ulbn_usize_t dn, ulbn_limb_t di                   /* */
+);
+ULBN_PRIVATE void _ulbn_divmod_rec_step(
+  const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict tp, ulbn_limb_t* ul_restrict qp, /**/
+  ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,                        /* */
+  const ulbn_limb_t* ul_restrict dp, ulbn_usize_t dn, ulbn_limb_t di                   /* */
 ) {
   const ulbn_usize_t m = rn - dn, k = m >> 1, k2 = k << 1;
   ulbn_limb_t q_tmp;
@@ -2455,11 +2460,8 @@ ULBN_PRIVATE void _ulbn_divmod_rec(
   ulbn_assert_overlap(qp, rn - dn + 1, rp, dn);
   ulbn_assert_overlap(qp, rn - dn + 1, dp, dn);
   ulbn_assert_overlap(rp, rn, dp, dn);
-
-  if(m >= dn || m <= ULBN_DIVMOD_REC_THRESHOLD || dn <= ULBN_DIVMOD_REC_THRESHOLD) {
-    ulbn_divmod_inv(qp, rp, rn, a2, dp, dn, di);
-    return;
-  }
+  ulbn_assert(m < dn);
+  ulbn_assert(k > 0);
 
   _ulbn_divmod_rec(alloc, tp, qp + k, rp + k2, rn - k2, a2, dp + k, dn - k, di);
   ulbn_mul(alloc, tp, qp + k, m - k + 1, dp, k);
@@ -2487,6 +2489,40 @@ ULBN_PRIVATE void _ulbn_divmod_rec(
     a2 -= ulbn_add(rp, rp, dn, dp, dn);
   }
 }
+ULBN_PRIVATE void _ulbn_divmod_rec(
+  const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict tp, ulbn_limb_t* ul_restrict qp, /**/
+  ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,                        /* */
+  const ulbn_limb_t* ul_restrict dp, ulbn_usize_t dn, ulbn_limb_t di                   /* */
+) {
+  const ulbn_usize_t dn_m1 = dn - 1;
+  ulbn_usize_t m = rn - dn;
+  ulbn_limb_t q_tmp;
+
+  if(m <= ULBN_DIVMOD_REC_THRESHOLD || dn <= ULBN_DIVMOD_REC_THRESHOLD) {
+    ulbn_divmod_inv(qp, rp, rn, a2, dp, dn, di);
+    return;
+  }
+
+  m -= m % dn_m1;
+  rp += m;
+  qp += m;
+  if(rn - m - dn <= ULBN_DIVMOD_REC_THRESHOLD)
+    ulbn_divmod_inv(qp, rp, rn - m, a2, dp, dn, di);
+  else
+    _ulbn_divmod_rec_step(alloc, tp, qp, rp, rn - m, a2, dp, dn, di);
+
+  while(m) {
+    rp -= dn_m1;
+    qp -= dn_m1;
+    m -= dn_m1;
+
+    q_tmp = qp[dn_m1];
+    _ulbn_divmod_rec_step(alloc, tp, qp, rp, dn + dn_m1, 0, dp, dn, di);
+    ulbn_assert(qp[dn_m1] == 0);
+    qp[dn_m1] = q_tmp;
+  }
+}
+
 ULBN_INTERNAL void ulbn_divmod_rec(
   const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict qp,            /**/
   ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,      /* */
@@ -2495,7 +2531,7 @@ ULBN_INTERNAL void ulbn_divmod_rec(
   const ulbn_usize_t m = rn - dn;
   ulbn_limb_t* tp;
 
-  if(m >= dn || m <= ULBN_DIVMOD_REC_THRESHOLD || dn <= ULBN_DIVMOD_REC_THRESHOLD) {
+  if(m <= ULBN_DIVMOD_REC_THRESHOLD || dn <= ULBN_DIVMOD_REC_THRESHOLD) {
   fallback:
     ulbn_divmod_inv(qp, rp, rn, a2, dp, dn, di);
     return;
@@ -2672,6 +2708,18 @@ ULBN_INTERNAL int ulbn_divmod_guard(
 }
 
 
+ULBN_PRIVATE int _ulbn_write0(ulbn_printer_t* printer, void* opaque, size_t len) {
+  static const char ONLY_ZERO[16 + 1] = "0000000000000000";
+  while(len > 16) {
+    if(ul_unlikely(printer(opaque, ONLY_ZERO, 16)))
+      return ULBN_ERR_EXTERNAL;
+    len -= 16;
+  }
+  if(ul_unlikely(printer(opaque, ONLY_ZERO, len)))
+    return ULBN_ERR_EXTERNAL;
+  return 0;
+}
+
 typedef struct ulbn_baseconv_t {
   const char* char_table;
   unsigned base_pow; /* the maximum power to make `b` <= ULBN_LIMB_MAX */
@@ -2785,7 +2833,6 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
   char buf[_ULBN_LIMB_BITS];
   char *pbuf, *const buf_end = buf + ULBN_LIMB_BITS;
   ulbn_limb_t c;
-  size_t writen;
 
   ulbn_assert(an > 0);
 
@@ -2818,23 +2865,10 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
   c = cp[--ci];
   for(pbuf = buf_end; c; c /= conv->base)
     *--pbuf = conv->char_table[c % conv->base];
-  writen = ul_static_cast(size_t, buf_end - pbuf);
   if(ul_unlikely(desire_len / conv->base_pow >= ci)) {
-    size_t diff = desire_len - conv->base_pow * ci;
-    if(diff > writen) {
-      char tbuf[8];
-      diff -= writen;
-      memset(tbuf, conv->char_table[0], 8);
-      while(diff > 8) {
-        err = printer(opaque, tbuf, 8);
-        if(ul_unlikely(err))
-          goto cleanup;
-        diff -= 8;
-      }
-      err = printer(opaque, tbuf, diff);
-      if(ul_unlikely(err))
-        goto cleanup;
-    }
+    err = _ulbn_write0(printer, opaque, desire_len - conv->base_pow * ci);
+    if(ul_unlikely(err))
+      goto cleanup;
   }
   if(ul_unlikely(printer(opaque, pbuf, ul_static_cast(size_t, buf_end - pbuf))))
     goto cleanup;
@@ -2924,7 +2958,9 @@ ULBN_INTERNAL ulbn_ulong_t ulbn_estimate_conv2_size(ulbn_ulong_t bits, int base,
   #else
   do {
     ulbn_ulong_t ret = 0;
-    if(ul_unlikely(len * CHAR_BIT - ul_static_cast(size_t, _ulbn_clz_(buf[len - 1])) > sizeof(ulbn_ulong_t) * CHAR_BIT))
+    if(ul_unlikely(
+         len * ULBN_LIMB_BITS - ul_static_cast(size_t, _ulbn_clz_(buf[len - 1])) > sizeof(ulbn_ulong_t) * CHAR_BIT
+       ))
       return ULBN_ULONG_MAX;
     do {
       ret <<= ULBN_LIMB_BITS - 1;
@@ -2936,18 +2972,6 @@ ULBN_INTERNAL ulbn_ulong_t ulbn_estimate_conv2_size(ulbn_ulong_t bits, int base,
   #endif
 }
 #endif /* ULBN_CONV2PRINT_GENERIC_THRESHOLD < ULBN_USIZE_MAX */
-
-ULBN_PRIVATE int _ulbn_write0(ulbn_printer_t* printer, void* opaque, size_t len) {
-  static const char ONLY_ZERO[16 + 1] = "0000000000000000";
-  while(len > 16) {
-    if(ul_unlikely(printer(opaque, ONLY_ZERO, 16)))
-      return ULBN_ERR_EXTERNAL;
-    len -= 16;
-  }
-  if(ul_unlikely(printer(opaque, ONLY_ZERO, len)))
-    return ULBN_ERR_EXTERNAL;
-  return 0;
-}
 
 ULBN_PRIVATE int _ulbn_fileprinter(void* file, const char* buf, size_t len) {
   return fwrite(buf, 1, len, ul_reinterpret_cast(FILE*, file)) != len;
