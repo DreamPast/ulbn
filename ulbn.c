@@ -6405,7 +6405,7 @@ ULBN_PUBLIC int ulbi_set_long_double(const ulbn_alloc_t* alloc, ulbi_t* dst, lon
   /* NaN, +Inf, -Inf or 0 */
   if(x != x || _ulbn_feql(x, x * 0.5L)) {
     _ulbi_set_zero(dst);
-    return _ulbn_feq(x, 0.0L) ? 0 : ULBN_ERR_INVALID;
+    return _ulbn_feql(x, 0.0L) ? 0 : ULBN_ERR_INVALID;
   }
   positive = x >= 0.0L;
   if(!positive)

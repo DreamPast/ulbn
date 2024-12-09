@@ -313,9 +313,18 @@ void testCastTo() {
   T_assert(BigInt(-1.0).toDouble() == -1.0);
   T_assert(BigInt(ldexp(1.0, 52) + 0.5).toDouble() == ldexp(1.0, 52));
 
-  for(ulbn_slong_t i = -LIMIT; i <= LIMIT; ++i) {
-    double d;
+  T_assert(BigInt(0.0F).toFloat() == 0.0F);
+  T_assert(BigInt(-0.0F).toFloat() == 0.0F);
+  T_assert(BigInt(1.0F).toFloat() == 1.0F);
+  T_assert(BigInt(-1.0F).toFloat() == -1.0F);
+  T_assert(BigInt(ldexpf(1.0F, 23) + 0.5F).toFloat() == ldexpf(1.0F, 23));
 
+  T_assert(BigInt(0.0).toLongDouble() == 0.0L);
+  T_assert(BigInt(-0.0).toLongDouble() == 0.0L);
+  T_assert(BigInt(1.0).toLongDouble() == 1.0L);
+  T_assert(BigInt(-1.0).toLongDouble() == -1.0L);
+
+  for(ulbn_slong_t i = -LIMIT; i <= LIMIT; ++i) {
     T_assert(BigInt(i).toSlong() == i);
     T_assert(BigInt(i).toUlong() == static_cast<ulbn_ulong_t>(i));
     T_assert(BigInt(i).toLimb() == static_cast<ulbn_limb_t>(static_cast<ulbn_ulong_t>(i)));
@@ -326,9 +335,29 @@ void testCastTo() {
     T_assert(BigInt(i).fitLimb() == fitType<ulbn_limb_t>(i));
     T_assert(BigInt(i).fitSlimb() == fitType<ulbn_slimb_t>(i));
 
-    d = BigInt(i).toDouble();
+    float fd = BigInt(i).toFloat();
+    T_assert(fd == static_cast<float>(i));
+    T_assert(BigInt(i).fitFloat() == (std::truncf(fd) == fd));
+    if(i >= 0)
+      T_assert(BigInt(static_cast<float>(i) + 0.5F).toFloat() == static_cast<float>(i));
+    else
+      T_assert(BigInt(static_cast<float>(i) - 0.5F).toFloat() == static_cast<float>(i));
+
+    double d = BigInt(i).toDouble();
     T_assert(d == static_cast<double>(i));
     T_assert(BigInt(i).fitDouble() == (std::trunc(d) == d));
+    if(i >= 0)
+      T_assert(BigInt(static_cast<double>(i) + 0.5).toDouble() == static_cast<double>(i));
+    else
+      T_assert(BigInt(static_cast<double>(i) - 0.5).toDouble() == static_cast<double>(i));
+
+    long double ld = BigInt(i).toLongDouble();
+    T_assert(ld == static_cast<long double>(i));
+    T_assert(BigInt(i).fitLongDouble() == (std::truncl(ld) == ld));
+    if(i >= 0)
+      T_assert(BigInt(static_cast<long double>(i) + 0.5L).toLongDouble() == static_cast<long double>(i));
+    else
+      T_assert(BigInt(static_cast<long double>(i) - 0.5L).toLongDouble() == static_cast<long double>(i));
   }
 
   for(int t = TEST_SMALL; t--;) {
