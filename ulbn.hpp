@@ -616,45 +616,58 @@ public:
 
 
   BigInt& operator/=(const BigInt& other) {
-    _check(ulbi_div(_ctx(), _value, _value, other._value));
+    _check(ulbi_divmod(_ctx(), _value, nullptr, _value, other._value));
     return *this;
   }
   template<FitLimb T>
   BigInt& operator/=(T value) {
-    _check(ulbi_div_limb(_ctx(), _value, _value, static_cast<ulbn_limb_t>(value)));
+    _check(ulbi_divmod_limb(_ctx(), _value, nullptr, _value, static_cast<ulbn_limb_t>(value)));
     return *this;
   }
   template<FitSlimb T>
   BigInt& operator/=(T value) {
-    _check(ulbi_div_slimb(_ctx(), _value, _value, static_cast<ulbn_slimb_t>(value)));
+    _check(ulbi_divmod_slimb(_ctx(), _value, nullptr, _value, static_cast<ulbn_slimb_t>(value)));
     return *this;
   }
   friend BigInt operator/(const BigInt& lhs, const BigInt& rhs) {
     BigInt ret;
-    _check(ulbi_div(_ctx(), ret._value, lhs._value, rhs._value));
+    _check(ulbi_divmod(_ctx(), ret._value, nullptr, lhs._value, rhs._value));
     return ret;
   }
   template<FitLimb T>
   friend BigInt operator/(const BigInt& lhs, T rhs) {
     BigInt ret;
-    _check(ulbi_div_limb(_ctx(), ret._value, lhs._value, static_cast<ulbn_limb_t>(rhs)));
+    _check(ulbi_divmod_limb(_ctx(), ret._value, nullptr, lhs._value, static_cast<ulbn_limb_t>(rhs)));
     return ret;
   }
   template<FitSlimb T>
   friend BigInt operator/(const BigInt& lhs, T rhs) {
     BigInt ret;
-    _check(ulbi_div_slimb(_ctx(), ret._value, lhs._value, static_cast<ulbn_slimb_t>(rhs)));
+    _check(ulbi_divmod_slimb(_ctx(), ret._value, nullptr, lhs._value, static_cast<ulbn_slimb_t>(rhs)));
     return ret;
   }
 
+  template<FitSlimb T>
+  BigInt& operator%=(T value) {
+    ulbn_slimb_t r;
+    _check(ulbi_divmod_slimb(_ctx(), nullptr, &r, _value, static_cast<ulbn_slimb_t>(value)));
+    ulbi_set_slimb(_value, r);
+    return *this;
+  }
   BigInt& operator%=(const BigInt& other) {
-    _check(ulbi_mod(_ctx(), _value, _value, other._value));
+    _check(ulbi_divmod(_ctx(), nullptr, _value, _value, other._value));
     return *this;
   }
   friend BigInt operator%(const BigInt& lhs, const BigInt& rhs) {
     BigInt ret;
-    _check(ulbi_mod(_ctx(), ret._value, lhs._value, rhs._value));
+    _check(ulbi_divmod(_ctx(), nullptr, ret._value, lhs._value, rhs._value));
     return ret;
+  }
+  template<FitSlimb T>
+  friend BigInt operator%(const BigInt& lhs, T rhs) {
+    ulbn_slimb_t r;
+    _check(ulbi_divmod_slimb(_ctx(), nullptr, &r, lhs._value, static_cast<ulbn_slimb_t>(rhs)));
+    return r;
   }
 
   std::pair<BigInt, BigInt> divmod(const BigInt& other) const {
@@ -672,7 +685,7 @@ public:
   }
   BigInt div(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt q;
-    int err = ulbi_div_ex(_ctx(), q._value, _value, other._value, round_mode);
+    int err = ulbi_divmod_ex(_ctx(), q._value, nullptr, _value, other._value, round_mode);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
     _check(err);
@@ -680,66 +693,93 @@ public:
   }
   BigInt mod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt r;
-    int err = ulbi_mod_ex(_ctx(), r._value, _value, other._value, round_mode);
+    int err = ulbi_divmod_ex(_ctx(), nullptr, r._value, _value, other._value, round_mode);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
     _check(err);
     return r;
   }
 
+  template<FitSbits T>
+  std::pair<BigInt, BigInt> divmod(T other) const {
+    BigInt q;
+    ulbn_slimb_t rl;
+    _check(ulbi_divmod_slimb(_ctx(), q._value, &rl, _value, static_cast<ulbn_slimb_t>(other)));
+    return { q, BigInt(rl) };
+  }
+  template<FitSbits T>
+  std::pair<BigInt, BigInt> divmod(T other, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt q;
+    ulbn_slimb_t rl;
+    _check(ulbi_divmod_slimb_ex(_ctx(), q._value, &rl, _value, static_cast<ulbn_slimb_t>(other), round_mode));
+    return { q, BigInt(rl) };
+  }
+  template<FitSbits T>
+  BigInt div(T other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
+    BigInt q;
+    _check(ulbi_divmod_slimb_ex(_ctx(), q._value, nullptr, _value, static_cast<ulbn_slimb_t>(other), round_mode));
+    return q;
+  }
+  template<FitSbits T>
+  BigInt mod(T other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
+    ulbn_slimb_t rl;
+    _check(ulbi_divmod_slimb_ex(_ctx(), nullptr, &rl, _value, static_cast<ulbn_slimb_t>(other), round_mode));
+    return rl;
+  }
+
 
   template<FitBits T>
-  std::pair<BigInt, BigInt> divmod2Exp(T n) {
+  std::pair<BigInt, BigInt> divmod2Exp(T n) const {
     BigInt q, r;
     _check(ulbi_divmod_2exp_bits(_ctx(), q._value, r._value, _value, static_cast<ulbn_bits_t>(n)));
     return { q, r };
   }
   template<FitSbits T>
-  std::pair<BigInt, BigInt> divmod2Exp(T n) {
+  std::pair<BigInt, BigInt> divmod2Exp(T n) const {
     BigInt q, r;
     _check(ulbi_divmod_2exp_sbits(_ctx(), q._value, r._value, _value, static_cast<ulbn_sbits_t>(n)));
     return { q, r };
   }
-  std::pair<BigInt, BigInt> divmod2Exp(const BigInt& other) {
+  std::pair<BigInt, BigInt> divmod2Exp(const BigInt& other) const {
     BigInt q, r;
     _check(ulbi_divmod_2exp(_ctx(), q._value, r._value, _value, other._value));
     return { q, r };
   }
 
   template<FitBits T>
-  std::pair<BigInt, BigInt> div2Exp(T n) {
-    BigInt q, r;
-    _check(ulbi_div_2exp_bits(_ctx(), q._value, _value, static_cast<ulbn_bits_t>(n)));
-    return { q, r };
+  BigInt div2Exp(T n) const {
+    BigInt q;
+    _check(ulbi_divmod_2exp_bits(_ctx(), q._value, ul_nullptr, _value, static_cast<ulbn_bits_t>(n)));
+    return q;
   }
   template<FitSbits T>
-  std::pair<BigInt, BigInt> div2Exp(T n) {
-    BigInt q, r;
-    _check(ulbi_div_2exp_sbits(_ctx(), q._value, _value, static_cast<ulbn_sbits_t>(n)));
-    return { q, r };
+  BigInt div2Exp(T n) const {
+    BigInt q;
+    _check(ulbi_divmod_2exp_sbits(_ctx(), q._value, ul_nullptr, _value, static_cast<ulbn_sbits_t>(n)));
+    return q;
   }
-  std::pair<BigInt, BigInt> div2Exp(const BigInt& other) {
-    BigInt q, r;
-    _check(ulbi_div_2exp(_ctx(), q._value, _value, other._value));
-    return { q, r };
+  BigInt div2Exp(const BigInt& other) const {
+    BigInt q;
+    _check(ulbi_divmod_2exp(_ctx(), q._value, ul_nullptr, _value, other._value));
+    return q;
   }
 
   template<FitBits T>
-  std::pair<BigInt, BigInt> mod2Exp(T n) {
-    BigInt q, r;
-    _check(ulbi_mod_2exp_bits(_ctx(), q._value, _value, static_cast<ulbn_bits_t>(n)));
-    return { q, r };
+  BigInt mod2Exp(T n) const {
+    BigInt r;
+    _check(ulbi_divmod_2exp_bits(_ctx(), ul_nullptr, r._value, _value, static_cast<ulbn_bits_t>(n)));
+    return r;
   }
   template<FitSbits T>
-  std::pair<BigInt, BigInt> mod2Exp(T n) {
-    BigInt q, r;
-    _check(ulbi_mod_2exp_sbits(_ctx(), q._value, _value, static_cast<ulbn_sbits_t>(n)));
-    return { q, r };
+  BigInt mod2Exp(T n) const {
+    BigInt r;
+    _check(ulbi_divmod_2exp_sbits(_ctx(), ul_nullptr, r._value, _value, static_cast<ulbn_sbits_t>(n)));
+    return r;
   }
-  std::pair<BigInt, BigInt> mod2Exp(const BigInt& other) {
-    BigInt q, r;
-    _check(ulbi_mod_2exp(_ctx(), q._value, _value, other._value));
-    return { q, r };
+  BigInt mod2Exp(const BigInt& other) const {
+    BigInt r;
+    _check(ulbi_divmod_2exp(_ctx(), ul_nullptr, r._value, _value, other._value));
+    return r;
   }
 
 

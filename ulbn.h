@@ -412,6 +412,13 @@ extern "C" {
 #define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
 
 
+#if 0
+typedef unsigned char ulbn_limb_t;
+typedef signed char ulbn_slimb_t;
+  #define ULBN_LIMB_MAX UCHAR_MAX
+  #define ULBN_SLIMB_MAX SCHAR_MAX
+  #define ULBN_SLIMB_MIN SCHAR_MIN
+#endif
 #if !defined(ULBN_LIMB_MAX) || !defined(ULBN_SLIMB_MAX) || !defined(ULBN_SLIMB_MIN)
 typedef unsigned long ulbn_limb_t;
 typedef signed long ulbn_slimb_t;
@@ -1107,7 +1114,7 @@ ULBN_PUBLIC int ulbi_mul(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
 
 
 /**
- * @brief `qo` = `ao` / `bo`, `ro` = `ao` % `bo`.
+ * @brief `qo` = `ao` // `bo`, `ro` = `ao` % `bo`.
  * @note `qo` and `ro` is allowed to be `NULL`.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
@@ -1115,26 +1122,25 @@ ULBN_PUBLIC int ulbi_mul(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
  */
 ULBN_PUBLIC int ulbi_divmod(const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
 /**
- * @brief `qo` = `ao` / `bo`.
- * @note `qo` is allowed to be `NULL`
+ * @brief `qo` = `ao` // `bo`, `ro` = `ao` % `bo`.
+ * @note `qo` and `ro` are allowed to be `NULL`.
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
+ * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
  * @return `0` otherwise.
  */
-ULBN_PUBLIC int ulbi_div(const ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, const ulbi_t* bo);
-/**
- * @brief `ro` = `ao` % `bo`.
- * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory.
- */
-ULBN_PUBLIC int ulbi_mod(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* bo);
+ULBN_PUBLIC int ulbi_divmod_ex(
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
+  const ulbi_t* ao, const ulbi_t* bo,                /* */
+  enum ULBN_ROUND_ENUM round_mode                    /* */
+);
 
 /**
- * @brief `qo` = `ao` / `b`, `ro` = The smallest non-negative number congruent to (`ao` % `b`) under modulo `b`.
+ * @brief `qo` = `ao` // `b`, `ro` = The smallest non-negative number congruent to (`ao` % `b`) under modulo `b`.
  * @note `qo` and `ro` are allowed to be `NULL`;
  * @note The representation of `ro` is different from `ulbi_divmod` because `ro` cannot store negative values
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero and `ro` is NULL;
  * @return `ULBN_ERR_INEXACT` if `ro` is not NULL but the remainder is negative;
  * @return `0` otherwise.
  */
@@ -1143,27 +1149,25 @@ ULBN_PUBLIC int ulbi_divmod_limb(
   const ulbi_t* ao, ulbn_limb_t b                         /* */
 );
 /**
- * @brief `qo` = `ao` / `b`.
- * @note `qo` is allowed to be `NULL`.
+ * @brief `qo` = `ao` // `b`, `ro` = The smallest non-negative number congruent to (`ao` % `b`) under modulo `b`.
+ * @note `qo` and `ro` are allowed to be `NULL`;
+ * @note The representation of `ro` is different from `ulbi_divmod` because `ro` cannot store negative values
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
+ * @return `ULBN_ERR_INEXACT` if `ro` is not NULL but the remainder is negative;
  * @return `0` otherwise.
  */
-ULBN_PUBLIC int ulbi_div_limb(const ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, ulbn_limb_t b);
-/**
- * @brief `ro` = The smallest non-negative number congruent to (`ao` % `b`) under modulo `b`.
- * @note The representation of `ro` is different from `ulbi_divmod` because `ro` cannot store negative values.
- * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `0` otherwise.
- */
-ULBN_PUBLIC int ulbi_mod_limb(const ulbn_alloc_t* alloc, ulbn_limb_t* ro, const ulbi_t* ao, ulbn_limb_t b);
+ULBN_PUBLIC int ulbi_divmod_limb_ex(
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_limb_t* ro, /* */
+  const ulbi_t* ao, ulbn_limb_t b,                        /* */
+  enum ULBN_ROUND_ENUM round_mode                         /* */
+);
 
 /**
- * @brief `qo` = `ao` / `b`, `ro` = `ao` % `b`.
+ * @brief `qo` = `ao` // `b`, `ro` = `ao` % `b`.
  * @note `qo` and `ro` is allowed to be `NULL`;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
+ * @return `ULBN_ERR_INEXACT` if the remainder is not zero and `ro` is NULL;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_slimb(
@@ -1171,23 +1175,21 @@ ULBN_PUBLIC int ulbi_divmod_slimb(
   const ulbi_t* ao, ulbn_slimb_t b                         /* */
 );
 /**
- * @brief `qo` = `ao` / `b`.
- * @note `qo` is allowed to be `NULL`.
+ * @brief `qo` = `ao` // `b`, `ro` = `ao` % `b`.
+ * @note `qo` and `ro` is allowed to be `NULL`;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
+ * @return `ULBN_ERR_INEXACT` if the ramainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
  * @return `0` otherwise.
  */
-ULBN_PUBLIC int ulbi_div_slimb(const ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, ulbn_slimb_t b);
-/**
- * @brief `ro` = `ao` % `b`.
- * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `0` otherwise.
- */
-ULBN_PUBLIC int ulbi_mod_slimb(const ulbn_alloc_t* alloc, ulbn_slimb_t* ro, const ulbi_t* ao, ulbn_slimb_t b);
+ULBN_PUBLIC int ulbi_divmod_slimb_ex(
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_slimb_t* ro, /* */
+  const ulbi_t* ao, ulbn_slimb_t b,                        /* */
+  enum ULBN_ROUND_ENUM round_mode                          /* */
+);
+
 
 /**
- * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
+ * @brief `qo` = `ao` // (2**`e`), `ro` = `ao` % (2**`e`).
  * @note `qo` and `ro` are allowed to be `NULL`.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
@@ -1197,23 +1199,6 @@ ULBN_PUBLIC int ulbi_divmod_2exp_bits(
   const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
   const ulbi_t* ao, ulbn_bits_t e                    /* */
 );
-/**
- * @brief `qo` = `ao` / (2**`e`).
- * @note `qo` is allowed to be `NULL`.
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
- * @return `0` otherwise.
- */
-ULBN_PUBLIC int ulbi_div_2exp_bits(const ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, ulbn_bits_t e);
-/**
- * @brief `ro` = `ao` % (2**`e`).
- * @note `ro` is allowed to be `NULL`.
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
- * @return `0` otherwise.
- */
-ULBN_PUBLIC int ulbi_mod_2exp_bits(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_bits_t e);
-
 /**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
  * @note `qo` and `ro` are allowed to be `NULL`.
@@ -1227,25 +1212,6 @@ ULBN_PUBLIC int ulbi_divmod_2exp_sbits(
   const ulbi_t* ao, ulbn_sbits_t e                   /* */
 );
 /**
- * @brief `qo` = `ao` / (2**`e`).
- * @note `qo` is allowed to be `NULL`.
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
- * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
- * @return `0` otherwise.
- */
-ULBN_PUBLIC int ulbi_div_2exp_sbits(const ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, ulbn_sbits_t e);
-/**
- * @brief `ro` = `ao` % (2**`e`).
- * @note `ro` is allowed to be `NULL`.
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
- * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
- * @return `0` otherwise.
- */
-ULBN_PUBLIC int ulbi_mod_2exp_sbits(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_sbits_t e);
-
-/**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
  * @note `qo` and `ro` are allowed to be `NULL`.
  * @return `ULBN_ERR_NOMEM` if out of memory;
@@ -1254,65 +1220,6 @@ ULBN_PUBLIC int ulbi_mod_2exp_sbits(const ulbn_alloc_t* alloc, ulbi_t* ro, const
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_2exp(const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* eo);
-/**
- * @brief `qo` = `ao` / (2**`e`).
- * @note `qo` is allowed to be `NULL`.
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
- * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
- * @return `0` otherwise.
- */
-ULBN_PUBLIC int ulbi_div_2exp(const ulbn_alloc_t* alloc, ulbi_t* qo, const ulbi_t* ao, const ulbi_t* eo);
-/**
- * @brief `ro` = `ao` % (2**`e`).
- * @note `ro` is allowed to be `NULL`.
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
- * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
- * @return `0` otherwise.
- */
-ULBN_PUBLIC int ulbi_mod_2exp(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* eo);
-
-
-/**
- * @brief `qo` = `ao` / `bo`, `ro` = `ao` % `bo`.
- * @note `qo` and `ro` are allowed to be `NULL`.
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
- * @return `ULBN_ERR_INEXACT` if the remainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
- * @return `0` otherwise.
- */
-ULBN_PUBLIC int ulbi_divmod_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
-  const ulbi_t* ao, const ulbi_t* bo,                /* */
-  enum ULBN_ROUND_ENUM round_mode                    /* */
-);
-/**
- * @brief `qo` = `ao` / `bo`
- * @note `qo` is allowed to be `NULL`
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
- * @return `ULBN_ERR_INEXACT` if the remainder is not zero;
- * @return `0` otherwise
- */
-ULBN_PUBLIC int ulbi_div_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, /* */
-  const ulbi_t* ao, const ulbi_t* bo,    /* */
-  enum ULBN_ROUND_ENUM round_mode        /* */
-);
-/**
- * @brief `ro` = `ao` % `bo`
- * @note `ro` is allowed to be `NULL`
- * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
- * @return `ULBN_ERR_INEXACT` if the remainder is not zero and `round_mode` is `ULBN_ROUND_FAIL`;
- * @return `0` otherwise
- */
-ULBN_PUBLIC int ulbi_mod_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* ro, /* */
-  const ulbi_t* ao, const ulbi_t* bo,    /* */
-  enum ULBN_ROUND_ENUM round_mode        /* */
-);
 
 
 /**

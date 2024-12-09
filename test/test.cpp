@@ -639,7 +639,9 @@ void subtestDivMod() {
           T_assert(BigInt(a) / static_cast<int8_t>(b) == a / b);
 
           ulbn_slimb_t r;
-          T_assert(ulbi_mod_slimb(ulbn_default_alloc(), &r, BigInt(a).get(), static_cast<ulbn_slimb_t>(b)) >= 0);
+          T_assert(
+            ulbi_divmod_slimb(ulbn_default_alloc(), ul_nullptr, &r, BigInt(a).get(), static_cast<ulbn_slimb_t>(b)) >= 0
+          );
           T_assert(r == a % b);
         }
         if(fitType<uint8_t>(b)) {
@@ -647,7 +649,7 @@ void subtestDivMod() {
 
           BigInt tmp(a);
           ulbn_limb_t r;
-          T_assert(ulbi_mod_limb(ulbn_default_alloc(), &r, tmp.get(), static_cast<ulbn_limb_t>(b)) >= 0);
+          T_assert(ulbi_divmod_limb(ulbn_default_alloc(), ul_nullptr, &r, tmp.get(), static_cast<ulbn_limb_t>(b)) >= 0);
           T_assert(static_cast<int>(r) == (a % b + b) % b);
         }
       }
@@ -716,75 +718,151 @@ void subtestDivModOverlapRandom() {
 void subtestDivModEx() {
   puts("======Subtest DivMod Ex");
 
-  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_DOWN), 0, 1));
-  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_UP), 1, -3));
-  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_FLOOR), 0, 1));
-  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_CEILING), 1, -3));
+  {
+    int rhs = 4;
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_DOWN), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_UP), 1, -3));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_FLOOR), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_CEILING), 1, -3));
 
-  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_DOWN), 0, -1));
-  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_UP), -1, 3));
-  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_FLOOR), -1, 3));
-  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_CEILING), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_DOWN), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_UP), -1, 3));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_FLOOR), -1, 3));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_CEILING), 0, -1));
 
-  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_HALF_ODD), 0, 1));
-  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 0, 1));
-  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 0, 1));
-  T_assert(pairEqual((1_bi).divmod(4, ULBN_ROUND_HALF_UP), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 0, 1));
 
-  T_assert(pairEqual((2_bi).divmod(4, ULBN_ROUND_HALF_ODD), 1, -2));
-  T_assert(pairEqual((2_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 0, 2));
-  T_assert(pairEqual((2_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 0, 2));
-  T_assert(pairEqual((2_bi).divmod(4, ULBN_ROUND_HALF_UP), 1, -2));
+    T_assert(pairEqual((2_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 1, -2));
+    T_assert(pairEqual((2_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 0, 2));
+    T_assert(pairEqual((2_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 0, 2));
+    T_assert(pairEqual((2_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 1, -2));
 
-  T_assert(pairEqual((3_bi).divmod(4, ULBN_ROUND_HALF_ODD), 1, -1));
-  T_assert(pairEqual((3_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 1, -1));
-  T_assert(pairEqual((3_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 1, -1));
-  T_assert(pairEqual((3_bi).divmod(4, ULBN_ROUND_HALF_UP), 1, -1));
+    T_assert(pairEqual((3_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 1, -1));
+    T_assert(pairEqual((3_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 1, -1));
+    T_assert(pairEqual((3_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 1, -1));
+    T_assert(pairEqual((3_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 1, -1));
 
-  T_assert(pairEqual((5_bi).divmod(4, ULBN_ROUND_HALF_ODD), 1, 1));
-  T_assert(pairEqual((5_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 1, 1));
-  T_assert(pairEqual((5_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 1, 1));
-  T_assert(pairEqual((5_bi).divmod(4, ULBN_ROUND_HALF_UP), 1, 1));
+    T_assert(pairEqual((5_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 1, 1));
+    T_assert(pairEqual((5_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 1, 1));
+    T_assert(pairEqual((5_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 1, 1));
+    T_assert(pairEqual((5_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 1, 1));
 
-  T_assert(pairEqual((6_bi).divmod(4, ULBN_ROUND_HALF_ODD), 1, 2));
-  T_assert(pairEqual((6_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 2, -2));
-  T_assert(pairEqual((6_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 1, 2));
-  T_assert(pairEqual((6_bi).divmod(4, ULBN_ROUND_HALF_UP), 2, -2));
+    T_assert(pairEqual((6_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 1, 2));
+    T_assert(pairEqual((6_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 2, -2));
+    T_assert(pairEqual((6_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 1, 2));
+    T_assert(pairEqual((6_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 2, -2));
 
-  T_assert(pairEqual((7_bi).divmod(4, ULBN_ROUND_HALF_ODD), 2, -1));
-  T_assert(pairEqual((7_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 2, -1));
-  T_assert(pairEqual((7_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 2, -1));
-  T_assert(pairEqual((7_bi).divmod(4, ULBN_ROUND_HALF_UP), 2, -1));
+    T_assert(pairEqual((7_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 2, -1));
+    T_assert(pairEqual((7_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 2, -1));
+    T_assert(pairEqual((7_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 2, -1));
+    T_assert(pairEqual((7_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 2, -1));
 
-  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_HALF_ODD), 0, -1));
-  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 0, -1));
-  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 0, -1));
-  T_assert(pairEqual((-1_bi).divmod(4, ULBN_ROUND_HALF_UP), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 0, -1));
 
-  T_assert(pairEqual((-2_bi).divmod(4, ULBN_ROUND_HALF_ODD), -1, 2));
-  T_assert(pairEqual((-2_bi).divmod(4, ULBN_ROUND_HALF_EVEN), 0, -2));
-  T_assert(pairEqual((-2_bi).divmod(4, ULBN_ROUND_HALF_DOWN), 0, -2));
-  T_assert(pairEqual((-2_bi).divmod(4, ULBN_ROUND_HALF_UP), -1, 2));
+    T_assert(pairEqual((-2_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -1, 2));
+    T_assert(pairEqual((-2_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 0, -2));
+    T_assert(pairEqual((-2_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 0, -2));
+    T_assert(pairEqual((-2_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -1, 2));
 
-  T_assert(pairEqual((-3_bi).divmod(4, ULBN_ROUND_HALF_ODD), -1, 1));
-  T_assert(pairEqual((-3_bi).divmod(4, ULBN_ROUND_HALF_EVEN), -1, 1));
-  T_assert(pairEqual((-3_bi).divmod(4, ULBN_ROUND_HALF_DOWN), -1, 1));
-  T_assert(pairEqual((-3_bi).divmod(4, ULBN_ROUND_HALF_UP), -1, 1));
+    T_assert(pairEqual((-3_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -1, 1));
+    T_assert(pairEqual((-3_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), -1, 1));
+    T_assert(pairEqual((-3_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), -1, 1));
+    T_assert(pairEqual((-3_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -1, 1));
 
-  T_assert(pairEqual((-5_bi).divmod(4, ULBN_ROUND_HALF_ODD), -1, -1));
-  T_assert(pairEqual((-5_bi).divmod(4, ULBN_ROUND_HALF_EVEN), -1, -1));
-  T_assert(pairEqual((-5_bi).divmod(4, ULBN_ROUND_HALF_DOWN), -1, -1));
-  T_assert(pairEqual((-5_bi).divmod(4, ULBN_ROUND_HALF_UP), -1, -1));
+    T_assert(pairEqual((-5_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -1, -1));
+    T_assert(pairEqual((-5_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), -1, -1));
+    T_assert(pairEqual((-5_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), -1, -1));
+    T_assert(pairEqual((-5_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -1, -1));
 
-  T_assert(pairEqual((-6_bi).divmod(4, ULBN_ROUND_HALF_ODD), -1, -2));
-  T_assert(pairEqual((-6_bi).divmod(4, ULBN_ROUND_HALF_EVEN), -2, 2));
-  T_assert(pairEqual((-6_bi).divmod(4, ULBN_ROUND_HALF_DOWN), -1, -2));
-  T_assert(pairEqual((-6_bi).divmod(4, ULBN_ROUND_HALF_UP), -2, 2));
+    T_assert(pairEqual((-6_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -1, -2));
+    T_assert(pairEqual((-6_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), -2, 2));
+    T_assert(pairEqual((-6_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), -1, -2));
+    T_assert(pairEqual((-6_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -2, 2));
 
-  T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_ODD), -2, 1));
-  T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_EVEN), -2, 1));
-  T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_DOWN), -2, 1));
-  T_assert(pairEqual((-7_bi).divmod(4, ULBN_ROUND_HALF_UP), -2, 1));
+    T_assert(pairEqual((-7_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -2, 1));
+    T_assert(pairEqual((-7_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), -2, 1));
+    T_assert(pairEqual((-7_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), -2, 1));
+    T_assert(pairEqual((-7_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -2, 1));
+  }
+
+  {
+    BigInt rhs = 4;
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_DOWN), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_UP), 1, -3));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_FLOOR), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_CEILING), 1, -3));
+
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_DOWN), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_UP), -1, 3));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_FLOOR), -1, 3));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_CEILING), 0, -1));
+
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 0, 1));
+    T_assert(pairEqual((1_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 0, 1));
+
+    T_assert(pairEqual((2_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 1, -2));
+    T_assert(pairEqual((2_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 0, 2));
+    T_assert(pairEqual((2_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 0, 2));
+    T_assert(pairEqual((2_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 1, -2));
+
+    T_assert(pairEqual((3_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 1, -1));
+    T_assert(pairEqual((3_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 1, -1));
+    T_assert(pairEqual((3_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 1, -1));
+    T_assert(pairEqual((3_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 1, -1));
+
+    T_assert(pairEqual((5_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 1, 1));
+    T_assert(pairEqual((5_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 1, 1));
+    T_assert(pairEqual((5_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 1, 1));
+    T_assert(pairEqual((5_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 1, 1));
+
+    T_assert(pairEqual((6_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 1, 2));
+    T_assert(pairEqual((6_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 2, -2));
+    T_assert(pairEqual((6_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 1, 2));
+    T_assert(pairEqual((6_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 2, -2));
+
+    T_assert(pairEqual((7_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 2, -1));
+    T_assert(pairEqual((7_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 2, -1));
+    T_assert(pairEqual((7_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 2, -1));
+    T_assert(pairEqual((7_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 2, -1));
+
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 0, -1));
+    T_assert(pairEqual((-1_bi).divmod(rhs, ULBN_ROUND_HALF_UP), 0, -1));
+
+    T_assert(pairEqual((-2_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -1, 2));
+    T_assert(pairEqual((-2_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), 0, -2));
+    T_assert(pairEqual((-2_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), 0, -2));
+    T_assert(pairEqual((-2_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -1, 2));
+
+    T_assert(pairEqual((-3_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -1, 1));
+    T_assert(pairEqual((-3_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), -1, 1));
+    T_assert(pairEqual((-3_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), -1, 1));
+    T_assert(pairEqual((-3_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -1, 1));
+
+    T_assert(pairEqual((-5_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -1, -1));
+    T_assert(pairEqual((-5_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), -1, -1));
+    T_assert(pairEqual((-5_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), -1, -1));
+    T_assert(pairEqual((-5_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -1, -1));
+
+    T_assert(pairEqual((-6_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -1, -2));
+    T_assert(pairEqual((-6_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), -2, 2));
+    T_assert(pairEqual((-6_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), -1, -2));
+    T_assert(pairEqual((-6_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -2, 2));
+
+    T_assert(pairEqual((-7_bi).divmod(rhs, ULBN_ROUND_HALF_ODD), -2, 1));
+    T_assert(pairEqual((-7_bi).divmod(rhs, ULBN_ROUND_HALF_EVEN), -2, 1));
+    T_assert(pairEqual((-7_bi).divmod(rhs, ULBN_ROUND_HALF_DOWN), -2, 1));
+    T_assert(pairEqual((-7_bi).divmod(rhs, ULBN_ROUND_HALF_UP), -2, 1));
+  }
 }
 void subtestDivMod2Exp() {
   puts("======Subtest DivMod 2Exp");
@@ -798,11 +876,12 @@ void subtestDivMod2Exp() {
 
       BigInt q = a;
       T_assert(
-        ulbi_div_2exp_sbits(ulbn_default_alloc(), q.get(), q.get(), i) == (ansPair.second ? ULBN_ERR_INEXACT : 0)
+        ulbi_divmod_2exp_sbits(ulbn_default_alloc(), q.get(), ul_nullptr, q.get(), i)
+        == (ansPair.second ? ULBN_ERR_INEXACT : 0)
       );
       T_assert(q == ansPair.first);
       BigInt r = a;
-      T_assert(ulbi_mod_2exp_sbits(ulbn_default_alloc(), r.get(), r.get(), i) == 0);
+      T_assert(ulbi_divmod_2exp_sbits(ulbn_default_alloc(), ul_nullptr, r.get(), r.get(), i) == 0);
       T_assert(r == ansPair.second);
     }
     for(short i = 0; i < 32; ++i) {
