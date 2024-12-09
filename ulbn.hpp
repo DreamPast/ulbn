@@ -93,6 +93,7 @@ private:
   int _error;
 };
 
+#if ULBN_CONF_USE_RAND
 inline ulbn_rand_t* getCurrentRand() {
   struct _RandManager {
     _RandManager() {
@@ -104,6 +105,7 @@ inline ulbn_rand_t* getCurrentRand() {
   static thread_local _RandManager rng;
   return &rng.hold;
 }
+#endif
 
 template<class T>
 concept FitSlong = requires {
@@ -161,6 +163,18 @@ concept FitSbits = requires {
   requires sizeof(T) <= sizeof(ulbn_sbits_t);
   requires std::is_convertible_v<T, ulbn_sbits_t>;
 };
+#if ULBN_CONF_HAS_FLOAT
+template<class T>
+concept FitFloat = requires {
+  requires std::is_floating_point_v<T>;
+  requires sizeof(T) <= sizeof(float);
+  requires std::is_convertible_v<T, float>;
+
+  requires std::numeric_limits<T>::digits <= std::numeric_limits<float>::digits;
+  requires std::numeric_limits<T>::min_exponent >= std::numeric_limits<float>::min_exponent;
+  requires std::numeric_limits<T>::max_exponent <= std::numeric_limits<float>::max_exponent;
+};
+#endif /* ULBN_CONF_HAS_FLOAT */
 #if ULBN_CONF_HAS_DOUBLE
 template<class T>
 concept FitDouble = requires {
@@ -172,7 +186,36 @@ concept FitDouble = requires {
   requires std::numeric_limits<T>::min_exponent >= std::numeric_limits<double>::min_exponent;
   requires std::numeric_limits<T>::max_exponent <= std::numeric_limits<double>::max_exponent;
 };
+template<class T>
+concept FitDoubleCase = requires {
+  requires FitDouble<T>;
+  #if ULBN_CONF_HAS_FLOAT
+  requires !FitFloat<T>;
+  #endif
+};
 #endif /* ULBN_CONF_HAS_DOUBLE */
+#if ULBN_CONF_HAS_LONG_DOUBLE
+template<class T>
+concept FitLongDouble = requires {
+  requires std::is_floating_point_v<T>;
+  requires sizeof(T) <= sizeof(long double);
+  requires std::is_convertible_v<T, long double>;
+
+  requires std::numeric_limits<T>::digits <= std::numeric_limits<long double>::digits;
+  requires std::numeric_limits<T>::min_exponent >= std::numeric_limits<long double>::min_exponent;
+  requires std::numeric_limits<T>::max_exponent <= std::numeric_limits<long double>::max_exponent;
+};
+template<class T>
+concept FitLongDoubleCase = requires {
+  requires FitLongDouble<T>;
+  #if ULBN_CONF_HAS_FLOAT
+  requires !FitFloat<T>;
+  #endif
+  #if ULBN_CONF_HAS_DOUBLE
+  requires !FitDouble<T>;
+  #endif
+};
+#endif /* ULBN_CONF_HAS_LONG_DOUBLE */
 
 class BigInt {
 public:
@@ -333,6 +376,7 @@ public:
   }
 
 
+#if ULBN_CONF_USE_RAND
   template<FitBits T>
   static BigInt fromRandom(T n) {
     BigInt ret;
@@ -367,6 +411,7 @@ public:
     _check(ulbi_set_rand_range2(_ctx(), getCurrentRand(), ret._value, lo._value, hi._value));
     return ret;
   }
+#endif
 
 
   static BigInt fromData(const void* ptr, size_t n, bool is_big_endian) {
@@ -1078,16 +1123,16 @@ public:
 
 
   template<FitBits T>
-  bool testBit(T n) const noexcept {
+  bool testBit(T n) const {
     return ulbi_testbit_bits(_value, static_cast<ulbn_bits_t>(n)) != 0;
   }
   template<FitSbits T>
-  bool testBit(T n) const noexcept {
+  bool testBit(T n) const {
     if(n < 0)
       _check(ULBN_ERR_EXCEED_RANGE);
     return ulbi_testbit_bits(_value, static_cast<ulbn_bits_t>(static_cast<ulbn_sbits_t>(n))) != 0;
   }
-  bool testBit(const BigInt& n) const noexcept {
+  bool testBit(const BigInt& n) const {
     return _check(ulbi_testbit(_value, n._value)) != 0;
   }
 
@@ -1240,12 +1285,34 @@ public:
   }
 
 
+#if ULBN_CONF_HAS_FLOAT
+  template<FitFloat T>
+  explicit BigInt(T value) {
+    _check(ulbi_init_float(_ctx(), _value, static_cast<float>(value)));
+  }
+  template<FitFloat T>
+  BigInt& operator=(T value) {
+    _check(ulbi_set_float(_ctx(), _value, static_cast<float>(value)));
+    return *this;
+  }
+  float toFloat() const noexcept {
+    return ulbi_to_float(_value);
+  }
+  bool fitFloat() const noexcept {
+    return ulbi_fit_float(_value) != 0;
+  }
+  explicit operator float() const noexcept {
+    return toFloat();
+  }
+#endif
+
+
 #if ULBN_CONF_HAS_DOUBLE
-  template<FitDouble T>
+  template<FitDoubleCase T>
   explicit BigInt(T value) {
     _check(ulbi_init_double(_ctx(), _value, static_cast<double>(value)));
   }
-  template<FitDouble T>
+  template<FitDoubleCase T>
   BigInt& operator=(T value) {
     _check(ulbi_set_double(_ctx(), _value, static_cast<double>(value)));
     return *this;
@@ -1260,6 +1327,28 @@ public:
     return toDouble();
   }
 #endif /* ULBN_CONF_HAS_DOUBLE */
+
+
+#if ULBN_CONF_HAS_LONG_DOUBLE
+  template<FitLongDoubleCase T>
+  explicit BigInt(T value) {
+    _check(ulbi_init_long_double(_ctx(), _value, static_cast<long double>(value)));
+  }
+  template<FitLongDoubleCase T>
+  BigInt& operator=(T value) {
+    _check(ulbi_set_long_double(_ctx(), _value, static_cast<long double>(value)));
+    return *this;
+  }
+  long double toLongDouble() const noexcept {
+    return ulbi_to_long_double(_value);
+  }
+  bool fitLongDouble() const noexcept {
+    return ulbi_fit_long_double(_value) != 0;
+  }
+  explicit operator long double() const noexcept {
+    return toLongDouble();
+  }
+#endif /* ULBN_CONF_HAS_LONG_DOUBLE */
 
 
   BigInt gcd(const BigInt& other) {

@@ -329,16 +329,41 @@ ulbn - Big Number Library
 #endif /* ULBN_CONF_CHECK_ALLOCATION_FAILURE */
 
 /**
+ * @def ULBN_CONF_HAS_FLOAT
+ * @brief Configuration: Whether `float` is available.
+ */
+#ifndef ULBN_CONF_HAS_FLOAT
+  #if defined(FLT_MAX) && defined(FLT_MAX_EXP) && defined(FLT_MANT_DIG)
+    #define ULBN_CONF_HAS_FLOAT 1
+  #else
+    #define ULBN_CONF_HAS_FLOAT 0
+  #endif
+#endif /* ULBN_CONF_HAS_FLOAT */
+
+/**
  * @def ULBN_CONF_HAS_DOUBLE
  * @brief Configuration: Whether `double` is available.
  */
 #ifndef ULBN_CONF_HAS_DOUBLE
-  #ifdef DBL_MAX
+  #if defined(DBL_MAX) && defined(DBL_MAX_EXP) && defined(DBL_MANT_DIG)
     #define ULBN_CONF_HAS_DOUBLE 1
   #else
     #define ULBN_CONF_HAS_DOUBLE 0
   #endif
 #endif /* ULBN_CONF_HAS_DOUBLE */
+
+/**
+ * @def ULBN_CONF_HAS_DOUBLE
+ * @brief Configuration: Whether `long double` is available.
+ */
+#ifndef ULBN_CONF_HAS_LONG_DOUBLE
+  #if defined(LDBL_MAX) && defined(LDBL_MAX_EXP) && defined(LDBL_MANT_DIG) \
+    && defined(HUGE_VALL) /* `HUGE_VALL` is defined in C99, so we guess `floorl` exists when `HUGE_VALL` exists */
+    #define ULBN_CONF_HAS_LONG_DOUBLE 1
+  #else
+    #define ULBN_CONF_HAS_LONG_DOUBLE 0
+  #endif
+#endif /* ULBN_CONF_HAS_LONG_DOUBLE */
 
 /**
  * @def ULBN_CONF_ONLY_ALLOCATE_NEEDED
@@ -1650,6 +1675,32 @@ ULBN_PUBLIC int ulbi_print_ex(
 ULBN_PUBLIC int ulbi_print(const ulbn_alloc_t* alloc, FILE* fp, const ulbi_t* ao, int base);
 
 
+#if ULBN_CONF_HAS_FLOAT
+/**
+ * @brief Sets `dst` to `x`.
+ * @return `0` if `x` can be exactly represented as an integer;
+ * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
+ * @return `ULBN_ERR_NOMEM` if out of memory.
+ */
+ULBN_PUBLIC int ulbi_set_float(const ulbn_alloc_t* alloc, ulbi_t* dst, float x);
+/**
+ * @brief Initializes `dst` with `x`.
+ * @return `0` if `x` can be exactly represented as an integer;
+ * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
+ * @return `ULBN_ERR_NOMEM` if out of memory.
+ */
+ULBN_PUBLIC int ulbi_init_float(const ulbn_alloc_t* alloc, ulbi_t* dst, float x);
+/**
+ * @brief Converts `src` to `float` type.
+ */
+ULBN_PUBLIC float ulbi_to_float(const ulbi_t* src);
+/**
+ * @brief Checks if `src` can be represented as `float`.
+ */
+ULBN_PUBLIC int ulbi_fit_float(const ulbi_t* src);
+#endif /* ULBN_CONF_HAS_FLOAT */
+
+
 #if ULBN_CONF_HAS_DOUBLE
 /**
  * @brief Sets `dst` to `x`.
@@ -1674,6 +1725,32 @@ ULBN_PUBLIC double ulbi_to_double(const ulbi_t* src);
  */
 ULBN_PUBLIC int ulbi_fit_double(const ulbi_t* src);
 #endif /* ULBN_CONF_HAS_DOUBLE */
+
+
+#if ULBN_CONF_HAS_LONG_DOUBLE
+/**
+ * @brief Sets `dst` to `x`.
+ * @return `0` if `x` can be exactly represented as an integer;
+ * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
+ * @return `ULBN_ERR_NOMEM` if out of memory.
+ */
+ULBN_PUBLIC int ulbi_set_long_double(const ulbn_alloc_t* alloc, ulbi_t* dst, long double x);
+/**
+ * @brief Initializes `dst` with `x`.
+ * @return `0` if `x` can be exactly represented as an integer;
+ * @return `ULBN_ERR_INEXACT` if `x` cannot be exactly represented as an integer (in this case `x` will be truncated);
+ * @return `ULBN_ERR_NOMEM` if out of memory.
+ */
+ULBN_PUBLIC int ulbi_init_long_double(const ulbn_alloc_t* alloc, ulbi_t* dst, long double x);
+/**
+ * @brief Converts `src` to `long double` type.
+ */
+ULBN_PUBLIC long double ulbi_to_long_double(const ulbi_t* src);
+/**
+ * @brief Checks if `src` can be represented as `long double`.
+ */
+ULBN_PUBLIC int ulbi_fit_long_double(const ulbi_t* src);
+#endif /* ULBN_CONF_HAS_LONG_DOUBLE */
 
 
 #if ULBN_CONF_USE_RAND

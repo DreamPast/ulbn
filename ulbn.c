@@ -6256,6 +6256,75 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
 }
 
 
+#if ULBN_CONF_HAS_FLOAT
+ULBN_PRIVATE int _ulbn_feqf(float a, float b) {
+  return a >= b && a <= b;
+}
+ULBN_PUBLIC int ulbi_set_float(const ulbn_alloc_t* alloc, ulbi_t* dst, float x) {
+  static ul_constexpr const float B = ul_static_cast(float, _ULBN_LIMB_SIGNBIT) * 2.0F;
+  static ul_constexpr const float Bi = 1.0F / (ul_static_cast(float, _ULBN_LIMB_SIGNBIT) * 2.0F);
+  ulbn_usize_t rn;
+  ulbn_limb_t* rp;
+  float xl;
+  int positive;
+
+  /* NaN, +Inf, -Inf or 0 */
+  if(x != x || _ulbn_feqf(x, x * 0.5F)) {
+    _ulbi_set_zero(dst);
+    return _ulbn_feqf(x, 0.0F) ? 0 : ULBN_ERR_INVALID;
+  }
+  positive = x >= 0.0F;
+  if(!positive)
+    x = -x;
+  if(x < 1.0F) {
+    _ulbi_set_zero(dst);
+    return ULBN_ERR_INEXACT;
+  }
+  for(rn = 1; x >= B; ++rn)
+    x *= Bi;
+  ULBN_RETURN_IF_SSIZE_OVERFLOW(rn, ULBN_ERR_EXCEED_RANGE);
+
+  rp = _ulbi_res(alloc, dst, rn);
+  ULBN_RETURN_IF_ALLOC_FAILED(rp, ULBN_ERR_NOMEM);
+  dst->len = _ulbn_make_ssize(positive, rn);
+  while(rn) {
+  #ifdef HUGE_VALF /* we guess that `floorf` exists when `HUGE_VALF` exists */
+    xl = floorf(x);
+  #else
+    xl = ul_static_cast(float, floor(x));
+  #endif
+    x -= xl;
+    rp[--rn] = _ulbn_cast_limb(xl);
+    x = B * x;
+  }
+  return x <= 0.0F ? 0 : ULBN_ERR_INEXACT;
+}
+ULBN_PUBLIC int ulbi_init_float(const ulbn_alloc_t* alloc, ulbi_t* dst, float x) {
+  return ulbi_set_float(alloc, ulbi_init(dst), x);
+}
+ULBN_PUBLIC float ulbi_to_float(const ulbi_t* src) {
+  static ul_constexpr const float B = ul_static_cast(float, _ULBN_LIMB_SIGNBIT) * 2.0F;
+  const ulbn_usize_t n = _ulbn_abs_size(src->len);
+  const ulbn_limb_t* p = _ulbi_limbs(src);
+  float r;
+  ulbn_usize_t i = n;
+
+  if(n == 0)
+    return 0.0F;
+  r = ul_static_cast(float, p[--i]);
+  while(i > 0)
+    r = r * B + ul_static_cast(float, p[--i]);
+  return src->len >= 0 ? r : -r;
+}
+  #include <float.h>
+ULBN_PUBLIC int ulbi_fit_float(const ulbi_t* src) {
+  const ulbn_bits_t bits = ulbi_abs_bit_width(src);
+  const ulbn_bits_t ctz = ulbi_ctz(src);
+  return bits <= FLT_MAX_EXP && bits - ctz <= FLT_MANT_DIG;
+}
+#endif /* ULBN_CONF_HAS_FLOAT */
+
+
 #if ULBN_CONF_HAS_DOUBLE
 ULBN_PRIVATE int _ulbn_feq(double a, double b) {
   return a >= b && a <= b;
@@ -6319,6 +6388,71 @@ ULBN_PUBLIC int ulbi_fit_double(const ulbi_t* src) {
   return bits <= DBL_MAX_EXP && bits - ctz <= DBL_MANT_DIG;
 }
 #endif /* ULBN_CONF_HAS_DOUBLE */
+
+
+#if ULBN_CONF_HAS_LONG_DOUBLE
+ULBN_PRIVATE int _ulbn_feql(long double a, long double b) {
+  return a >= b && a <= b;
+}
+ULBN_PUBLIC int ulbi_set_long_double(const ulbn_alloc_t* alloc, ulbi_t* dst, long double x) {
+  static ul_constexpr const long double B = ul_static_cast(long double, _ULBN_LIMB_SIGNBIT) * 2.0L;
+  static ul_constexpr const long double Bi = 1.0L / (ul_static_cast(long double, _ULBN_LIMB_SIGNBIT) * 2.0L);
+  ulbn_usize_t rn;
+  ulbn_limb_t* rp;
+  long double xl;
+  int positive;
+
+  /* NaN, +Inf, -Inf or 0 */
+  if(x != x || _ulbn_feql(x, x * 0.5L)) {
+    _ulbi_set_zero(dst);
+    return _ulbn_feq(x, 0.0L) ? 0 : ULBN_ERR_INVALID;
+  }
+  positive = x >= 0.0L;
+  if(!positive)
+    x = -x;
+  if(x < 1.0L) {
+    _ulbi_set_zero(dst);
+    return ULBN_ERR_INEXACT;
+  }
+  for(rn = 1; x >= B; ++rn)
+    x *= Bi;
+  ULBN_RETURN_IF_SSIZE_OVERFLOW(rn, ULBN_ERR_EXCEED_RANGE);
+
+  rp = _ulbi_res(alloc, dst, rn);
+  ULBN_RETURN_IF_ALLOC_FAILED(rp, ULBN_ERR_NOMEM);
+  dst->len = _ulbn_make_ssize(positive, rn);
+  while(rn) {
+    xl = floorl(x);
+    x -= xl;
+    rp[--rn] = _ulbn_cast_limb(xl);
+    x = B * x;
+  }
+  return x <= 0.0L ? 0 : ULBN_ERR_INEXACT;
+}
+ULBN_PUBLIC int ulbi_init_long_double(const ulbn_alloc_t* alloc, ulbi_t* dst, long double x) {
+  return ulbi_set_long_double(alloc, ulbi_init(dst), x);
+}
+ULBN_PUBLIC long double ulbi_to_long_double(const ulbi_t* src) {
+  static ul_constexpr const long double B = ul_static_cast(long double, _ULBN_LIMB_SIGNBIT) * 2.0L;
+  const ulbn_usize_t n = _ulbn_abs_size(src->len);
+  const ulbn_limb_t* p = _ulbi_limbs(src);
+  long double r;
+  ulbn_usize_t i = n;
+
+  if(n == 0)
+    return 0.0L;
+  r = ul_static_cast(long double, p[--i]);
+  while(i > 0)
+    r = r * B + ul_static_cast(long double, p[--i]);
+  return src->len >= 0 ? r : -r;
+}
+  #include <float.h>
+ULBN_PUBLIC int ulbi_fit_long_double(const ulbi_t* src) {
+  const ulbn_bits_t bits = ulbi_abs_bit_width(src);
+  const ulbn_bits_t ctz = ulbi_ctz(src);
+  return bits <= LDBL_MAX_EXP && bits - ctz <= LDBL_MANT_DIG;
+}
+#endif /* ULBN_CONF_HAS_LONG_DOUBLE */
 
 
 #if ULBN_CONF_USE_RAND
