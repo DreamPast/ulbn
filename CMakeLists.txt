@@ -95,10 +95,9 @@ set(CLANG_CLOSE_WARNINGS
     -Wno-c++98-compat
     -Wno-c++98-compat-pedantic
     -Wno-c++11-long-long
+    -Wno-unsafe-buffer-usage
+    -Wno-pre-c11-compat
 )
-if(WIN32)
-    set(CLANG_CLOSE_WARNINGS ${CLANG_CLOSE_WARNINGS} -Wno-unsafe-buffer-usage)
-endif()
 
 set(MSVC_ALL_WARNINGS
     /Wall /WX)

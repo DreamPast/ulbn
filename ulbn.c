@@ -620,19 +620,19 @@ ULBN_INTERNAL int ulbn_is0(const ulbn_limb_t* p, ulbn_usize_t n) {
 /* Copy src[0:n] to dst[0:n], ensuring src[] and dest[] do not overlap */
 ULBN_INTERNAL void ulbn_copy(ulbn_limb_t* ul_restrict dst, const ulbn_limb_t* ul_restrict src, ulbn_usize_t n) {
   ulbn_assert_overlap(dst, n, src, n);
-  ulbn_assert(n < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
+  ulbn_assert(ul_static_cast(size_t, n) < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
   memcpy(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
 }
 /* Copy src[0:n] to dst[0:n], ensuring dest is after src */
 ULBN_INTERNAL void ulbn_fcopy(ulbn_limb_t* dst, const ulbn_limb_t* src, ulbn_usize_t n) {
   ulbn_assert_forward_overlap(dst, n, src, n);
-  ulbn_assert(n < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
+  ulbn_assert(ul_static_cast(size_t, n) < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
   memcpy(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
 }
 /* Copy src[0:n] to dst[0:n], ensuring dest is before src */
 ULBN_INTERNAL void ulbn_rcopy(ulbn_limb_t* dst, const ulbn_limb_t* src, ulbn_usize_t n) {
   ulbn_assert_backward_overlap(dst, n, src, n);
-  ulbn_assert(n < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
+  ulbn_assert(ul_static_cast(size_t, n) < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
   memmove(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
 }
 #define ulbn_maycopy(dst, src, n) ((dst) != (src) ? ulbn_copy((dst), (src), (n)) : (void)0)
@@ -2861,10 +2861,14 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
   c = cp[--ci];
   for(pbuf = buf_end; c; c /= conv->base)
     *--pbuf = conv->char_table[c % conv->base];
-  if(ul_unlikely(desire_len / conv->base_pow >= ci)) {
-    err = _ulbn_write0(printer, opaque, desire_len - conv->base_pow * ci);
-    if(ul_unlikely(err))
-      goto cleanup;
+  if(desire_len / conv->base_pow >= ci) {
+    desire_len -= conv->base_pow * ci;
+    if(desire_len > ul_static_cast(size_t, buf_end - pbuf)) {
+      desire_len -= ul_static_cast(size_t, buf_end - pbuf);
+      err = _ulbn_write0(printer, opaque, desire_len);
+      if(ul_unlikely(err))
+        goto cleanup;
+    }
   }
   if(ul_unlikely(printer(opaque, pbuf, ul_static_cast(size_t, buf_end - pbuf))))
     goto cleanup;
