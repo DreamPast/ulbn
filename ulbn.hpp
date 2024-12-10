@@ -414,16 +414,31 @@ public:
 #endif
 
 
-  static BigInt fromData(const void* ptr, size_t n, bool is_big_endian) {
+  static BigInt fromDataUnsigned(const void* ptr, size_t n, bool is_big_endian) {
     BigInt ret;
-    _check(ulbi_set_data(_ctx(), ret._value, ptr, n, is_big_endian));
+    _check(ulbi_set_data_unsigned(_ctx(), ret._value, ptr, n, is_big_endian));
     return ret;
   }
-  static BigInt fromData(const void* ptr, size_t n) {
+  static BigInt fromDataUnsigned(const void* ptr, size_t n) {
     if constexpr(std::endian::little == std::endian::native) {
-      return fromData(ptr, n, false);
+      return fromDataUnsigned(ptr, n, false);
     } else if constexpr(std::endian::big == std::endian::native) {
-      return fromData(ptr, n, true);
+      return fromDataUnsigned(ptr, n, true);
+    } else {
+      static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big);
+    }
+  }
+
+  static BigInt fromDataSigned(const void* ptr, size_t n, bool is_big_endian) {
+    BigInt ret;
+    _check(ulbi_set_data_signed(_ctx(), ret._value, ptr, n, is_big_endian));
+    return ret;
+  }
+  static BigInt fromDataSigned(const void* ptr, size_t n) {
+    if constexpr(std::endian::little == std::endian::native) {
+      return fromDataSigned(ptr, n, false);
+    } else if constexpr(std::endian::big == std::endian::native) {
+      return fromDataSigned(ptr, n, true);
     } else {
       static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big);
     }

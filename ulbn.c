@@ -69,6 +69,77 @@ ulbn - Big Number Library
   #endif
 #endif /* ul_assume */
 
+#if !defined(UL_ENDIAN_BIG) && !defined(UL_ENDIAN_LITTLE)
+  #if defined(BIG_ENDIAN) && defined(LITTLE_ENDIAN)
+    #if defined(BYTE_ORDER) && BYTE_ORDER == BIG_ENDIAN
+      #define UL_ENDIAN_BIG
+    #elif defined(BYTE_ORDER) && BYTE_ORDER == LITTLE_ENDIAN
+      #define UL_ENDIAN_LITTLE
+    #endif
+  #elif defined(BIG_ENDIAN)
+    #define UL_ENDIAN_BIG
+  #elif defined(LITTLE_ENDIAN)
+    #define UL_ENDIAN_LITTLE
+  #endif
+
+  #if defined(_BIG_ENDIAN) && defined(_LITTLE_ENDIAN)
+    #if defined(_BYTE_ORDER) && _BYTE_ORDER == _BIG_ENDIAN
+      #define UL_ENDIAN_BIG
+    #elif defined(_BYTE_ORDER) && _BYTE_ORDER == _LITTLE_ENDIAN
+      #define UL_ENDIAN_LITTLE
+    #endif
+  #elif defined(_BIG_ENDIAN)
+    #define UL_ENDIAN_BIG
+  #elif defined(_LITTLE_ENDIAN)
+    #define UL_ENDIAN_LITTLE
+  #endif
+
+  #if defined(__BIG_ENDIAN) && defined(__LITTLE_ENDIAN)
+    #if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
+      #define UL_ENDIAN_BIG
+    #elif defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN
+      #define UL_ENDIAN_LITTLE
+    #endif
+  #elif defined(__BIG_ENDIAN)
+    #define UL_ENDIAN_BIG
+  #elif defined(__LITTLE_ENDIAN)
+    #define UL_ENDIAN_LITTLE
+  #endif
+
+  #if defined(__BIG_ENDIAN__) && defined(__LITTLE_ENDIAN__)
+    #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __BIG_ENDIAN__
+      #define UL_ENDIAN_BIG
+    #elif defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __LITTLE_ENDIAN__
+      #define UL_ENDIAN_LITTLE
+    #endif
+  #elif defined(__BIG_ENDIAN__)
+    #define UL_ENDIAN_BIG
+  #elif defined(__LITTLE_ENDIAN__)
+    #define UL_ENDIAN_LITTLE
+  #endif
+
+  #if !defined(UL_ENDIAN_BIG) && !defined(UL_ENDIAN_LITTLE)
+    #if defined(__alpha__) || defined(__alpha) || defined(i386) || defined(__i386__) || defined(_M_I86) \
+      || defined(_M_IX86) || defined(__OS2__) || defined(sun386) || defined(__TURBOC__) || defined(vax) \
+      || defined(vms) || defined(VMS) || defined(__VMS) || defined(_M_X64)
+      #define UL_ENDIAN_LITTLE
+    #elif defined(AMIGA) || defined(applec) || defined(__AS400__) || defined(_CRAY) || defined(__hppa)         \
+      || defined(__hp9000) || defined(ibm370) || defined(mc68000) || defined(m68k) || defined(__MRC__)         \
+      || defined(__MVS__) || defined(__MWERKS__) || defined(sparc) || defined(__sparc) || defined(SYMANTEC_C)  \
+      || defined(__VOS__) || defined(__TIGCC__) || defined(__TANDEM) || defined(THINK_C) || defined(__VMCMS__) \
+      || defined(_AIX) || defined(__s390__) || defined(__s390x__) || defined(__zarch__)
+      #define UL_ENDIAN_BIG
+    #elif defined(__arm__)
+      #ifdef __BIG_ENDIAN
+        #define UL_ENDIAN_BIG
+      #else
+        #define UL_ENDIAN_LITTLE
+      #endif
+    #endif
+  #endif
+#endif /* !UL_ENDIAN_BIG && !UL_ENDIAN_LITTLE */
+
+
 #define ulbn_safe_forward_overlap(d, dn, s, sn) ((d) <= (s) || (d) >= (s) + (sn))
 #define ulbn_safe_backward_overlap(d, dn, s, sn) ((d) + (dn) <= (s) || ((d) >= (s) && (d) + (dn) >= (s) + (sn)))
 #define ulbn_safe_overlap(d, dn, s, sn) ((d) + (dn) <= (s) || (s) + (sn) <= (d))
@@ -603,12 +674,12 @@ ULBN_INTERNAL ulbn_usize_t ulbn_fnorm(const ulbn_limb_t* p, ulbn_usize_t n) {
 
 /* Clear p[0:n] */
 ULBN_INTERNAL void ulbn_fill0(ulbn_limb_t* p, ulbn_usize_t n) {
-  ulbn_assert(n < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
+  ulbn_assert(ul_static_cast(size_t, n) < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
   memset(p, 0, ul_static_cast(size_t, n) * sizeof(ulbn_limb_t));
 }
 /* Fill p[0:n] with ~0 */
 ULBN_INTERNAL void ulbn_fill1(ulbn_limb_t* p, ulbn_usize_t n) {
-  ulbn_assert(n < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
+  ulbn_assert(ul_static_cast(size_t, n) < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
   memset(p, 0xFF, ul_static_cast(size_t, n) * sizeof(ulbn_limb_t));
 }
 
@@ -723,8 +794,7 @@ ULBN_INTERNAL ulbn_bits_t ulbn_bit_width(const ulbn_limb_t* p, ulbn_usize_t n) {
 }
 
 
-/* static ul_constexpr const ulbn_usize_t ULBN_ULONG_LIMB_LEN = _ULBN_ULONG_LIMB_LEN; */
-ULBN_PRIVATE ulbn_usize_t ulbn_set_ulong(ulbn_limb_t* p, ulbn_ulong_t v) {
+ULBN_INTERNAL ulbn_usize_t ulbn_set_ulong(ulbn_limb_t* p, ulbn_ulong_t v) {
   ulbn_usize_t n = 0;
 
   if(v == 0)
@@ -2439,9 +2509,9 @@ ULBN_INTERNAL void ulbn_divmod_inv(
 
 #define ULBN_DIVMOD_REC_THRESHOLD 256
 #if ULBN_DIVMOD_REC_THRESHOLD < 2
-  #error "ulbn: ulbn_divmod_rec threshold must be at least 2"
+  #error "ulbn: ulbn_divmod_rec_guard threshold must be at least 2"
 #endif
-ULBN_PRIVATE void _ulbn_divmod_rec(
+ULBN_INTERNAL void ulbn_divmod_rec(
   const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict tp, ulbn_limb_t* ul_restrict qp, /**/
   ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,                        /* */
   const ulbn_limb_t* ul_restrict dp, ulbn_usize_t dn, ulbn_limb_t di                   /* */
@@ -2463,7 +2533,7 @@ ULBN_PRIVATE void _ulbn_divmod_rec_step(
   ulbn_assert(m < dn);
   ulbn_assert(k > 0);
 
-  _ulbn_divmod_rec(alloc, tp, qp + k, rp + k2, rn - k2, a2, dp + k, dn - k, di);
+  ulbn_divmod_rec(alloc, tp, qp + k, rp + k2, rn - k2, a2, dp + k, dn - k, di);
   ulbn_mul(alloc, tp, qp + k, m - k + 1, dp, k);
   a2 = ulbn_sub(rp + k, rp + k, dn, tp, m + 1);
   while(a2) {
@@ -2479,7 +2549,7 @@ ULBN_PRIVATE void _ulbn_divmod_rec_step(
   }
 
   q_tmp = qp[k];
-  _ulbn_divmod_rec(alloc, tp, qp, rp + k, dn, 0, dp + k, dn - k, di);
+  ulbn_divmod_rec(alloc, tp, qp, rp + k, dn, 0, dp + k, dn - k, di);
   ulbn_assert(qp[k] == 0);
   qp[k] = q_tmp;
   ulbn_mul(alloc, tp, qp, k, dp, k);
@@ -2489,7 +2559,8 @@ ULBN_PRIVATE void _ulbn_divmod_rec_step(
     a2 -= ulbn_add(rp, rp, dn, dp, dn);
   }
 }
-ULBN_PRIVATE void _ulbn_divmod_rec(
+/* `tp` must be able to hold `rn - dn + 1` limbs */
+ULBN_INTERNAL void ulbn_divmod_rec(
   const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict tp, ulbn_limb_t* ul_restrict qp, /**/
   ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,                        /* */
   const ulbn_limb_t* ul_restrict dp, ulbn_usize_t dn, ulbn_limb_t di                   /* */
@@ -2523,7 +2594,7 @@ ULBN_PRIVATE void _ulbn_divmod_rec(
   }
 }
 
-ULBN_INTERNAL void ulbn_divmod_rec(
+ULBN_INTERNAL void ulbn_divmod_rec_guard(
   const ulbn_alloc_t* alloc, ulbn_limb_t* ul_restrict qp,            /**/
   ulbn_limb_t* ul_restrict rp, ulbn_usize_t rn, ulbn_limb_t a2,      /* */
   const ulbn_limb_t* ul_restrict dp, ulbn_usize_t dn, ulbn_limb_t di /* */
@@ -2539,7 +2610,7 @@ ULBN_INTERNAL void ulbn_divmod_rec(
 
   tp = ulbn_allocT(ulbn_limb_t, alloc, m + 1);
   ULBN_DO_IF_ALLOC_FAILED(tp, goto fallback;);
-  _ulbn_divmod_rec(alloc, tp, qp, rp, rn, a2, dp, dn, di);
+  ulbn_divmod_rec(alloc, tp, qp, rp, rn, a2, dp, dn, di);
   ulbn_deallocT(ulbn_limb_t, alloc, tp, m + 1);
 }
 
@@ -2620,7 +2691,7 @@ ULBN_PRIVATE int _ulbn_divmod_large(
     });
   }
 
-  ulbn_divmod_rec(alloc, nqp, nrp, an, a2, dp, dn, ulbn_divinv2(dp[dn - 1], dp[dn - 2]));
+  ulbn_divmod_rec_guard(alloc, nqp, nrp, an, a2, dp, dn, ulbn_divinv2(dp[dn - 1], dp[dn - 2]));
 
   if(rp != ul_nullptr) {
     if(shift != 0)
@@ -3004,21 +3075,21 @@ ULBN_PRIVATE int _ulbn_strprinter(void* opaque, const char* str, size_t len) {
 }
 
 
-ULBN_PRIVATE void ulbn_and_nocy(
+ULBN_INTERNAL void ulbn_and_nocy(
   ulbn_limb_t* rp, const ulbn_limb_t* ap, const ulbn_limb_t* bp, ulbn_limb_t b_rev_mask, ulbn_usize_t n
 ) {
   ulbn_usize_t i;
   for(i = 0; i < n; ++i)
     rp[i] = _ulbn_cast_limb(ap[i] & (bp[i] ^ b_rev_mask));
 }
-ULBN_PRIVATE void ulbn_or_nocy(
+ULBN_INTERNAL void ulbn_or_nocy(
   ulbn_limb_t* rp, const ulbn_limb_t* ap, const ulbn_limb_t* bp, ulbn_limb_t b_rev_mask, ulbn_usize_t n
 ) {
   ulbn_usize_t i;
   for(i = 0; i < n; ++i)
     rp[i] = _ulbn_cast_limb(ap[i] | (bp[i] ^ b_rev_mask));
 }
-ULBN_PRIVATE void ulbn_xor_nocy(
+ULBN_INTERNAL void ulbn_xor_nocy(
   ulbn_limb_t* rp, const ulbn_limb_t* ap, const ulbn_limb_t* bp, ulbn_limb_t b_rev_mask, ulbn_usize_t n
 ) {
   ulbn_usize_t i;
@@ -4334,84 +4405,211 @@ ULBN_PUBLIC int ulbi_set_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const ch
   return *str == 0 ? 0 : ULBN_ERR_INVALID;
 }
 
-ULBN_PUBLIC int ulbi_set_data(
-  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
-  const void* limbs, size_t len, int is_big_endian /* */
-) {
-  const unsigned char* p = ul_reinterpret_cast(const unsigned char*, limbs);
-  ulbn_limb_t* dp;
-  size_t wlen;
 
 #if ULBN_LIMB_MAX < UCHAR_MAX
   #error "ulbn: `ulbn_limb_t` cannot be smaller than `unsigned char`"
 #endif
+#if ULBN_LIMB_MAX == UCHAR_MAX
+  #define _ulbi_set_data_fix_len(len) (len)
+#else
+  #define _ulbi_set_data_fix_len(len) ((len) / sizeof(ulbn_limb_t) + ((len) % sizeof(ulbn_limb_t) != 0))
+#endif
 
-#if ULBN_LIMB_MAX != UCHAR_MAX
+ULBN_PRIVATE void _ulbi_set_data_unsafe_le(
+  ulbn_limb_t* dp, ulbn_usize_t wlen, /* */
+  const unsigned char* p, size_t len  /* */
+) {
+#if ULBN_LIMB_MAX == UCHAR_MAX || (defined(UL_ENDIAN_LITTLE) && !defined(UL_ENDIAN_BIG))
+  if(wlen)
+    dp[wlen - 1] = 0;
+  memcpy(dp, p, len);
+#else
   const unsigned char* q;
   unsigned sz;
   ulbn_limb_t limb = 0;
-#endif
 
-  if(!is_big_endian)
-    while(len > 0 && p[len - 1] == 0)
-      --len;
-  else
-    while(len > 0 && p[0] == 0) {
-      ++p;
-      --len;
-    }
-#if ULBN_LIMB_MAX == UCHAR_MAX
-  wlen = len;
-#else
-  wlen = len / sizeof(ulbn_limb_t) + (len % sizeof(ulbn_limb_t) != 0);
+  (void)wlen;
+  limb = 0;
+  for(; len >= sizeof(ulbn_limb_t); len -= sizeof(ulbn_limb_t)) {
+    p += sizeof(ulbn_limb_t);
+    q = p;
+    for(sz = sizeof(ulbn_limb_t); sz--;)
+      limb = (limb << CHAR_BIT) | *--q;
+    *dp++ = limb;
+  }
+  limb = 0;
+  q = p + len;
+  while(len--)
+    limb = (limb << CHAR_BIT) | *--q;
+  if(limb)
+    *dp++ = limb;
 #endif
+}
+ULBN_PRIVATE void _ulbi_set_data_unsafe_be(
+  ulbn_limb_t* dp, ulbn_usize_t wlen, /* */
+  const unsigned char* p, size_t len  /* */
+) {
+#if defined(UL_ENDIAN_BIG) && !defined(UL_ENDIAN_LITTLE)
+  if(wlen)
+    dp[wlen - 1] = 0;
+  memcpy(dp, p, len);
+#elif ULBN_LIMB_MAX == UCHAR_MAX
+  (void)wlen;
+  for(p += len; len--;)
+    *dp++ = *--p;
+#else
+  const unsigned char* q;
+  unsigned sz;
+  ulbn_limb_t limb = 0;
+
+  (void)wlen;
+  p += len;
+  for(; len >= sizeof(ulbn_limb_t); len -= sizeof(ulbn_limb_t)) {
+    p -= sizeof(ulbn_limb_t);
+    q = p;
+    for(sz = sizeof(ulbn_limb_t); sz--;)
+      limb = (limb << CHAR_BIT) | *q++;
+    *dp++ = limb;
+  }
+  limb = 0;
+  q = p - len;
+  while(len--)
+    limb = (limb << CHAR_BIT) | *q++;
+  if(limb)
+    *dp++ = limb;
+#endif
+}
+
+ULBN_PRIVATE int _ulbi_set_data_pos_le(
+  const ulbn_alloc_t* alloc, ulbi_t* dst, /* */
+  const unsigned char* p, size_t len      /* */
+) {
+  ulbn_limb_t* dp;
+  size_t wlen;
+
+  while(len > 0 && p[len - 1] == 0)
+    --len;
+  wlen = _ulbi_set_data_fix_len(len);
   if(ul_unlikely(wlen > ULBN_SSIZE_LIMIT))
     return ULBN_ERR_EXCEED_RANGE;
   dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
   ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
 
-#if ULBN_LIMB_MAX == UCHAR_MAX
-  if(!is_big_endian)
-    memcpy(dp, p, len);
-  else
-    for(p += len; len--;)
-      *dp++ = *--p;
-#else
-  if(!is_big_endian) {
-    limb = 0;
-    for(; len >= sizeof(ulbn_limb_t); len -= sizeof(ulbn_limb_t)) {
-      p += sizeof(ulbn_limb_t);
-      q = p;
-      for(sz = sizeof(ulbn_limb_t); sz--;)
-        limb = (limb << CHAR_BIT) | *--q;
-      *dp++ = limb;
-    }
-    limb = 0;
-    q = p + len;
-    while(len--)
-      limb = (limb << CHAR_BIT) | *--q;
-    if(limb)
-      *dp++ = limb;
-  } else {
-    p += len;
-    for(; len >= sizeof(ulbn_limb_t); len -= sizeof(ulbn_limb_t)) {
-      p -= sizeof(ulbn_limb_t);
-      q = p;
-      for(sz = sizeof(ulbn_limb_t); sz--;)
-        limb = (limb << CHAR_BIT) | *q++;
-      *dp++ = limb;
-    }
-    limb = 0;
-    q = p - len;
-    while(len--)
-      limb = (limb << CHAR_BIT) | *q++;
-    if(limb)
-      *dp++ = limb;
-  }
-#endif
-
+  _ulbi_set_data_unsafe_le(dp, ulbn_cast_usize(wlen), p, len);
   dst->len = ulbn_cast_ssize(ulbn_rnorm(_ulbi_limbs(dst), ulbn_cast_usize(wlen)));
   return 0;
+}
+ULBN_PRIVATE int _ulbi_set_data_pos_be(
+  const ulbn_alloc_t* alloc, ulbi_t* dst, /* */
+  const unsigned char* p, size_t len      /* */
+) {
+  ulbn_limb_t* dp;
+  size_t wlen;
+
+  while(len > 0 && p[0] == 0) {
+    ++p;
+    --len;
+  }
+  wlen = _ulbi_set_data_fix_len(len);
+  if(ul_unlikely(wlen > ULBN_SSIZE_LIMIT))
+    return ULBN_ERR_EXCEED_RANGE;
+  dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
+  ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
+
+  _ulbi_set_data_unsafe_be(dp, ulbn_cast_usize(wlen), p, len);
+  dst->len = ulbn_cast_ssize(ulbn_rnorm(_ulbi_limbs(dst), ulbn_cast_usize(wlen)));
+  return 0;
+}
+
+ULBN_PRIVATE int _ulbi_set_data_neg_le(
+  const ulbn_alloc_t* alloc, ulbi_t* dst, /* */
+  const unsigned char* p, size_t len      /* */
+) {
+  ulbn_limb_t* dp;
+  size_t wlen;
+
+  while(len > 1 && p[len - 1] == UCHAR_MAX)
+    --len;
+  wlen = _ulbi_set_data_fix_len(len);
+  if(ul_unlikely(wlen > ULBN_SSIZE_LIMIT))
+    return ULBN_ERR_EXCEED_RANGE;
+  dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
+  ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
+
+  _ulbi_set_data_unsafe_le(dp, ulbn_cast_usize(wlen), p, len);
+#if ULBN_LIMB_MAX != UCHAR_MAX
+  len = sizeof(ulbn_limb_t) - (wlen * sizeof(ulbn_limb_t) - len);
+  if(len != sizeof(ulbn_limb_t)) {
+    ulbn_assert(wlen > 0);
+    dp[wlen - 1] |= ULBN_LIMB_SHL(ULBN_LIMB_MAX, len * CHAR_BIT);
+  }
+#endif
+  ulbn_neg(dp, dp, ulbn_cast_usize(wlen), 1);
+  dst->len = -ulbn_cast_ssize(ulbn_rnorm(_ulbi_limbs(dst), ulbn_cast_usize(wlen)));
+  return 0;
+}
+ULBN_PRIVATE int _ulbi_set_data_neg_be(
+  const ulbn_alloc_t* alloc, ulbi_t* dst, /* */
+  const unsigned char* p, size_t len      /* */
+) {
+  ulbn_limb_t* dp;
+  size_t wlen;
+
+  while(len > 1 && p[0] == UCHAR_MAX) {
+    ++p;
+    --len;
+  }
+  wlen = _ulbi_set_data_fix_len(len);
+  if(ul_unlikely(wlen > ULBN_SSIZE_LIMIT))
+    return ULBN_ERR_EXCEED_RANGE;
+  dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
+  ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
+
+  _ulbi_set_data_unsafe_be(dp, ulbn_cast_usize(wlen), p, len);
+#if ULBN_LIMB_MAX != UCHAR_MAX
+  len = sizeof(ulbn_limb_t) - (wlen * sizeof(ulbn_limb_t) - len);
+  if(len != sizeof(ulbn_limb_t)) {
+    ulbn_assert(wlen > 0);
+    dp[wlen - 1] |= ULBN_LIMB_SHL(ULBN_LIMB_MAX, len * CHAR_BIT);
+  }
+#endif
+  ulbn_neg(dp, dp, ulbn_cast_usize(wlen), 1);
+  dst->len = -ulbn_cast_ssize(ulbn_rnorm(_ulbi_limbs(dst), ulbn_cast_usize(wlen)));
+  return 0;
+}
+
+ULBN_PUBLIC int ulbi_set_data_unsigned(
+  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
+  const void* limbs, size_t len, int is_big_endian /* */
+) {
+  if(is_big_endian)
+    return _ulbi_set_data_pos_be(alloc, dst, ul_reinterpret_cast(const unsigned char*, limbs), len);
+  else
+    return _ulbi_set_data_pos_le(alloc, dst, ul_reinterpret_cast(const unsigned char*, limbs), len);
+}
+ULBN_PUBLIC int ulbi_set_data_signed(
+  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
+  const void* limbs, size_t len, int is_big_endian /* */
+) {
+  static ul_constexpr const unsigned char NEG_MASK = ul_static_cast(unsigned char, 1u << (CHAR_BIT - 1));
+  const unsigned char* p = ul_reinterpret_cast(const unsigned char*, limbs);
+
+  if(len == 0) {
+    _ulbi_set_zero(dst);
+    return 0;
+  }
+
+  if(is_big_endian) {
+    if(p[0] & NEG_MASK)
+      return _ulbi_set_data_neg_be(alloc, dst, p, len);
+    else
+      return _ulbi_set_data_pos_be(alloc, dst, p, len);
+  } else {
+    if(p[len - 1] & NEG_MASK)
+      return _ulbi_set_data_neg_le(alloc, dst, p, len);
+    else
+      return _ulbi_set_data_pos_le(alloc, dst, p, len);
+  }
 }
 
 
@@ -4432,11 +4630,18 @@ ULBN_PUBLIC int ulbi_init_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulb
 ULBN_PUBLIC int ulbi_init_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base) {
   return ulbi_set_string(alloc, ulbi_init(dst), str, base);
 }
-ULBN_PUBLIC int ulbi_init_data(
+
+ULBN_PUBLIC int ulbi_init_data_unsigned(
   const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
   const void* limbs, size_t len, int is_big_endian /* */
 ) {
-  return ulbi_set_data(alloc, ulbi_init(dst), limbs, len, is_big_endian);
+  return ulbi_set_data_unsigned(alloc, ulbi_init(dst), limbs, len, is_big_endian);
+}
+ULBN_PUBLIC int ulbi_init_data_signed(
+  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
+  const void* limbs, size_t len, int is_big_endian /* */
+) {
+  return ulbi_set_data_signed(alloc, ulbi_init(dst), limbs, len, is_big_endian);
 }
 
 

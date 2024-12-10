@@ -260,14 +260,29 @@ void testCastFrom() {
 
   for(auto t = TEST_BIG; t--;) {
     int64_t x = static_cast<int64_t>(mt64()), y;
-    T_assert(BigInt::fromData(&x, sizeof(x)).asInt(64) == x);
-    T_assert(BigInt::fromData(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
+    T_assert(BigInt::fromDataUnsigned(&x, sizeof(x)).asInt(64) == x);
+    T_assert(BigInt::fromDataUnsigned(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
     std::reverse_copy(
       reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
     );
-    T_assert(BigInt::fromData(&x, sizeof(x), std::endian::native != std::endian::big).asInt(64) == y);
+    T_assert(BigInt::fromDataUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asInt(64) == y);
     T_assert(
-      BigInt::fromData(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64) == static_cast<uint64_t>(y)
+      BigInt::fromDataUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64)
+      == static_cast<uint64_t>(y)
+    );
+  }
+
+  for(auto t = TEST_BIG; t--;) {
+    int64_t x = static_cast<int64_t>(mt64()), y;
+    T_assert(BigInt::fromDataSigned(&x, sizeof(x)) == x);
+    T_assert(BigInt::fromDataSigned(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
+    std::reverse_copy(
+      reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
+    );
+    T_assert(BigInt::fromDataSigned(&x, sizeof(x), std::endian::native != std::endian::big) == y);
+    T_assert(
+      BigInt::fromDataSigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64)
+      == static_cast<uint64_t>(y)
     );
   }
 

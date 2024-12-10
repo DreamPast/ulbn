@@ -892,7 +892,20 @@ ULBN_PUBLIC int ulbi_set_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const ch
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
-ULBN_PUBLIC int ulbi_set_data(const ulbn_alloc_t* alloc, ulbi_t* dst, const void* limbs, size_t len, int is_big_endian);
+ULBN_PUBLIC int ulbi_set_data_unsigned(
+  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
+  const void* limbs, size_t len, int is_big_endian /* */
+);
+/**
+ * @brief Sets `dst` to the signed integer represented by `limbs`.
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
+ */
+ULBN_PUBLIC int ulbi_set_data_signed(
+  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
+  const void* limbs, size_t len, int is_big_endian /* */
+);
 
 
 /**
@@ -939,7 +952,17 @@ ULBN_PUBLIC int ulbi_init_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const c
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
-ULBN_PUBLIC int ulbi_init_data(
+ULBN_PUBLIC int ulbi_init_data_unsigned(
+  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
+  const void* limbs, size_t len, int is_big_endian /* */
+);
+/**
+ * @brief Initializes `dst` with the signed integer represented by `limbs`.
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
+ */
+ULBN_PUBLIC int ulbi_init_data_signed(
   const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
   const void* limbs, size_t len, int is_big_endian /* */
 );
