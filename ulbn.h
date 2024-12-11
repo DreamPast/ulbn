@@ -590,7 +590,7 @@ enum ULBN_ERROR_ENUM {
   /**
    * @brief Pole error
    * @details The calculation results in infinity or undefined.
-   * @example 1/0, atan(pi/2)
+   * @details For example, 1/0, atan(pi/2).
    */
   ULBN_ERR_DIV_BY_ZERO = 2,
   /**
@@ -600,7 +600,7 @@ enum ULBN_ERROR_ENUM {
   ULBN_ERR_INEXACT = 4,
   /**
    * @brief Domain error
-   * @example log(-1)
+   * @details For example, log(-1).
    */
   ULBN_ERR_INVALID = 8,
   /**
@@ -887,24 +887,24 @@ ULBN_PUBLIC int ulbi_set_string_ex(const ulbn_alloc_t* alloc, ulbi_t* dst, const
  */
 ULBN_PUBLIC int ulbi_set_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base);
 /**
- * @brief Sets `dst` to the unsigned integer represented by `limbs`.
+ * @brief Sets `dst` to the unsigned integer represented by `data`.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
 ULBN_PUBLIC int ulbi_set_data_unsigned(
-  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
-  const void* limbs, size_t len, int is_big_endian /* */
+  const ulbn_alloc_t* alloc, ulbi_t* dst,         /* */
+  const void* data, size_t len, int is_big_endian /* */
 );
 /**
- * @brief Sets `dst` to the signed integer represented by `limbs`.
+ * @brief Sets `dst` to the signed integer represented by `data`.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
 ULBN_PUBLIC int ulbi_set_data_signed(
-  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
-  const void* limbs, size_t len, int is_big_endian /* */
+  const ulbn_alloc_t* alloc, ulbi_t* dst,         /* */
+  const void* data, size_t len, int is_big_endian /* */
 );
 
 
@@ -1557,6 +1557,12 @@ ULBN_PUBLIC int ulbi_fit_ulong(const ulbi_t* src);
  * @brief Checks if `src` can be represented as `ulbn_slong_t`.
  */
 ULBN_PUBLIC int ulbi_fit_slong(const ulbi_t* src);
+
+
+/**
+ * @brief Converts `ao` to signed integer.
+ */
+ULBN_PUBLIC void ulbi_to_data_signed(const ulbi_t* ao, void* dst, size_t size, int is_big_endian);
 
 
 /**

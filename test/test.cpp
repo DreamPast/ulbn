@@ -205,6 +205,49 @@ void subtestSetString() {
     _checkSetString("0.1p6", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
   }
 }
+void subtestData() {
+  puts("===Subtest Data");
+
+  for(auto t = TEST_BIG; t--;) {
+    int64_t x = static_cast<int64_t>(mt64()), y;
+    T_assert(BigInt::fromDataUnsigned(&x, sizeof(x)).asInt(64) == x);
+    T_assert(BigInt::fromDataUnsigned(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
+    std::reverse_copy(
+      reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
+    );
+    T_assert(BigInt::fromDataUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asInt(64) == y);
+    T_assert(
+      BigInt::fromDataUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64)
+      == static_cast<uint64_t>(y)
+    );
+  }
+
+  for(auto t = TEST_BIG; t--;) {
+    int64_t x = static_cast<int64_t>(mt64()), y;
+    T_assert(BigInt::fromDataSigned(&x, sizeof(x)) == x);
+    T_assert(BigInt::fromDataSigned(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
+    std::reverse_copy(
+      reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
+    );
+    T_assert(BigInt::fromDataSigned(&x, sizeof(x), std::endian::native != std::endian::big) == y);
+    T_assert(
+      BigInt::fromDataSigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64)
+      == static_cast<uint64_t>(y)
+    );
+  }
+
+  for(auto t = TEST_BIG; t--;) {
+    int64_t x = static_cast<int64_t>(mt64()), y;
+    BigInt bx = BigInt::fromDataSigned(&x, sizeof(x));
+    T_assert(bx == x);
+    bx.toDataSigned(&y, sizeof(y));
+    T_assert(x == y);
+
+    std::reverse(reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x));
+    bx.toDataSigned(&y, sizeof(y), std::endian::native != std::endian::big);
+    T_assert(x == y);
+  }
+}
 void testCastFrom() {
   puts("===Test Cast From");
 
@@ -258,34 +301,7 @@ void testCastFrom() {
     T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +1.0) == 0);
   }
 
-  for(auto t = TEST_BIG; t--;) {
-    int64_t x = static_cast<int64_t>(mt64()), y;
-    T_assert(BigInt::fromDataUnsigned(&x, sizeof(x)).asInt(64) == x);
-    T_assert(BigInt::fromDataUnsigned(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
-    std::reverse_copy(
-      reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
-    );
-    T_assert(BigInt::fromDataUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asInt(64) == y);
-    T_assert(
-      BigInt::fromDataUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64)
-      == static_cast<uint64_t>(y)
-    );
-  }
-
-  for(auto t = TEST_BIG; t--;) {
-    int64_t x = static_cast<int64_t>(mt64()), y;
-    T_assert(BigInt::fromDataSigned(&x, sizeof(x)) == x);
-    T_assert(BigInt::fromDataSigned(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
-    std::reverse_copy(
-      reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
-    );
-    T_assert(BigInt::fromDataSigned(&x, sizeof(x), std::endian::native != std::endian::big) == y);
-    T_assert(
-      BigInt::fromDataSigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64)
-      == static_cast<uint64_t>(y)
-    );
-  }
-
+  subtestData();
   subtestSetString();
 }
 

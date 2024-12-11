@@ -414,19 +414,17 @@ public:
 #endif
 
 
+  static_assert(
+    std::endian::native == std::endian::little || std::endian::native == std::endian::big,
+    "only little-endian and big-endian supported"
+  );
   static BigInt fromDataUnsigned(const void* ptr, size_t n, bool is_big_endian) {
     BigInt ret;
     _check(ulbi_set_data_unsigned(_ctx(), ret._value, ptr, n, is_big_endian));
     return ret;
   }
-  static BigInt fromDataUnsigned(const void* ptr, size_t n) {
-    if constexpr(std::endian::little == std::endian::native) {
-      return fromDataUnsigned(ptr, n, false);
-    } else if constexpr(std::endian::big == std::endian::native) {
-      return fromDataUnsigned(ptr, n, true);
-    } else {
-      static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big);
-    }
+  static BigInt fromDataUnsigned(const void* ptr, size_t n, std::endian endian = std::endian::native) {
+    return fromDataUnsigned(ptr, n, endian == std::endian::big);
   }
 
   static BigInt fromDataSigned(const void* ptr, size_t n, bool is_big_endian) {
@@ -434,14 +432,16 @@ public:
     _check(ulbi_set_data_signed(_ctx(), ret._value, ptr, n, is_big_endian));
     return ret;
   }
-  static BigInt fromDataSigned(const void* ptr, size_t n) {
-    if constexpr(std::endian::little == std::endian::native) {
-      return fromDataSigned(ptr, n, false);
-    } else if constexpr(std::endian::big == std::endian::native) {
-      return fromDataSigned(ptr, n, true);
-    } else {
-      static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big);
-    }
+  static BigInt fromDataSigned(const void* ptr, size_t n, std::endian endian = std::endian::native) {
+    return fromDataSigned(ptr, n, endian == std::endian::big);
+  }
+
+
+  void toDataSigned(void* ptr, size_t n, bool is_big_endian) const noexcept {
+    ulbi_to_data_signed(_value, ptr, n, is_big_endian);
+  }
+  void toDataSigned(void* ptr, size_t n, std::endian endian = std::endian::native) const noexcept {
+    ulbi_to_data_signed(_value, ptr, n, endian == std::endian::big);
   }
 
 
@@ -1443,7 +1443,7 @@ public:
 
 
 private:
-  static ulbn_alloc_t* _ctx() {
+  static ulbn_alloc_t* _ctx() noexcept {
     static ulbn_alloc_t* ctx = ulbn_default_alloc();
     return ctx;
   }

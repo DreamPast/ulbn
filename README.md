@@ -37,8 +37,11 @@ Depends on the following C++20 features:
 Depends on the following assumptions for modern platforms:
 
 - Signed integers are stored in two's complement form
+- `float` has 23 bits of precision (IEEE754)
 - `double` has 52 bits of precision (IEEE754)
-- `char` is 8-bits, and `int64_t` exists
+- `char` is 8-bits
+- `int64_t` exists
+- The platform is little-endian or big-endian
 
 ## Roadmap
 
