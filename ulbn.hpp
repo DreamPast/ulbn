@@ -244,26 +244,26 @@ public:
   BigInt(const char* str, int base = 0) {
     int err = ulbi_init_string(_ctx(), _value, str, base);
     if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed ");
+      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
     _check(err);
   }
   BigInt(const std::string& str, int base = 0) {
     int err = ulbi_init_string(_ctx(), _value, str.c_str(), base);
     if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed ");
+      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
     _check(err);
   }
   BigInt& operator=(const char* str) {
     int err = ulbi_set_string(_ctx(), _value, str, 0);
     if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed ");
+      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
     _check(err);
     return *this;
   }
   BigInt& operator=(const std::string& str) {
     int err = ulbi_set_string(_ctx(), _value, str.c_str(), 0);
     if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed ");
+      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
     _check(err);
     return *this;
   }
@@ -365,8 +365,7 @@ public:
   template<FitSbits T>
   static BigInt from2Exp(T n) {
     BigInt ret;
-    if(n >= 0)
-      _check(ulbi_set_2exp_bits(_ctx(), ret._value, static_cast<ulbn_bits_t>(static_cast<ulbn_sbits_t>(n))));
+    _check(ulbi_set_2exp_sbits(_ctx(), ret._value, static_cast<ulbn_sbits_t>(n)));
     return ret;
   }
   static BigInt from2Exp(const BigInt& n) {
@@ -386,12 +385,7 @@ public:
   template<FitSbits T>
   static BigInt fromRandom(T n) {
     BigInt ret;
-    if(n >= 0)
-      _check(
-        ulbi_set_rand_bits(_ctx(), getCurrentRand(), ret._value, static_cast<ulbn_bits_t>(static_cast<ulbn_sbits_t>(n)))
-      );
-    else
-      _check(ULBN_ERR_EXCEED_RANGE);
+    _check(ulbi_set_rand_sbits(_ctx(), getCurrentRand(), ret._value, static_cast<ulbn_sbits_t>(n)));
     return ret;
   }
   static BigInt fromRandom(const BigInt& n) {
@@ -1178,14 +1172,12 @@ public:
 
 
   template<FitBits T>
-  bool testBit(T n) const {
+  bool testBit(T n) const noexcept {
     return ulbi_testbit_bits(_value, static_cast<ulbn_bits_t>(n)) != 0;
   }
   template<FitSbits T>
   bool testBit(T n) const {
-    if(n < 0)
-      _check(ULBN_ERR_EXCEED_RANGE);
-    return ulbi_testbit_bits(_value, static_cast<ulbn_bits_t>(static_cast<ulbn_sbits_t>(n))) != 0;
+    return ulbi_testbit_sbits(_value, static_cast<ulbn_sbits_t>(n)) != 0;
   }
   bool testBit(const BigInt& n) const {
     return _check(ulbi_testbit(_value, n._value)) != 0;
@@ -1198,10 +1190,7 @@ public:
   }
   template<FitSbits T>
   BigInt& setBit(T n) {
-    if(n >= 0)
-      _check(ulbi_setbit_bits(_ctx(), _value, static_cast<ulbn_bits_t>(static_cast<ulbn_sbits_t>(n))));
-    else
-      _check(ULBN_ERR_EXCEED_RANGE);
+    _check(ulbi_setbit_sbits(_ctx(), _value, static_cast<ulbn_sbits_t>(n)));
     return *this;
   }
   BigInt& setBit(const BigInt& n) {
@@ -1216,10 +1205,7 @@ public:
   }
   template<FitSbits T>
   BigInt& resetBit(T n) {
-    if(n >= 0)
-      _check(ulbi_resetbit_bits(_ctx(), _value, static_cast<ulbn_bits_t>(static_cast<ulbn_sbits_t>(n))));
-    else
-      _check(ULBN_ERR_EXCEED_RANGE);
+    _check(ulbi_resetbit_sbits(_ctx(), _value, static_cast<ulbn_sbits_t>(n)));
     return *this;
   }
   BigInt& resetBit(const BigInt& n) {
@@ -1234,10 +1220,7 @@ public:
   }
   template<FitSbits T>
   BigInt& comBit(T n) {
-    if(n >= 0)
-      _check(ulbi_combit_bits(_ctx(), _value, static_cast<ulbn_bits_t>(static_cast<ulbn_sbits_t>(n))));
-    else
-      _check(ULBN_ERR_EXCEED_RANGE);
+    _check(ulbi_combit_sbits(_ctx(), _value, static_cast<ulbn_sbits_t>(n)));
     return *this;
   }
   BigInt& comBit(const BigInt& n) {
@@ -1255,10 +1238,7 @@ public:
   template<FitSsize T>
   BigInt asUint(T n) {
     BigInt ret;
-    if(n >= 0)
-      _check(ulbi_as_uint_usize(_ctx(), ret._value, _value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))));
-    else
-      _check(ULBN_ERR_EXCEED_RANGE);
+    _check(ulbi_as_uint_ssize(_ctx(), ret._value, _value, static_cast<ulbn_ssize_t>(n)));
     return ret;
   }
   template<FitBits T>
@@ -1272,10 +1252,7 @@ public:
     requires(!FitSsize<T>)
   BigInt asUint(T n) {
     BigInt ret;
-    if(n >= 0)
-      _check(ulbi_as_uint_bits(_ctx(), ret._value, _value, static_cast<ulbn_bits_t>(static_cast<ulbn_sbits_t>(n))));
-    else
-      _check(ULBN_ERR_EXCEED_RANGE);
+    _check(ulbi_as_uint_sbits(_ctx(), ret._value, _value, static_cast<ulbn_sbits_t>(n)));
     return ret;
   }
   BigInt asUint(const BigInt& n) {
@@ -1293,10 +1270,7 @@ public:
   template<FitSsize T>
   BigInt asInt(T n) {
     BigInt ret;
-    if(n >= 0)
-      _check(ulbi_as_int_usize(_ctx(), ret._value, _value, static_cast<ulbn_usize_t>(static_cast<ulbn_ssize_t>(n))));
-    else
-      _check(ULBN_ERR_EXCEED_RANGE);
+    _check(ulbi_as_int_ssize(_ctx(), ret._value, _value, static_cast<ulbn_ssize_t>(n)));
     return ret;
   }
   template<FitBits T>
@@ -1310,10 +1284,7 @@ public:
     requires(!FitSsize<T>)
   BigInt asInt(T n) {
     BigInt ret;
-    if(n >= 0)
-      _check(ulbi_as_int_bits(_ctx(), ret._value, _value, static_cast<ulbn_bits_t>(static_cast<ulbn_sbits_t>(n))));
-    else
-      _check(ULBN_ERR_EXCEED_RANGE);
+    _check(ulbi_as_int_sbits(_ctx(), ret._value, _value, static_cast<ulbn_sbits_t>(n)));
     return ret;
   }
   BigInt asInt(const BigInt& n) {

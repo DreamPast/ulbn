@@ -858,6 +858,14 @@ ULBN_PUBLIC int ulbi_set_2exp_bits(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_
  * @return `ULBN_ERR_INEXACT` if `n` is negative (and `dst` will be set to 0);
  * @return `ULBN_ERR_NOMEM` if out of memory.
  */
+ULBN_PUBLIC int ulbi_set_2exp_sbits(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_sbits_t n);
+/**
+ * @brief Sets `dst` to 2^`n`.
+ * @return `0` if successful;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `ULBN_ERR_INEXACT` if `n` is negative (and `dst` will be set to 0);
+ * @return `ULBN_ERR_NOMEM` if out of memory.
+ */
 ULBN_PUBLIC int ulbi_set_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n);
 
 /**
@@ -926,6 +934,14 @@ ULBN_PUBLIC void ulbi_init_move(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbi_t* 
  * @return `ULBN_ERR_NOMEM` if out of memory.
  */
 ULBN_PUBLIC int ulbi_init_2exp_bits(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_bits_t n);
+/**
+ * @brief Initializes `dst` with 2^`n`.
+ * @return `0` if successful;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `ULBN_ERR_INEXACT` if `n` is negative (and `dst` will be set to 0);
+ * @return `ULBN_ERR_NOMEM` if out of memory.
+ */
+ULBN_PUBLIC int ulbi_init_2exp_sbits(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_sbits_t n);
 /**
  * @brief Initializes `dst` with 2^`n`.
  * @return `0` if successful;
@@ -1261,7 +1277,6 @@ ULBN_PUBLIC int ulbi_pow_ulong(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi
  * @return `ULBN_ERR_NOMEM` if out of memory.
  */
 ULBN_PUBLIC int ulbi_pow_slong(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_slong_t b);
-
 /**
  * @brief `ro` = `ao` ** b.
  * @return `0` if successful;
@@ -1426,6 +1441,38 @@ ULBN_PUBLIC int ulbi_combit_bits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_bits
 /**
  * @brief Tests whether the k-th bit is 1 in the sense of two's complement.
  * @return 0 if the k-th bit is 0;
+ * @return 1 if the k-th bit is 1.
+ * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative.
+ */
+ULBN_PUBLIC int ulbi_testbit_sbits(const ulbi_t* o, ulbn_sbits_t k);
+/**
+ * @brief Sets the k-th bit to 1 in two's complement representation.
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if the result is too large;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative;
+ * @return The original value of the k-th bit otherwise.
+ */
+ULBN_PUBLIC int ulbi_setbit_sbits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_sbits_t k);
+/**
+ * @brief Sets the k-th bit to 0 in two's complement representation.
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if the result is too large;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative;
+ * @return The original value of the k-th bit otherwise.
+ */
+ULBN_PUBLIC int ulbi_resetbit_sbits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_sbits_t k);
+/**
+ * @brief Flippes the k-th bit in two's complement representation.
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if the result is too large;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative;
+ * @return The original value of the k-th bit otherwise.
+ */
+ULBN_PUBLIC int ulbi_combit_sbits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_sbits_t k);
+
+/**
+ * @brief Tests whether the k-th bit is 1 in the sense of two's complement.
+ * @return 0 if the k-th bit is 0;
  * @return 1 if the k-th bit is 1;
  * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative;
  */
@@ -1470,6 +1517,22 @@ ULBN_PUBLIC int ulbi_as_int_usize(const ulbn_alloc_t* alloc, ulbi_t* ro, const u
 /**
  * @brief Converts `ao` to a number within the range of an n-bit unsigned binary number.
  * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `b` is negative;
+ * @return `0` otherwise.
+ */
+ULBN_PUBLIC int ulbi_as_uint_ssize(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_ssize_t b);
+/**
+ * @brief Converts `ao` to a number within the range of an n-bit signed binary number.
+ * @note If `b` == 2, the valid range of the number is -1 and 0.
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `b` is negative;
+ * @return `0` otherwise.
+ */
+ULBN_PUBLIC int ulbi_as_int_ssize(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_ssize_t b);
+
+/**
+ * @brief Converts `ao` to a number within the range of an n-bit unsigned binary number.
+ * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if too large;
  * @return `0` otherwise.
  */
@@ -1482,6 +1545,24 @@ ULBN_PUBLIC int ulbi_as_uint_bits(const ulbn_alloc_t* alloc, ulbi_t* ro, const u
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_as_int_bits(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_bits_t b);
+
+/**
+ * @brief Converts `ao` to a number within the range of an n-bit unsigned binary number.
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if too large;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `b` is negative;
+ * @return `0` otherwise.
+ */
+ULBN_PUBLIC int ulbi_as_uint_sbits(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_sbits_t b);
+/**
+ * @brief Converts `ao` to a number within the range of an n-bit signed binary number.
+ * @note If `b` == 2, the valid range of the number is -1 and 0.
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if too large;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `b` is negative;
+ * @return `0` otherwise.
+ */
+ULBN_PUBLIC int ulbi_as_int_sbits(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_sbits_t b);
 
 /**
  * @brief Converts `ao` to a number within the range of an n-bit unsigned binary number.
@@ -1571,6 +1652,7 @@ ULBN_PUBLIC void ulbi_to_data_signed(const ulbi_t* ao, void* dst, size_t size, i
  * @param p_len If not `NULL`, the length of the string will be written into it.
  * @param p_alloced The number of bytes allocated.
  * @param alloc_func Allocation function, ensuring the passed `ptr` is used for the returned string.
+ *                   If `NULL` is passed, `alloc` will be used.
  * @param alloc_opaque Parameter for the allocation function.
  * @param base String base (2 <= base <= 36).
  *
@@ -1585,6 +1667,8 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
 );
 /**
  * @brief Prints `o` with `printer`.
+ * @note The `printer` function should return 0 if successful; otherwise, it should return a non-zero value.
+ * @warning It's unsafe to throw an exception or do a no-return operation in the `printer` function.
  *
  * @param base String base (2 <= base <= 36)
  *
@@ -1692,18 +1776,52 @@ ULBN_PUBLIC int ulbi_fit_long_double(const ulbi_t* src);
 #if ULBN_CONF_USE_RAND
 /**
  * @brief Sets `dst` to a random number in the range [0, 2**n).
+ *
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_set_rand_bits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_bits_t n);
 /**
  * @brief Sets `dst` to a random number in the range [0, 2**n).
+ *
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is negative;
+ * @return `0` otherwise.
+ */
+ULBN_PUBLIC int ulbi_set_rand_sbits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_sbits_t n);
+/**
+ * @brief Sets `dst` to a random number in the range [0, 2**n).
+ *
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_set_rand(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* n);
 /**
  * @brief Initializes `dst` with a random number in the range [0, 2**n).
+ *
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_init_rand_bits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_bits_t n);
 /**
  * @brief Initializes `dst` with a random number in the range [0, 2**n).
+ *
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is negative;
+ * @return `0` otherwise.
+ */
+ULBN_PUBLIC int ulbi_init_rand_sbits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_sbits_t n);
+/**
+ * @brief Initializes `dst` with a random number in the range [0, 2**n).
+ *
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_init_rand(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* n);
 
