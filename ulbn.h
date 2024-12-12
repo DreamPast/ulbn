@@ -309,10 +309,10 @@ ulbn - Big Number Library
  ****************/
 
 
+#include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
-#include <float.h>
 
 
 /*****************
@@ -617,14 +617,14 @@ enum ULBN_ERROR_ENUM {
 
 enum ULBN_ROUND_ENUM {
   ULBN_ROUND_DOWN = 0,
-  ULBN_ROUND_UP,
-  ULBN_ROUND_FLOOR,
-  ULBN_ROUND_CEILING,
-  ULBN_ROUND_HALF_ODD,
-  ULBN_ROUND_HALF_EVEN,
-  ULBN_ROUND_HALF_DOWN,
-  ULBN_ROUND_HALF_UP,
-  ULBN_ROUND_FAIL,
+  ULBN_ROUND_UP = 1,
+  ULBN_ROUND_FLOOR = 2,
+  ULBN_ROUND_CEILING = 3,
+  ULBN_ROUND_HALF_ODD = 4,
+  ULBN_ROUND_HALF_EVEN = 5,
+  ULBN_ROUND_HALF_DOWN = 6,
+  ULBN_ROUND_HALF_UP = 7,
+  ULBN_ROUND_FAIL = 8,
 
   ULBN_ROUND_TRUNC = ULBN_ROUND_DOWN,
   ULBN_ROUND_TO_ZERO = ULBN_ROUND_DOWN,
@@ -963,24 +963,24 @@ ULBN_PUBLIC int ulbi_init_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulb
  */
 ULBN_PUBLIC int ulbi_init_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base);
 /**
- * @brief Initializes `dst` with the unsigned integer represented by `limbs`.
+ * @brief Initializes `dst` with the unsigned integer represented by `data`.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
 ULBN_PUBLIC int ulbi_init_data_unsigned(
-  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
-  const void* limbs, size_t len, int is_big_endian /* */
+  const ulbn_alloc_t* alloc, ulbi_t* dst,         /* */
+  const void* data, size_t len, int is_big_endian /* */
 );
 /**
- * @brief Initializes `dst` with the signed integer represented by `limbs`.
+ * @brief Initializes `dst` with the signed integer represented by `data`.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
 ULBN_PUBLIC int ulbi_init_data_signed(
-  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
-  const void* limbs, size_t len, int is_big_endian /* */
+  const ulbn_alloc_t* alloc, ulbi_t* dst,         /* */
+  const void* data, size_t len, int is_big_endian /* */
 );
 
 

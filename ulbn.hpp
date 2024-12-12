@@ -32,20 +32,26 @@ ulbn - Big Number Library (C++ Wrapper)
   SOFTWARE.
 */
 #pragma once
+#include <algorithm>
+#include <bit>
+#include <compare>
+#include <cstdio>
+#include <cstring>
+#include <exception>
+#include <ios>
+#include <iterator>
+#include <limits>
+#include <memory>
+#include <ostream>
 #include <stdexcept>
 #include <string>
-#include <limits>
-#include <bit>
-#include <iostream>
-#include <cstring>
 #include <tuple>
-#include <cstdio>
-#include <algorithm>
+#include <type_traits>
+#include <utility>
 
 #include "ulbn.h"
 
-namespace ul {
-namespace bn {
+namespace ul::bn {
 
 class Exception : public std::runtime_error {
 public:
@@ -57,13 +63,13 @@ public:
     return _error;
   }
 
-  friend bool operator==(Exception lhs, Exception rhs) {
+  friend bool operator==(const Exception& lhs, const Exception& rhs) {
     return lhs.getError() == rhs.getError();
   }
-  friend bool operator==(Exception lhs, int rhs) {
+  friend bool operator==(const Exception& lhs, int rhs) {
     return lhs.getError() == rhs;
   }
-  friend bool operator==(int lhs, Exception rhs) {
+  friend bool operator==(int lhs, const Exception& rhs) {
     return rhs.getError() == lhs;
   }
 
@@ -95,15 +101,21 @@ private:
 
 #if ULBN_CONF_USE_RAND
 inline ulbn_rand_t* getCurrentRand() {
-  struct _RandManager {
+  class _RandManager {
+  public:
     _RandManager() {
       ulbn_rand_init(&hold);
     }
-    ulbn_rand_t hold;
+    ulbn_rand_t* get() {
+      return &hold;
+    }
+
+  private:
+    ulbn_rand_t hold{};
   };
 
   static thread_local _RandManager rng;
-  return &rng.hold;
+  return rng.get();
 }
 #endif
 
@@ -233,7 +245,8 @@ public:
     ulbi_init_move(_ctx(), _value, other._value);
   }
   BigInt& operator=(const BigInt& other) {
-    _check(ulbi_set_copy(_ctx(), _value, other._value));
+    if(this != &other)
+      _check(ulbi_set_copy(_ctx(), _value, other._value));
     return *this;
   }
   BigInt& operator=(BigInt&& other) noexcept {
@@ -242,26 +255,26 @@ public:
   }
 
   BigInt(const char* str, int base = 0) {
-    int err = ulbi_init_string(_ctx(), _value, str, base);
+    const int err = ulbi_init_string(_ctx(), _value, str, base);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
     _check(err);
   }
   BigInt(const std::string& str, int base = 0) {
-    int err = ulbi_init_string(_ctx(), _value, str.c_str(), base);
+    const int err = ulbi_init_string(_ctx(), _value, str.c_str(), base);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
     _check(err);
   }
   BigInt& operator=(const char* str) {
-    int err = ulbi_set_string(_ctx(), _value, str, 0);
+    const int err = ulbi_set_string(_ctx(), _value, str, 0);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
     _check(err);
     return *this;
   }
   BigInt& operator=(const std::string& str) {
-    int err = ulbi_set_string(_ctx(), _value, str.c_str(), 0);
+    const int err = ulbi_set_string(_ctx(), _value, str.c_str(), 0);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
     _check(err);
@@ -686,7 +699,7 @@ public:
   }
   std::pair<BigInt, BigInt> divmod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode) const {
     BigInt q, r;
-    int err = ulbi_divmod_ex(_ctx(), q._value, r._value, _value, other._value, round_mode);
+    const int err = ulbi_divmod_ex(_ctx(), q._value, r._value, _value, other._value, round_mode);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
     _check(err);
@@ -694,7 +707,7 @@ public:
   }
   BigInt div(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt q;
-    int err = ulbi_divmod_ex(_ctx(), q._value, nullptr, _value, other._value, round_mode);
+    const int err = ulbi_divmod_ex(_ctx(), q._value, nullptr, _value, other._value, round_mode);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
     _check(err);
@@ -702,7 +715,7 @@ public:
   }
   BigInt mod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt r;
-    int err = ulbi_divmod_ex(_ctx(), nullptr, r._value, _value, other._value, round_mode);
+    const int err = ulbi_divmod_ex(_ctx(), nullptr, r._value, _value, other._value, round_mode);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
     _check(err);
@@ -1002,7 +1015,7 @@ public:
   }
   BigInt sqrt() const {
     BigInt ret;
-    int err = ulbi_sqrt(_ctx(), ret._value, _value);
+    const int err = ulbi_sqrt(_ctx(), ret._value, _value);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the value is negative");
     _check(err);
@@ -1010,7 +1023,7 @@ public:
   }
   std::pair<BigInt, BigInt> sqrtrem() const {
     BigInt q, r;
-    int err = ulbi_sqrtrem(_ctx(), q._value, r._value, _value);
+    const int err = ulbi_sqrtrem(_ctx(), q._value, r._value, _value);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the value is negative");
     _check(err);
@@ -1018,7 +1031,7 @@ public:
   }
   BigInt root(const BigInt& e) const {
     BigInt ret;
-    int err = ulbi_root(_ctx(), ret._value, _value, e._value);
+    const int err = ulbi_root(_ctx(), ret._value, _value, e._value);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the result is illegal");
     _check(err);
@@ -1026,7 +1039,7 @@ public:
   }
   std::pair<BigInt, BigInt> rootrem(const BigInt& e) const {
     BigInt q, r;
-    int err = ulbi_rootrem(_ctx(), q._value, r._value, _value, e._value);
+    const int err = ulbi_rootrem(_ctx(), q._value, r._value, _value, e._value);
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the result is illegal");
     _check(err);
@@ -1102,7 +1115,7 @@ public:
 
   template<class StringAllocator = std::allocator<char>>
   auto toString(int base = 10) const {
-    typedef std::basic_string<char, std::char_traits<char>, StringAllocator> String;
+    using String = std::basic_string<char, std::char_traits<char>, StringAllocator>;
     Wrapper<String> wrapper(String{});
     int err = ulbi_print_ex(
       _ctx(),
@@ -1115,7 +1128,7 @@ public:
   }
   template<class StringAllocator>
   auto& toString(std::basic_string<char, std::char_traits<char>, StringAllocator>& dst, int base = 10) const {
-    typedef std::basic_string<char, std::char_traits<char>, StringAllocator> String;
+    using String = std::basic_string<char, std::char_traits<char>, StringAllocator>;
     Wrapper<String&> wrapper(dst);
     dst.clear();
     int err = ulbi_print_ex(
@@ -1137,7 +1150,7 @@ public:
   }
   std::ostream& print(std::ostream& ost, int base = 10) const {
     Wrapper<std::ostream&> wrapper(ost);
-    int err = ulbi_print_ex(
+    const int err = ulbi_print_ex(
       _ctx(),
       [](void* opaque, const char* ptr, size_t len) -> int {
         return reinterpret_cast<Wrapper<std::ostream&>*>(opaque)->call([&](std::ostream& os) {
@@ -1425,17 +1438,20 @@ private:
   }
 
   template<class T>
-  struct Wrapper {
+  class Wrapper {
+  public:
     Wrapper() = delete;
+    ~Wrapper() = default;
     Wrapper(const Wrapper&) = default;
     Wrapper(Wrapper&&) = delete;
     Wrapper& operator=(const Wrapper&) = delete;
     Wrapper& operator=(Wrapper&&) = delete;
 
     template<class TValue>
+      requires std::is_constructible_v<T, TValue>
     Wrapper(TValue&& construct_value) : value(std::forward<TValue>(construct_value)) { }
     template<class Func>
-    int call(Func&& func) noexcept {
+    int call(Func func) noexcept {
       try {
         func(value);
         return 0;
@@ -1451,6 +1467,7 @@ private:
       return value;
     }
 
+  private:
     T value;
     std::exception_ptr exception;
   };
@@ -1459,12 +1476,11 @@ private:
 };
 
 inline BigInt operator""_bi(const char* str) {
-  return BigInt(str);
+  return { str };
 }
 inline BigInt operator""_bi(const char* str, size_t len) {
   (void)len;
-  return BigInt(str);
+  return { str };
 }
 
-}  // namespace bn
-}  // namespace ul
+}  // namespace ul::bn
