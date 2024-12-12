@@ -141,6 +141,10 @@ ulbn - Big Number Library
     #endif
   #endif
 #endif /* !UL_ENDIAN_BIG && !UL_ENDIAN_LITTLE */
+#ifdef UL_ENDIAN_BIG
+#endif
+#ifdef UL_ENDIAN_LITTLE
+#endif
 
 
 #define ulbn_safe_forward_overlap(d, dn, s, sn) ((d) <= (s) || (d) >= (s) + (sn))
@@ -5390,9 +5394,13 @@ ULBN_PUBLIC int ulbi_divmod_slimb(
     if(a_positive)
       *ro = ul_static_cast(ulbn_slimb_t, r);
     else
+#if ULBN_LIMB_MAX < UINT_MAX
       *ro = ul_static_cast(
         ulbn_slimb_t, ul_static_cast(ulbn_limb_t, ul_static_cast(unsigned, -ul_static_cast(ulbn_slimb_t, r)))
       );
+#else
+      *ro = -ul_static_cast(ulbn_slimb_t, r);
+#endif
   } else
     err = r ? ULBN_ERR_INEXACT : 0;
   return err;
