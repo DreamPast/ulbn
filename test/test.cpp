@@ -1355,9 +1355,10 @@ static ulbn_alloc_func_t* original_alloc_func;
 static void* original_alloc_opaque;
 
 int main() {
-  original_alloc_func = ulbn_default_alloc()->alloc_func;
-  original_alloc_opaque = ulbn_default_alloc()->alloc_opaque;
-  ulbn_default_alloc()->alloc_func = [](void* opaque, void* ptr, size_t on, size_t nn) -> void* {
+  ulbn_alloc_t* alloc = ul::bn::getCurrentAllocator();
+  original_alloc_func = alloc->alloc_func;
+  original_alloc_opaque = alloc->alloc_opaque;
+  alloc->alloc_func = [](void* opaque, void* ptr, size_t on, size_t nn) -> void* {
     (void)opaque;
     tot_mem -= on;
     tot_mem += nn;

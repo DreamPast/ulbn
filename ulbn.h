@@ -427,16 +427,16 @@ typedef signed long ulbn_slimb_t;
   #define ULBN_SLIMB_MIN LONG_MIN
 #endif
 
-#if !defined(ulbn_limb2_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
+#if !defined(ulbn_limb2_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX + 2
   #define ulbn_limb2_t unsigned short
 #endif
-#if !defined(ulbn_limb2_t) && UINT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
+#if !defined(ulbn_limb2_t) && UINT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX + 2
   #define ulbn_limb2_t unsigned int
 #endif
-#if !defined(ulbn_limb2_t) && ULONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
+#if !defined(ulbn_limb2_t) && ULONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX + 2
   #define ulbn_limb2_t unsigned long
 #endif
-#if !defined(ulbn_limb2_t) && defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX
+#if !defined(ulbn_limb2_t) && defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX + 2
   #define ulbn_limb2_t unsigned long long
 #endif
 #if !defined(ulbn_limb2_t) && !defined(UL_PEDANTIC) && defined(__SIZEOF_INT128__) && defined(__GNUC__)
@@ -529,6 +529,7 @@ typedef signed long ulbn_slong_t;
 #if ULBN_BITS_MAX > ULBN_ULONG_MAX
   #error "ulbn: `ulbn_bits_t` cannot be larger than `ulbn_ulong_t`"
 #endif
+
 
 #if ULBN_CONF_EXPORT_PUBLIC
   #define ULBN_PUBLIC ul_export
@@ -687,7 +688,11 @@ typedef struct ulbn_alloc_t {
   ulbn_alloc_func_t* alloc_func;
   void* alloc_opaque;
 } ulbn_alloc_t;
-ULBN_PUBLIC ulbn_alloc_t* ulbn_default_alloc(void);
+ULBN_PUBLIC const ulbn_alloc_t* ulbn_default_alloc(void);
+
+ULBN_PUBLIC void* ulbn_alloc(const ulbn_alloc_t* alloc, size_t sz);
+ULBN_PUBLIC void* ulbn_realloc(const ulbn_alloc_t* alloc, void* ptr, size_t on, size_t nn);
+ULBN_PUBLIC void ulbn_dealloc(const ulbn_alloc_t* alloc, void* ptr, size_t sz);
 
 
 typedef int ulbn_printer_t(void* opaque, const char* str, size_t len);
@@ -1440,52 +1445,57 @@ ULBN_PUBLIC int ulbi_combit_bits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_bits
 
 /**
  * @brief Tests whether the k-th bit is 1 in the sense of two's complement.
+ * @note Fractional bits are always 0 in integer representation.
  * @return 0 if the k-th bit is 0;
  * @return 1 if the k-th bit is 1.
- * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative.
  */
 ULBN_PUBLIC int ulbi_testbit_sbits(const ulbi_t* o, ulbn_sbits_t k);
 /**
  * @brief Sets the k-th bit to 1 in two's complement representation.
+ * @note Fractional bits are always 0 in integer representation.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if the result is too large;
- * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative;
+ * @return `ULBN_ERR_INEXACT` if `k` is negative;
  * @return The original value of the k-th bit otherwise.
  */
 ULBN_PUBLIC int ulbi_setbit_sbits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_sbits_t k);
 /**
  * @brief Sets the k-th bit to 0 in two's complement representation.
+ * @note Fractional bits are always 0 in integer representation.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if the result is too large;
- * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative;
  * @return The original value of the k-th bit otherwise.
  */
 ULBN_PUBLIC int ulbi_resetbit_sbits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_sbits_t k);
 /**
  * @brief Flippes the k-th bit in two's complement representation.
+ * @note Fractional bits are always 0 in integer representation.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if the result is too large;
- * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative;
+ * @return `ULBN_ERR_INEXACT` if `k` is negative;
  * @return The original value of the k-th bit otherwise.
  */
 ULBN_PUBLIC int ulbi_combit_sbits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_sbits_t k);
 
 /**
  * @brief Tests whether the k-th bit is 1 in the sense of two's complement.
+ * @note Fractional bits are always 0 in integer representation.
  * @return 0 if the k-th bit is 0;
- * @return 1 if the k-th bit is 1;
- * @return `ULBN_ERR_EXCEED_RANGE` if `k` is negative;
+ * @return 1 if the k-th bit is 1.
  */
 ULBN_PUBLIC int ulbi_testbit(const ulbi_t* o, const ulbi_t* k);
 /**
  * @brief Sets the k-th bit to 1 in two's complement representation.
+ * @note Fractional bits are always 0 in integer representation.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if too large;
+ * @return `ULBN_ERR_INEXACT` if `k` is negative;
  * @return The original value of the k-th bit otherwise.
  */
 ULBN_PUBLIC int ulbi_setbit(const ulbn_alloc_t* alloc, ulbi_t* o, const ulbi_t* k);
 /**
  * @brief Sets the k-th bit to 0 in two's complement representation.
+ * @note Fractional bits are always 0 in integer representation.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if too large;
  * @return The original value of the k-th bit otherwise.
@@ -1493,8 +1503,10 @@ ULBN_PUBLIC int ulbi_setbit(const ulbn_alloc_t* alloc, ulbi_t* o, const ulbi_t* 
 ULBN_PUBLIC int ulbi_resetbit(const ulbn_alloc_t* alloc, ulbi_t* o, const ulbi_t* k);
 /**
  * @brief Flippes the k-th bit in two's complement representation.
+ * @note Fractional bits are always 0 in integer representation.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if too large;
+ * @return `ULBN_ERR_INEXACT` if `k` is negative;
  * @return The original value of the k-th bit otherwise.
  */
 ULBN_PUBLIC int ulbi_combit(const ulbn_alloc_t* alloc, ulbi_t* o, const ulbi_t* k);
@@ -1652,12 +1664,13 @@ ULBN_PUBLIC void ulbi_to_data_signed(const ulbi_t* ao, void* dst, size_t size, i
  * @param p_len If not `NULL`, the length of the string will be written into it.
  * @param p_alloced The number of bytes allocated.
  * @param alloc_func Allocation function, ensuring the passed `ptr` is used for the returned string.
- *                   If `NULL` is passed, `alloc` will be used.
+ *                   If `NULL` is passed, `alloc` will be used;
+ *                   and then you need to call `ulbn_dealloc` to free the memory.
  * @param alloc_opaque Parameter for the allocation function.
  * @param base String base (2 <= base <= 36).
  *
  * @return String if successful (allocated by alloc_func);
- * @return `NULL` if out of insufficient (considered as `ULBN_ERR_NOMEM`);
+ * @return `NULL` if out of memory (considered as `ULBN_ERR_NOMEM`);
  * @return `NULL` if the base is invalid (considered as `ULBN_ERR_EXCEED_RANGE`).
  */
 ULBN_PUBLIC char* ulbi_to_string_alloc(

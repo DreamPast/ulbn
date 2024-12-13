@@ -307,9 +307,23 @@ ULBN_PRIVATE void* _ulbn_default_alloc(void* opaque, void* ptr, size_t on, size_
   }
   return realloc(ptr, nn);
 }
-ULBN_PUBLIC ulbn_alloc_t* ulbn_default_alloc(void) {
+ULBN_PUBLIC const ulbn_alloc_t* ulbn_default_alloc(void) {
   static ulbn_alloc_t alloc = { &_ulbn_default_alloc, ul_nullptr };
   return &alloc;
+}
+
+ULBN_PUBLIC void* ulbn_alloc(const ulbn_alloc_t* alloc, size_t sz) {
+  ulbn_assert(sz != 0);
+  return ulbn_doalloc(alloc, ul_nullptr, 0, sz);
+}
+ULBN_PUBLIC void* ulbn_realloc(const ulbn_alloc_t* alloc, void* ptr, size_t on, size_t nn) {
+  ulbn_assert(ptr == ul_nullptr ? on == 0 : on != 0);
+  ulbn_assert(nn != 0);
+  return ulbn_doalloc(alloc, ptr, on, nn);
+}
+ULBN_PUBLIC void ulbn_dealloc(const ulbn_alloc_t* alloc, void* ptr, size_t sz) {
+  ulbn_assert(sz != 0);
+  ulbn_doalloc(alloc, ptr, sz, 0);
 }
 
 
@@ -2310,8 +2324,7 @@ ULBN_INTERNAL void ulbn_mul(
     return;
   }
 
-#if _ULBN_USE_TOOM3
-  #if _ULBN_USE_TOOM4
+#if _ULBN_USE_TOOM3 && _ULBN_USE_TOOM4
   if(an <= _ULBN_TOOM_3_THRESHOLD) {
   fallback_toom3:
     m = (an + 2) / 3;
@@ -2323,23 +2336,7 @@ ULBN_INTERNAL void ulbn_mul(
     _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_32(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
     return;
   }
-  #else
-  {
-    m = (an + 2) / 3;
-    if(bn > m + m) {
-      _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_33(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
-      return;
-    }
-    /* if(bn > m) */
-    _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_32(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
-    return;
-  }
-  #endif
-#else
-  goto fallback_toom2;
-#endif
 
-#if _ULBN_USE_TOOM4
   m = (an + 3) >> 2;
   if(bn > m * 3) {
     _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_44(alloc, rp, m, ap, an, bp, bn), goto fallback_toom3;);
@@ -2349,8 +2346,20 @@ ULBN_INTERNAL void ulbn_mul(
     _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_43(alloc, rp, m, ap, an, bp, bn), goto fallback_toom3;);
     return;
   }
+#elif _ULBN_USE_TOOM3 && !_ULBN_USE_TOOM4
+  m = (an + 2) / 3;
+  if(bn > m + m) {
+    _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_33(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
+    return;
+  }
+  /* if(bn > m) */
+  _ULBN_DO_IF_MUL_FAILED(_ulbn_mul_toom_32(alloc, rp, m, ap, an, bp, bn), goto fallback_toom2;);
+  return;
+#else
+  goto fallback_toom2;
 #endif
 
+  ulbn_assert(0);
 #undef _ULBN_DO_IF_MUL_FAILED
 }
 
@@ -5790,7 +5799,7 @@ ULBN_PUBLIC int ulbi_rootrem(const ulbn_alloc_t* alloc, ulbi_t* so, ulbi_t* ro, 
     return err;
   }
 
-  /* e_n1 = e - 1, x = 2 ** ceil(bits_width(a) / e) + 1 */
+  /* e_n1 = e - 1, x = 2 ** (ceil(bits_width(a) / e) + 1) */
   err = ulbi_sub_limb(alloc, eo_n1, eo, 1);
   ulbn_assert(err != ULBN_ERR_EXCEED_RANGE);
   ULBN_DO_IF_ALLOC_COND(err < 0, goto cleanup;);
@@ -5982,6 +5991,7 @@ ULBN_PUBLIC int ulbi_com(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
   }
   return 0;
 }
+
 
 ul_static_assert(_ULBN_LIMB_BITS < _ULBN_LIMB_SIGNBIT, "ulbn_usize_t is too large");
 ULBN_PRIVATE int _ulbi_sal(
@@ -6224,22 +6234,22 @@ ULBN_PUBLIC int ulbi_combit_bits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_bits
 
 ULBN_PUBLIC int ulbi_testbit_sbits(const ulbi_t* o, ulbn_sbits_t k) {
   if(ul_unlikely(k < 0))
-    return ULBN_ERR_EXCEED_RANGE;
+    return 0;
   return ulbi_testbit_bits(o, _ulbn_from_pos_sbits(k));
 }
 ULBN_PUBLIC int ulbi_setbit_sbits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_sbits_t k) {
   if(ul_unlikely(k < 0))
-    return ULBN_ERR_EXCEED_RANGE;
+    return ULBN_ERR_INEXACT;
   return ulbi_setbit_bits(alloc, o, _ulbn_from_pos_sbits(k));
 }
 ULBN_PUBLIC int ulbi_resetbit_sbits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_sbits_t k) {
   if(ul_unlikely(k < 0))
-    return ULBN_ERR_EXCEED_RANGE;
+    return 0;
   return ulbi_resetbit_bits(alloc, o, _ulbn_from_pos_sbits(k));
 }
 ULBN_PUBLIC int ulbi_combit_sbits(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_sbits_t k) {
   if(ul_unlikely(k < 0))
-    return ULBN_ERR_EXCEED_RANGE;
+    return ULBN_ERR_INEXACT;
   return ulbi_combit_bits(alloc, o, _ulbn_from_pos_sbits(k));
 }
 
@@ -6248,7 +6258,7 @@ ULBN_PUBLIC int ulbi_testbit(const ulbi_t* o, const ulbi_t* k) {
   int shift;
 
   if(ul_unlikely(k->len < 0))
-    return ULBN_ERR_EXCEED_RANGE;
+    return 0;
   shift = ulbn_to_bit_info(_ulbi_limbs(k), ulbn_cast_usize(k->len), &idx);
   if(ul_unlikely(shift < 0))
     return o->len >= 0 ? 0 : 1;
@@ -6259,7 +6269,7 @@ ULBN_PUBLIC int ulbi_setbit(const ulbn_alloc_t* alloc, ulbi_t* o, const ulbi_t* 
   int shift;
 
   if(ul_unlikely(k->len < 0))
-    return ULBN_ERR_EXCEED_RANGE;
+    return ULBN_ERR_INEXACT;
   shift = ulbn_to_bit_info(_ulbi_limbs(k), ulbn_cast_usize(k->len), &idx);
   if(ul_unlikely(shift < 0))
     return o->len >= 0 ? ULBN_ERR_EXCEED_RANGE : 1;
@@ -6274,7 +6284,7 @@ ULBN_PUBLIC int ulbi_resetbit(const ulbn_alloc_t* alloc, ulbi_t* o, const ulbi_t
   int shift;
 
   if(ul_unlikely(k->len < 0))
-    return ULBN_ERR_EXCEED_RANGE;
+    return 0;
   shift = ulbn_to_bit_info(_ulbi_limbs(k), ulbn_cast_usize(k->len), &idx);
   if(ul_unlikely(shift < 0))
     return o->len >= 0 ? 0 : ULBN_ERR_EXCEED_RANGE;
@@ -6289,7 +6299,7 @@ ULBN_PUBLIC int ulbi_combit(const ulbn_alloc_t* alloc, ulbi_t* o, const ulbi_t* 
   int shift;
 
   if(ul_unlikely(k->len < 0))
-    return ULBN_ERR_EXCEED_RANGE;
+    return ULBN_ERR_INEXACT;
   shift = ulbn_to_bit_info(_ulbi_limbs(k), ulbn_cast_usize(k->len), &idx);
   if(ul_unlikely(shift < 0))
     return ULBN_ERR_EXCEED_RANGE;

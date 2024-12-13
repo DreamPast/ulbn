@@ -119,6 +119,11 @@ inline ulbn_rand_t* getCurrentRand() {
 }
 #endif
 
+inline ulbn_alloc_t* getCurrentAllocator() {
+  static ulbn_alloc_t alloc = *ulbn_default_alloc();
+  return &alloc;
+}
+
 template<class T>
 concept FitSlong = requires {
   requires std::is_integral_v<T>;
@@ -1189,11 +1194,11 @@ public:
     return ulbi_testbit_bits(_value, static_cast<ulbn_bits_t>(n)) != 0;
   }
   template<FitSbits T>
-  bool testBit(T n) const {
+  bool testBit(T n) const noexcept {
     return ulbi_testbit_sbits(_value, static_cast<ulbn_sbits_t>(n)) != 0;
   }
-  bool testBit(const BigInt& n) const {
-    return _check(ulbi_testbit(_value, n._value)) != 0;
+  bool testBit(const BigInt& n) const noexcept {
+    return ulbi_testbit(_value, n._value) != 0;
   }
 
   template<FitBits T>
@@ -1427,9 +1432,8 @@ public:
 
 
 private:
-  static ulbn_alloc_t* _ctx() noexcept {
-    static ulbn_alloc_t* ctx = ulbn_default_alloc();
-    return ctx;
+  static const ulbn_alloc_t* _ctx() noexcept {
+    return getCurrentAllocator();
   }
   static int _check(int err) {
     if(err != ULBN_ERR_INEXACT && err != 0 && err != 1)
