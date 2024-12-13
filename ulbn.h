@@ -427,16 +427,20 @@ typedef signed long ulbn_slimb_t;
   #define ULBN_SLIMB_MIN LONG_MIN
 #endif
 
-#if !defined(ulbn_limb2_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX + 2
+#if !defined(ulbn_limb2_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
+  && USHRT_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
   #define ulbn_limb2_t unsigned short
 #endif
-#if !defined(ulbn_limb2_t) && UINT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX + 2
+#if !defined(ulbn_limb2_t) && UINT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
+  && UINT_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
   #define ulbn_limb2_t unsigned int
 #endif
-#if !defined(ulbn_limb2_t) && ULONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX + 2
+#if !defined(ulbn_limb2_t) && ULONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
+  && ULONG_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
   #define ulbn_limb2_t unsigned long
 #endif
-#if !defined(ulbn_limb2_t) && defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX + 2
+#if !defined(ulbn_limb2_t) && defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
+  && ULLONG_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
   #define ulbn_limb2_t unsigned long long
 #endif
 #if !defined(ulbn_limb2_t) && !defined(UL_PEDANTIC) && defined(__SIZEOF_INT128__) && defined(__GNUC__)

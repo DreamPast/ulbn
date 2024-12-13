@@ -86,10 +86,12 @@ set(CLANG_ALL_CXX_WARNINGS
     -Weverything
 )
 set(CLANG_CLOSE_WARNINGS
+    -Wno-unknown-warning-option
     -Wno-reserved-identifier
     -Wno-language-extension-token
     -Wno-padded
     -Wno-weak-vtables
+    -Wno-unused-macros
 
     -Wno-long-long
     -Wno-c++98-compat
