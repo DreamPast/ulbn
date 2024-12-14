@@ -43,6 +43,7 @@ ulbn - Big Number Library (C++ Wrapper)
 #include <limits>
 #include <memory>
 #include <ostream>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -179,6 +180,11 @@ concept FitSbits = requires {
   requires std::is_signed_v<T>;
   requires sizeof(T) <= sizeof(ulbn_sbits_t);
   requires std::is_convertible_v<T, ulbn_sbits_t>;
+};
+template<class T>
+concept FitOutBit = requires {
+  requires std::is_integral_v<T>;
+  requires std::is_convertible_v<bool, T>;
 };
 #if ULBN_CONF_HAS_FLOAT
 template<class T>
@@ -430,30 +436,82 @@ public:
     std::endian::native == std::endian::little || std::endian::native == std::endian::big,
     "only little-endian and big-endian supported"
   );
-  static BigInt fromDataUnsigned(const void* ptr, size_t n, bool is_big_endian) {
+  static BigInt fromBytesUnsigned(const void* bytes, size_t n, bool is_big_endian) {
     BigInt ret;
-    _check(ulbi_set_data_unsigned(_ctx(), ret._value, ptr, n, is_big_endian));
+    _check(ulbi_set_bytes_unsigned(_ctx(), ret._value, bytes, n, is_big_endian));
     return ret;
   }
-  static BigInt fromDataUnsigned(const void* ptr, size_t n, std::endian endian = std::endian::native) {
-    return fromDataUnsigned(ptr, n, endian == std::endian::big);
+  static BigInt fromBytesUnsigned(const void* bytes, size_t n, std::endian endian = std::endian::native) {
+    return fromBytesUnsigned(bytes, n, endian == std::endian::big);
   }
 
-  static BigInt fromDataSigned(const void* ptr, size_t n, bool is_big_endian) {
+  static BigInt fromBytesUnsignedLE(const void* bytes, size_t n) {
     BigInt ret;
-    _check(ulbi_set_data_signed(_ctx(), ret._value, ptr, n, is_big_endian));
+    _check(ulbi_set_bytes_unsigned_le(_ctx(), ret._value, bytes, n));
     return ret;
   }
-  static BigInt fromDataSigned(const void* ptr, size_t n, std::endian endian = std::endian::native) {
-    return fromDataSigned(ptr, n, endian == std::endian::big);
+  static BigInt fromBytesUnsignedBE(const void* bytes, size_t n) {
+    BigInt ret;
+    _check(ulbi_set_bytes_unsigned_be(_ctx(), ret._value, bytes, n));
+    return ret;
+  }
+
+  static BigInt fromBytesSigned(const void* bytes, size_t n, bool is_big_endian) {
+    BigInt ret;
+    _check(ulbi_set_bytes_signed(_ctx(), ret._value, bytes, n, is_big_endian));
+    return ret;
+  }
+  static BigInt fromBytesSigned(const void* bytes, size_t n, std::endian endian = std::endian::native) {
+    return fromBytesSigned(bytes, n, endian == std::endian::big);
+  }
+
+  static BigInt fromBytesSignedLE(const void* bytes, size_t n) {
+    BigInt ret;
+    _check(ulbi_set_bytes_signed_le(_ctx(), ret._value, bytes, n));
+    return ret;
+  }
+  static BigInt fromBytesSignedBE(const void* bytes, size_t n) {
+    BigInt ret;
+    _check(ulbi_set_bytes_signed_be(_ctx(), ret._value, bytes, n));
+    return ret;
   }
 
 
-  void toDataSigned(void* ptr, size_t n, bool is_big_endian) const noexcept {
-    ulbi_to_data_signed(_value, ptr, n, is_big_endian);
+  void toBytesSigned(void* bytes, size_t n, bool is_big_endian) const noexcept {
+    ulbi_to_bytes_signed(_value, bytes, n, is_big_endian);
   }
-  void toDataSigned(void* ptr, size_t n, std::endian endian = std::endian::native) const noexcept {
-    ulbi_to_data_signed(_value, ptr, n, endian == std::endian::big);
+  void toBytesSigned(void* bytes, size_t n, std::endian endian = std::endian::native) const noexcept {
+    ulbi_to_bytes_signed(_value, bytes, n, endian == std::endian::big);
+  }
+
+  void toBytesSignedLE(void* bytes, size_t n) const noexcept {
+    ulbi_to_bytes_signed_le(_value, bytes, n);
+  }
+  void toBytesSignedBE(void* bytes, size_t n) const noexcept {
+    ulbi_to_bytes_signed_be(_value, bytes, n);
+  }
+
+
+  std::span<const ulbn_limb_t> limbs() const noexcept {
+    return { ulbi_get_limbs(_value), ulbi_get_limbs_len(_value) };
+  }
+
+  template<size_t N>
+  static BigInt fromLimbs(std::span<ulbn_limb_t, N> limbs) {
+    BigInt ret;
+    _check(ulbi_set_limbs(_ctx(), ret._value, limbs.data(), limbs.size()));
+    return ret;
+  }
+  template<size_t N>
+  static BigInt fromLimbs(std::span<const ulbn_limb_t, N> limbs) {
+    BigInt ret;
+    _check(ulbi_set_limbs(_ctx(), ret._value, limbs.data(), limbs.size()));
+    return ret;
+  }
+  BigInt fromLimbs(const ulbn_limb_t* limbs, size_t len) {
+    BigInt ret;
+    _check(ulbi_set_limbs(_ctx(), ret._value, limbs, len));
+    return ret;
   }
 
 
@@ -595,6 +653,15 @@ public:
     return ret;
   }
 
+  BigInt& negLoc() {
+    _check(ulbi_neg(_ctx(), _value, _value));
+    return *this;
+  }
+  BigInt& absLoc() {
+    _check(ulbi_abs(_ctx(), _value, _value));
+    return *this;
+  }
+
 
   BigInt& operator*=(const BigInt& other) {
     _check(ulbi_mul(_ctx(), _value, _value, other._value));
@@ -675,9 +742,9 @@ public:
   }
 
   template<FitSlimb T>
-  BigInt& operator%=(T value) {
+  BigInt& operator%=(T value) noexcept {
     ulbn_slimb_t r;
-    _check(ulbi_divmod_slimb(_ctx(), nullptr, &r, _value, static_cast<ulbn_slimb_t>(value)));
+    ulbi_divmod_slimb(_ctx(), nullptr, &r, _value, static_cast<ulbn_slimb_t>(value));
     ulbi_set_slimb(_value, r);
     return *this;
   }
@@ -810,94 +877,95 @@ public:
   }
 
 
-  friend std::strong_ordering operator<=>(const BigInt& lhs, const BigInt& rhs) {
+  friend std::strong_ordering operator<=>(const BigInt& lhs, const BigInt& rhs) noexcept {
     return ulbi_comp(lhs._value, rhs._value) <=> 0;
   }
 
   template<FitLimb T>
-  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) {
+  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) noexcept {
     return ulbi_comp_limb(lhs._value, static_cast<ulbn_limb_t>(rhs)) <=> 0;
   }
   template<FitSlimb T>
-  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) {
+  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) noexcept {
     return ulbi_comp_slimb(lhs._value, static_cast<ulbn_slimb_t>(rhs)) <=> 0;
   }
   template<FitUlong T>
     requires(!FitLimb<T>)
-  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) {
+  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) noexcept {
     return ulbi_comp_ulong(lhs._value, static_cast<ulbn_ulong_t>(rhs)) <=> 0;
   }
   template<FitSlong T>
     requires(!FitSlimb<T>)
-  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) {
+  friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) noexcept {
     return ulbi_comp_slong(lhs._value, static_cast<ulbn_slong_t>(rhs)) <=> 0;
   }
 
   template<FitLimb T>
-  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) {
+  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) noexcept {
     return (-ulbi_comp_limb(rhs._value, static_cast<ulbn_limb_t>(lhs))) <=> 0;
   }
   template<FitSlimb T>
-  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) {
+  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) noexcept {
     return (-ulbi_comp_slimb(rhs._value, static_cast<ulbn_slimb_t>(lhs))) <=> 0;
   }
   template<FitUlong T>
     requires(!FitLimb<T>)
-  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) {
+  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) noexcept {
     return (-ulbi_comp_ulong(rhs._value, static_cast<ulbn_ulong_t>(lhs))) <=> 0;
   }
   template<FitSlong T>
     requires(!FitSlimb<T>)
-  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) {
+  friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) noexcept {
     return (-ulbi_comp_slong(rhs._value, static_cast<ulbn_slong_t>(lhs))) <=> 0;
   }
 
-  friend bool operator==(const BigInt& lhs, const BigInt& rhs) {
+  friend bool operator==(const BigInt& lhs, const BigInt& rhs) noexcept {
     return ulbi_eq(lhs._value, rhs._value) != 0;
   }
+
   template<FitLimb T>
-  friend bool operator==(const BigInt& lhs, T rhs) {
+  friend bool operator==(const BigInt& lhs, T rhs) noexcept {
     return ulbi_eq_limb(lhs._value, static_cast<ulbn_limb_t>(rhs)) != 0;
   }
   template<FitSlimb T>
-  friend bool operator==(const BigInt& lhs, T rhs) {
+  friend bool operator==(const BigInt& lhs, T rhs) noexcept {
     return ulbi_eq_slimb(lhs._value, static_cast<ulbn_slimb_t>(rhs)) != 0;
   }
   template<FitUlong T>
     requires(!FitLimb<T>)
-  friend bool operator==(const BigInt& lhs, T rhs) {
+  friend bool operator==(const BigInt& lhs, T rhs) noexcept {
     return ulbi_eq_ulong(lhs._value, static_cast<ulbn_ulong_t>(rhs)) != 0;
   }
   template<FitSlong T>
     requires(!FitSlimb<T>)
-  friend bool operator==(const BigInt& lhs, T rhs) {
+  friend bool operator==(const BigInt& lhs, T rhs) noexcept {
     return ulbi_eq_slong(lhs._value, static_cast<ulbn_slong_t>(rhs)) != 0;
   }
 
   template<FitLimb T>
-  friend bool operator==(T lhs, const BigInt& rhs) {
+  friend bool operator==(T lhs, const BigInt& rhs) noexcept {
     return ulbi_eq_limb(rhs._value, static_cast<ulbn_limb_t>(lhs)) != 0;
   }
   template<FitSlimb T>
-  friend bool operator==(T lhs, const BigInt& rhs) {
+  friend bool operator==(T lhs, const BigInt& rhs) noexcept {
     return ulbi_eq_slimb(rhs._value, static_cast<ulbn_slimb_t>(lhs)) != 0;
   }
   template<FitUlong T>
     requires(!FitLimb<T>)
-  friend bool operator==(T lhs, const BigInt& rhs) {
+  friend bool operator==(T lhs, const BigInt& rhs) noexcept {
     return ulbi_eq_ulong(rhs._value, static_cast<ulbn_ulong_t>(lhs)) != 0;
   }
   template<FitSlong T>
     requires(!FitSlimb<T>)
-  friend bool operator==(T lhs, const BigInt& rhs) {
+  friend bool operator==(T lhs, const BigInt& rhs) noexcept {
     return ulbi_eq_slong(rhs._value, static_cast<ulbn_slong_t>(lhs)) != 0;
   }
 
 
-  explicit operator bool() const {
+  explicit operator bool() const noexcept {
     return !ulbi_is_zero(_value);
   }
-  bool operator!() const {
+  bool operator!() const noexcept {
     return ulbi_is_zero(_value) != 0;
   }
 
@@ -1201,6 +1269,7 @@ public:
     return ulbi_testbit(_value, n._value) != 0;
   }
 
+
   template<FitBits T>
   BigInt& setBit(T n) {
     _check(ulbi_setbit_bits(_ctx(), _value, static_cast<ulbn_bits_t>(n)));
@@ -1215,6 +1284,23 @@ public:
     _check(ulbi_setbit(_ctx(), _value, n._value));
     return *this;
   }
+
+  template<FitBits T, FitOutBit OutBit>
+  BigInt& setBit(T n, OutBit& oldValue) {
+    oldValue = static_cast<bool>(_check(ulbi_setbit_bits(_ctx(), _value, static_cast<ulbn_bits_t>(n))));
+    return *this;
+  }
+  template<FitSbits T, FitOutBit OutBit>
+  BigInt& setBit(T n, OutBit& oldValue) {
+    oldValue = static_cast<bool>(_check(ulbi_setbit_sbits(_ctx(), _value, static_cast<ulbn_sbits_t>(n))));
+    return *this;
+  }
+  template<FitOutBit OutBit>
+  BigInt& setBit(const BigInt& n, OutBit& oldValue) {
+    oldValue = static_cast<bool>(_check(ulbi_setbit(_ctx(), _value, n._value)));
+    return *this;
+  }
+
 
   template<FitBits T>
   BigInt& resetBit(T n) {
@@ -1231,6 +1317,23 @@ public:
     return *this;
   }
 
+  template<FitBits T, FitOutBit OutBit>
+  BigInt& resetBit(T n, OutBit& oldValue) {
+    oldValue = static_cast<bool>(_check(ulbi_resetbit_bits(_ctx(), _value, static_cast<ulbn_bits_t>(n))));
+    return *this;
+  }
+  template<FitSbits T, FitOutBit OutBit>
+  BigInt& resetBit(T n, OutBit& oldValue) {
+    oldValue = static_cast<bool>(_check(ulbi_resetbit_sbits(_ctx(), _value, static_cast<ulbn_sbits_t>(n))));
+    return *this;
+  }
+  template<FitOutBit OutBit>
+  BigInt& resetBit(const BigInt& n, OutBit& oldValue) {
+    oldValue = static_cast<bool>(_check(ulbi_resetbit(_ctx(), _value, n._value)));
+    return *this;
+  }
+
+
   template<FitBits T>
   BigInt& comBit(T n) {
     _check(ulbi_combit_bits(_ctx(), _value, static_cast<ulbn_bits_t>(n)));
@@ -1246,69 +1349,140 @@ public:
     return *this;
   }
 
+  template<FitBits T, FitOutBit OutBit>
+  BigInt& comBit(T n, OutBit& oldValue) {
+    oldValue = static_cast<bool>(_check(ulbi_combit_bits(_ctx(), _value, static_cast<ulbn_bits_t>(n))));
+    return *this;
+  }
+  template<FitSbits T, FitOutBit OutBit>
+  BigInt& comBit(T n, OutBit& oldValue) {
+    oldValue = static_cast<bool>(_check(ulbi_combit_sbits(_ctx(), _value, static_cast<ulbn_sbits_t>(n))));
+    return *this;
+  }
+  template<FitOutBit OutBit>
+  BigInt& comBit(const BigInt& n, OutBit& oldValue) {
+    oldValue = static_cast<bool>(_check(ulbi_combit(_ctx(), _value, n._value)));
+    return *this;
+  }
+
 
   template<FitUsize T>
-  BigInt asUint(T n) {
+  BigInt asUint(T n) const {
     BigInt ret;
     _check(ulbi_as_uint_usize(_ctx(), ret._value, _value, static_cast<ulbn_usize_t>(n)));
     return ret;
   }
   template<FitSsize T>
-  BigInt asUint(T n) {
+  BigInt asUint(T n) const {
     BigInt ret;
     _check(ulbi_as_uint_ssize(_ctx(), ret._value, _value, static_cast<ulbn_ssize_t>(n)));
     return ret;
   }
   template<FitBits T>
     requires(!FitUsize<T>)
-  BigInt asUint(T n) {
+  BigInt asUint(T n) const {
     BigInt ret;
     _check(ulbi_as_uint_bits(_ctx(), ret._value, _value, static_cast<ulbn_bits_t>(n)));
     return ret;
   }
   template<FitSbits T>
     requires(!FitSsize<T>)
-  BigInt asUint(T n) {
+  BigInt asUint(T n) const {
     BigInt ret;
     _check(ulbi_as_uint_sbits(_ctx(), ret._value, _value, static_cast<ulbn_sbits_t>(n)));
     return ret;
   }
-  BigInt asUint(const BigInt& n) {
+  BigInt asUint(const BigInt& n) const {
     BigInt ret;
     _check(ulbi_as_uint(_ctx(), ret._value, _value, n._value));
     return ret;
   }
 
   template<FitUsize T>
-  BigInt asInt(T n) {
+  BigInt& asUintLoc(T n) {
+    _check(ulbi_as_uint_usize(_ctx(), _value, _value, static_cast<ulbn_usize_t>(n)));
+    return *this;
+  }
+  template<FitSsize T>
+  BigInt& asUintLoc(T n) {
+    _check(ulbi_as_uint_ssize(_ctx(), _value, _value, static_cast<ulbn_ssize_t>(n)));
+    return *this;
+  }
+  template<FitBits T>
+    requires(!FitUsize<T>)
+  BigInt& asUintLoc(T n) {
+    _check(ulbi_as_uint_bits(_ctx(), _value, _value, static_cast<ulbn_bits_t>(n)));
+    return *this;
+  }
+  template<FitSbits T>
+    requires(!FitSsize<T>)
+  BigInt& asUintLoc(T n) {
+    _check(ulbi_as_uint_sbits(_ctx(), _value, _value, static_cast<ulbn_sbits_t>(n)));
+    return *this;
+  }
+  BigInt& asUintLoc(const BigInt& n) {
+    _check(ulbi_as_uint(_ctx(), _value, _value, n._value));
+    return *this;
+  }
+
+
+  template<FitUsize T>
+  BigInt asInt(T n) const {
     BigInt ret;
     _check(ulbi_as_int_usize(_ctx(), ret._value, _value, static_cast<ulbn_usize_t>(n)));
     return ret;
   }
   template<FitSsize T>
-  BigInt asInt(T n) {
+  BigInt asInt(T n) const {
     BigInt ret;
     _check(ulbi_as_int_ssize(_ctx(), ret._value, _value, static_cast<ulbn_ssize_t>(n)));
     return ret;
   }
   template<FitBits T>
     requires(!FitUsize<T>)
-  BigInt asInt(T n) {
+  BigInt asInt(T n) const {
     BigInt ret;
     _check(ulbi_as_int_bits(_ctx(), ret._value, _value, static_cast<ulbn_bits_t>(n)));
     return ret;
   }
   template<FitSbits T>
     requires(!FitSsize<T>)
-  BigInt asInt(T n) {
+  BigInt asInt(T n) const {
     BigInt ret;
     _check(ulbi_as_int_sbits(_ctx(), ret._value, _value, static_cast<ulbn_sbits_t>(n)));
     return ret;
   }
-  BigInt asInt(const BigInt& n) {
+  BigInt asInt(const BigInt& n) const {
     BigInt ret;
     _check(ulbi_as_int(_ctx(), ret._value, _value, n._value));
     return ret;
+  }
+
+  template<FitUsize T>
+  BigInt& asIntLoc(T n) {
+    _check(ulbi_as_int_usize(_ctx(), _value, _value, static_cast<ulbn_usize_t>(n)));
+    return *this;
+  }
+  template<FitSsize T>
+  BigInt& asIntLoc(T n) {
+    _check(ulbi_as_int_ssize(_ctx(), _value, _value, static_cast<ulbn_ssize_t>(n)));
+    return *this;
+  }
+  template<FitBits T>
+    requires(!FitUsize<T>)
+  BigInt& asIntLoc(T n) {
+    _check(ulbi_as_int_bits(_ctx(), _value, _value, static_cast<ulbn_bits_t>(n)));
+    return *this;
+  }
+  template<FitSbits T>
+    requires(!FitSsize<T>)
+  BigInt& asIntLoc(T n) {
+    _check(ulbi_as_int_sbits(_ctx(), _value, _value, static_cast<ulbn_sbits_t>(n)));
+    return *this;
+  }
+  BigInt& asIntLoc(const BigInt& n) {
+    _check(ulbi_as_int(_ctx(), _value, _value, n._value));
+    return *this;
   }
 
 
