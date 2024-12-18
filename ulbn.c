@@ -218,18 +218,37 @@ static ul_constexpr const ulbn_usize_t ULBN_SHORT_LIMB_SIZE = _ULBN_SHORT_LIMB_S
 #define _ulbn_from_neg_slong(v) ul_static_cast(ulbn_ulong_t, ul_static_cast(ulbn_ulong_t, -((v) + 1)) + 1u)
 
 
+#if ULBN_LIMB_MAX < UCHAR_MAX
+  #define _ULBN_LIMB_1X_CHAR
+#endif
+#if ULBN_LIMB_MAX / UCHAR_MAX / UCHAR_MAX <= 1 || ULBN_LIMB_MAX / UCHAR_MAX <= UCHAR_MAX + 2
+  #define _ULBN_LIMB_2X_CHAR
+#endif
+#define _ULBN_DIV_4LIMB(x) ((x) / UCHAR_MAX / UCHAR_MAX / UCHAR_MAX / UCHAR_MAX)
+#if _ULBN_DIV_4LIMB(ULBN_LIMB_MAX) <= 1 \
+  || ULBN_LIMB_MAX / UCHAR_MAX <= UCHAR_MAX * UCHAR_MAX * UCHAR_MAX + 4 * UCHAR_MAX * UCHAR_MAX + 6 * UCHAR_MAX + 4
+  #define ULBN_LIMB_4X_CHAR
+#endif
+#define _ULBN_MUL_4LIMB(x) ((x) * UCHAR_MAX * UCHAR_MAX * UCHAR_MAX * UCHAR_MAX)
+#if _ULBN_DIV_4LIMB(_ULBN_DIV_4LIMB(ULBN_LIMB_MAX)) <= 1                                                           \
+  || ULBN_LIMB_MAX / UCHAR_MAX <= _ULBN_MUL_4LIMB(UCHAR_MAX * UCHAR_MAX * UCHAR_MAX)                               \
+                                    + 8 * _ULBN_MUL_4LIMB(UCHAR_MAX * UCHAR_MAX) + 28 * _ULBN_MUL_4LIMB(UCHAR_MAX) \
+                                    + 56 * _ULBN_MUL_4LIMB(1) + 70 * UCHAR_MAX * UCHAR_MAX * UCHAR_MAX             \
+                                    + 56 * UCHAR_MAX * UCHAR_MAX + 28 * UCHAR_MAX + 8
+  #define ULBN_LIMB_8X_CHAR
+#endif
+#undef _ULBN_DIV_4LIMB
+#undef _ULBN_MUL_4LIMB
+
 #ifndef ULBN_CHECK_USIZE_OVERFLOW
   #if defined(SIZE_MAX)
-    #if ULBN_LIMB_MAX <= UCHAR_MAX && ULBN_USIZE_MAX <= SIZE_MAX
+    #if defined(_ULBN_LIMB_1X_CHAR) && ULBN_USIZE_MAX <= SIZE_MAX
       #define ULBN_CHECK_USIZE_OVERFLOW 0
-    #elif (ULBN_LIMB_MAX / UCHAR_MAX / UCHAR_MAX <= 1 || ULBN_LIMB_MAX / UCHAR_MAX <= UCHAR_MAX + 2) \
-      && ULBN_USIZE_MAX <= SIZE_MAX / 2
+    #elif defined(_ULBN_LIMB_2X_CHAR) && ULBN_USIZE_MAX <= SIZE_MAX / 2
       #define ULBN_CHECK_USIZE_OVERFLOW 0
-    #elif (                                                                                     \
-      ULBN_LIMB_MAX / UCHAR_MAX / UCHAR_MAX / UCHAR_MAX / UCHAR_MAX <= 1                        \
-      || ULBN_LIMB_MAX / UCHAR_MAX                                                              \
-           <= UCHAR_MAX * UCHAR_MAX * UCHAR_MAX + 4 * UCHAR_MAX * UCHAR_MAX + 6 * UCHAR_MAX + 4 \
-    ) && ULBN_USIZE_MAX <= SIZE_MAX / 4
+    #elif defined(ULBN_LIMB_4X_CHAR) && ULBN_USIZE_MAX <= SIZE_MAX / 4
+      #define ULBN_CHECK_USIZE_OVERFLOW 0
+    #elif defined(ULBN_LIMB_8X_CHAR) && ULBN_USIZE_MAX <= SIZE_MAX / 8
       #define ULBN_CHECK_USIZE_OVERFLOW 0
     #endif
   #endif
@@ -3281,11 +3300,16 @@ ULBN_INTERNAL int ulbn_is_2pow(const ulbn_limb_t* p, ulbn_usize_t n) {
 ul_static_assert(_ULBN_LIMB_BITS < ULBN_LIMB_MAX, "ULBN_LIMB_BITS is too large");
 ul_static_assert(_ULBN_LIMB_BITS < INT_MAX, "ULBN_LIMB_BITS is too large");
 ul_static_assert(sizeof(ulbn_usize_t) / sizeof(ulbn_limb_t) + 1 <= _ULBN_SSIZE_LIMIT, "ULBN_LIMB_BITS is too small");
+#if ULBN_LIMB_MAX > ULBN_USIZE_MAX
+ul_static_assert(
+  ULBN_LIMB_MAX / ULBN_LIMB_BITS >= ULBN_USIZE_MAX,
+  "if ULBN_LIMB_MAX > ULBN_USIZE_MAX, we must make sure that `ulbn_limb_t` is able to hold bits"
+);
+#endif
 /* may return `ULBN_ERR_EXCEED_RANGE` */
 ULBN_INTERNAL int ulbn_to_bit_info(const ulbn_limb_t* limb, ulbn_usize_t n, ulbn_usize_t* p_idx) {
-#if ULBN_LIMB_MAX >= ULBN_USIZE_MAX
+#if ULBN_LIMB_MAX > ULBN_USIZE_MAX
   ulbn_limb_t q, r;
-
   if(ul_unlikely(n > 1))
     return ULBN_ERR_EXCEED_RANGE;
   if(n == 0) {
@@ -3294,10 +3318,27 @@ ULBN_INTERNAL int ulbn_to_bit_info(const ulbn_limb_t* limb, ulbn_usize_t n, ulbn
   }
   q = limb[0] / ULBN_LIMB_BITS;
   r = limb[0] % ULBN_LIMB_BITS;
-  #if ULBN_LIMB_MAX > ULBN_USIZE_MAX
   if(ul_unlikely(q > ULBN_USIZE_MAX))
     return ULBN_ERR_EXCEED_RANGE;
-  #endif
+  *p_idx = ul_static_cast(ulbn_usize_t, q);
+  return ul_static_cast(int, r);
+#elif ULBN_LIMB_MAX == ULBN_USIZE_MAX
+  ulbn_limb_t q, r;
+
+  if(ul_unlikely(n > 2))
+    return ULBN_ERR_EXCEED_RANGE;
+  if(n == 0) {
+    *p_idx = 0;
+    return 0;
+  }
+  if(ul_unlikely(n == 2)) {
+    if(ul_unlikely(limb[1] >= ULBN_LIMB_BITS))
+      return ULBN_ERR_EXCEED_RANGE;
+    _ulbn_udiv_(q, r, limb[1], limb[0], ULBN_LIMB_BITS);
+  } else {
+    q = limb[0] / ULBN_LIMB_BITS;
+    r = limb[0] % ULBN_LIMB_BITS;
+  }
   *p_idx = ul_static_cast(ulbn_usize_t, q);
   return ul_static_cast(int, r);
 #else
