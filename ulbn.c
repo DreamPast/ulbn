@@ -3302,7 +3302,7 @@ ul_static_assert(_ULBN_LIMB_BITS < INT_MAX, "ULBN_LIMB_BITS is too large");
 ul_static_assert(sizeof(ulbn_usize_t) / sizeof(ulbn_limb_t) + 1 <= _ULBN_SSIZE_LIMIT, "ULBN_LIMB_BITS is too small");
 #if ULBN_LIMB_MAX > ULBN_USIZE_MAX
 ul_static_assert(
-  ULBN_LIMB_MAX / ULBN_LIMB_BITS >= ULBN_USIZE_MAX,
+  ULBN_LIMB_MAX / _ULBN_LIMB_BITS >= ULBN_USIZE_MAX,
   "if ULBN_LIMB_MAX > ULBN_USIZE_MAX, we must make sure that `ulbn_limb_t` is able to hold bits"
 );
 #endif
