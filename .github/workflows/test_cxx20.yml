@@ -48,4 +48,4 @@ jobs:
         run: cmake --build ${{ github.workspace }}/build --config ${{ matrix.build_type }}
       - name: test
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config --output-on-failure ${{ matrix.build_type }}
+        run: ctest --output-on-failure --build-config ${{ matrix.build_type }}
