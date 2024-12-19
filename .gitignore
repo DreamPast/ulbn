@@ -13,6 +13,7 @@
 *.sw?
 
 dev/**
+dev*
 
 # Build results
 build*/**
