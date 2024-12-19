@@ -442,7 +442,7 @@ public:
     return ret;
   }
   static BigInt fromBytesUnsigned(const void* bytes, size_t n, std::endian endian = std::endian::native) {
-    return fromBytesUnsigned(bytes, n, endian == std::endian::big);
+    return endian == std::endian::little ? fromBytesUnsignedLE(bytes, n) : fromBytesUnsignedBE(bytes, n);
   }
 
   static BigInt fromBytesUnsignedLE(const void* bytes, size_t n) {
@@ -462,7 +462,7 @@ public:
     return ret;
   }
   static BigInt fromBytesSigned(const void* bytes, size_t n, std::endian endian = std::endian::native) {
-    return fromBytesSigned(bytes, n, endian == std::endian::big);
+    return endian == std::endian::little ? fromBytesSignedLE(bytes, n) : fromBytesSignedBE(bytes, n);
   }
 
   static BigInt fromBytesSignedLE(const void* bytes, size_t n) {
@@ -481,7 +481,10 @@ public:
     ulbi_to_bytes_signed(_value, bytes, n, is_big_endian);
   }
   void toBytesSigned(void* bytes, size_t n, std::endian endian = std::endian::native) const noexcept {
-    ulbi_to_bytes_signed(_value, bytes, n, endian == std::endian::big);
+    if(endian == std::endian::little)
+      ulbi_to_bytes_signed_le(_value, bytes, n);
+    else
+      ulbi_to_bytes_signed_be(_value, bytes, n);
   }
 
   void toBytesSignedLE(void* bytes, size_t n) const noexcept {
@@ -496,14 +499,14 @@ public:
     return { ulbi_get_limbs(_value), ulbi_get_limbs_len(_value) };
   }
 
-  template<size_t N>
-  static BigInt fromLimbs(std::span<ulbn_limb_t, N> limbs) {
+  template<size_t Extent>
+  static BigInt fromLimbs(std::span<ulbn_limb_t, Extent> limbs) {
     BigInt ret;
     _check(ulbi_set_limbs(_ctx(), ret._value, limbs.data(), limbs.size()));
     return ret;
   }
-  template<size_t N>
-  static BigInt fromLimbs(std::span<const ulbn_limb_t, N> limbs) {
+  template<size_t Extent>
+  static BigInt fromLimbs(std::span<const ulbn_limb_t, Extent> limbs) {
     BigInt ret;
     _check(ulbi_set_limbs(_ctx(), ret._value, limbs.data(), limbs.size()));
     return ret;
@@ -741,15 +744,15 @@ public:
     return ret;
   }
 
+  BigInt& operator%=(const BigInt& other) {
+    _check(ulbi_divmod(_ctx(), nullptr, _value, _value, other._value));
+    return *this;
+  }
   template<FitSlimb T>
   BigInt& operator%=(T value) noexcept {
     ulbn_slimb_t r;
     ulbi_divmod_slimb(_ctx(), nullptr, &r, _value, static_cast<ulbn_slimb_t>(value));
     ulbi_set_slimb(_value, r);
-    return *this;
-  }
-  BigInt& operator%=(const BigInt& other) {
-    _check(ulbi_divmod(_ctx(), nullptr, _value, _value, other._value));
     return *this;
   }
   friend BigInt operator%(const BigInt& lhs, const BigInt& rhs) {
@@ -794,27 +797,27 @@ public:
     return r;
   }
 
-  template<FitSbits T>
+  template<FitSlimb T>
   std::pair<BigInt, BigInt> divmod(T other) const {
     BigInt q;
     ulbn_slimb_t rl;
     _check(ulbi_divmod_slimb(_ctx(), q._value, &rl, _value, static_cast<ulbn_slimb_t>(other)));
     return { q, BigInt(rl) };
   }
-  template<FitSbits T>
+  template<FitSlimb T>
   std::pair<BigInt, BigInt> divmod(T other, enum ULBN_ROUND_ENUM round_mode) const {
     BigInt q;
     ulbn_slimb_t rl;
     _check(ulbi_divmod_slimb_ex(_ctx(), q._value, &rl, _value, static_cast<ulbn_slimb_t>(other), round_mode));
     return { q, BigInt(rl) };
   }
-  template<FitSbits T>
+  template<FitSlimb T>
   BigInt div(T other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt q;
     _check(ulbi_divmod_slimb_ex(_ctx(), q._value, nullptr, _value, static_cast<ulbn_slimb_t>(other), round_mode));
     return q;
   }
-  template<FitSbits T>
+  template<FitSlimb T>
   BigInt mod(T other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     ulbn_slimb_t rl;
     _check(ulbi_divmod_slimb_ex(_ctx(), nullptr, &rl, _value, static_cast<ulbn_slimb_t>(other), round_mode));
@@ -918,6 +921,7 @@ public:
   friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) noexcept {
     return (-ulbi_comp_slong(rhs._value, static_cast<ulbn_slong_t>(lhs))) <=> 0;
   }
+
 
   friend bool operator==(const BigInt& lhs, const BigInt& rhs) noexcept {
     return ulbi_eq(lhs._value, rhs._value) != 0;
@@ -1653,6 +1657,9 @@ private:
   ulbi_t _value[1];
 };
 
+inline BigInt operator""_bi(unsigned long long value) {
+  return { static_cast<ulbn_ulong_t>(value) };
+}
 inline BigInt operator""_bi(const char* str) {
   return { str };
 }

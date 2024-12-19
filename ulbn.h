@@ -865,13 +865,13 @@ ULBN_PUBLIC void ulbi_swap(ulbi_t* o1, ulbi_t* o2);
 /**
  * @brief `ro` = -`ao`.
  * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory.
+ * @return `ULBN_ERR_NOMEM` if out of memory and `ro` != `ao`.
  */
 ULBN_PUBLIC int ulbi_neg(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao);
 /**
  * @brief `ro` = abs(`ao`).
  * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory.
+ * @return `ULBN_ERR_NOMEM` if out of memory and `ro` != `ao`.
  */
 ULBN_PUBLIC int ulbi_abs(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao);
 
@@ -879,7 +879,7 @@ ULBN_PUBLIC int ulbi_abs(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
 /**
  * @brief Copies `src` to `dst`.
  * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory.
+ * @return `ULBN_ERR_NOMEM` if out of memory and `dst` != `src`.
  */
 ULBN_PUBLIC int ulbi_set_copy(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* src);
 /**
