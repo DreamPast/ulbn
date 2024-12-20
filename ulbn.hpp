@@ -35,6 +35,7 @@ ulbn - Big Number Library (C++ Wrapper)
 #include <algorithm>
 #include <bit>
 #include <compare>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <exception>
@@ -46,6 +47,7 @@ ulbn - Big Number Library (C++ Wrapper)
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -518,15 +520,27 @@ public:
   }
 
 
-  static BigInt fromStringEx(const char* str, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX) {
+  static BigInt fromString(
+    const char* str, size_t len = SIZE_MAX, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  ) {
     BigInt ret;
-    _check(ulbi_set_string_ex(_ctx(), ret._value, &str, base, flags));
+    _check(ulbi_set_string_ex(_ctx(), ret._value, &str, len, base, flags));
     return ret;
   }
-  static BigInt fromStringEx(
-    const std::string& str, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  static BigInt fromString(std::string_view str, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX) {
+    return fromString(str.data(), str.size(), base, flags);
+  }
+  template<size_t Extent>
+  static BigInt fromString(
+    std::span<const char, Extent> str, int base = 0, int flag = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
   ) {
-    return fromStringEx(str.c_str(), base, flags);
+    return fromString(str.data(), str.size(), base, flag);
+  }
+  template<size_t Extent>
+  static BigInt fromString(
+    std::span<char, Extent> str, int base = 0, int flag = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  ) {
+    return fromString(str.data(), str.size(), base, flag);
   }
 
 

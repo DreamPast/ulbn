@@ -370,7 +370,7 @@ ulbn - Big Number Library
  * @brief Configuration: Whether to only allocate memory needed.
  */
 #ifndef ULBN_CONF_ONLY_ALLOCATE_NEEDED
-  #define ULBN_CONF_ONLY_ALLOCATE_NEEDED 1
+  #define ULBN_CONF_ONLY_ALLOCATE_NEEDED 0
 #endif /* ULBN_CONF_ONLY_ALLOCATE_NEEDED */
 
 /**
@@ -913,7 +913,8 @@ ULBN_PUBLIC int ulbi_set_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi
 
 /**
  * @brief Sets `dst` to the integer represented by `*pstr` in base `base`, and write the pointer back to `*pstr`.
- * @note This function stops parsing when it encounters the first illegal character.
+ * @note This function stops parsing when it encounters the first illegal character,
+ *       so it's safe to pass `SIZE_MAX` to `len` and this functions will stop at `(char)0`.
  * @param base 0 means automatic detection (according to the prefix); 2-36 means the base; otherwise, it is invalid.
  * @param flag Combination of `ULBN_SET_STRING_FLAG_ENUM`.
  * @return `0` if successful;
@@ -923,12 +924,16 @@ ULBN_PUBLIC int ulbi_set_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi
  * @return `ULBN_ERR_INEXACT` if the number represented by the string cannot be exactly represented as an integer;
  * @return `ULBN_ERR_INEXACT` if the string represents some form of -0.
  */
-ULBN_PUBLIC int ulbi_set_string_ex(const ulbn_alloc_t* alloc, ulbi_t* dst, const char** pstr, int base, int flag);
+ULBN_PUBLIC int ulbi_set_string_ex(
+  const ulbn_alloc_t* alloc, ulbi_t* dst,           /* */
+  const char** pstr, size_t len, int base, int flag /* */
+);
 /**
- * @brief Sets `dst` to the integer represented by `str` in base `base`.
+ * @brief Sets `dst` to the integer represented by 0-ended `str` in base `base`.
  * @param base 0 means automatic detection (according to the prefix); 2-36 means the base; otherwise, it is invalid.
- * @note it's equivalent to `ulbi_set_string_ex(alloc, dst, &str, base, ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX)` and
- *  check if `str` is fully parsed and ignore `ULBN_ERR_INEXACT` (this function won't accpet decimal part)
+ * @note it's equivalent to 
+ *       `ulbi_set_string_ex(alloc, dst, &str, SIZE_MAX, base, ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX)`
+ *       and check if `str` is fully parsed and ignore `ULBN_ERR_INEXACT` (this function won't accpet decimal part)
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
@@ -937,6 +942,20 @@ ULBN_PUBLIC int ulbi_set_string_ex(const ulbn_alloc_t* alloc, ulbi_t* dst, const
  *  (but the result is still stored, so you can ignore it).
  */
 ULBN_PUBLIC int ulbi_set_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base);
+/**
+ * @brief Sets `dst` to the integer represented by `str` in base `base`.
+ * @param base 0 means automatic detection (according to the prefix); 2-36 means the base; otherwise, it is invalid.
+ * @note it's equivalent to 
+ *       `ulbi_set_string_ex(alloc, dst, &str, len, base, ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX)`
+ *       and check if `str` is fully parsed and ignore `ULBN_ERR_INEXACT` (this function won't accpet decimal part)
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
+ * @return `ULBN_ERR_INVALID` if the string cannot be fully parsed as an integer
+ *         (but the result is still stored, so you can ignore it).
+ */
+ULBN_PUBLIC int ulbi_set_string_len(const ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, size_t len, int base);
 
 /**
  * @brief Sets `dst` to the unsigned integer represented by `bytes` in little-endian.
@@ -1035,7 +1054,7 @@ ULBN_PUBLIC int ulbi_init_2exp_sbits(const ulbn_alloc_t* alloc, ulbi_t* dst, ulb
  */
 ULBN_PUBLIC int ulbi_init_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* n);
 /**
- * @brief Initializes `dst` with the integer represented by `str` in base `base`.
+ * @brief Initializes `dst` with the integer represented by 0-ended `str` in base `base`.
  * @note This function stops parsing when it encounters the first illegal character.
  * @param base 0 means automatic detection (according to the prefix); 2-36 means the base; otherwise, it is invalid.
  * @return `0` if successful;
@@ -1043,9 +1062,21 @@ ULBN_PUBLIC int ulbi_init_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulb
  * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
  * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
  * @return `ULBN_ERR_INVALID` if the string cannot be fully parsed as an integer
- *  (but the result is still stored, so you can ignore it).
+ *         (but the result is still stored, so you can ignore it).
  */
 ULBN_PUBLIC int ulbi_init_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, int base);
+/**
+ * @brief Initializes `dst` with the integer represented by 0-ended `str` in base `base`.
+ * @note This function stops parsing when it encounters the first illegal character.
+ * @param base 0 means automatic detection (according to the prefix); 2-36 means the base; otherwise, it is invalid.
+ * @return `0` if successful;
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
+ * @return `ULBN_ERR_INVALID` if the string cannot be fully parsed as an integer
+ *         (but the result is still stored, so you can ignore it).
+ */
+ULBN_PUBLIC int ulbi_init_string_len(const ulbn_alloc_t* alloc, ulbi_t* dst, const char* str, size_t len, int base);
 
 /**
  * @brief Initializes `dst` with the unsigned integer represented by `bytes` in little-endian.

@@ -52,8 +52,8 @@ Depends on the following assumptions for modern platforms:
       - [x] Toom-3 algorithm
       - [x] Toom-4 algorithm
       - [ ] FFT
-    - [ ] Faster base conversion
-      - [ ] Faster input
+    - [x] Faster base conversion
+      - [x] Faster input
       - [x] Faster output
   - [x] Comparison
   - [x] Bitwise Operation

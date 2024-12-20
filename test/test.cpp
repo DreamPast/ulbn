@@ -81,13 +81,27 @@ template<class ExpectValue>
 void _checkSetString(
   const char* str, ExpectValue expect_value, ptrdiff_t expect_len = -1, int expect_error = 0, int flags = ~0
 ) {
-  const char* nstr = str;
-  BigInt bi;
   if(expect_len < 0)
     expect_len = static_cast<ptrdiff_t>(strlen(str)) - (expect_len + 1);
-  T_assert(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, 0, flags) == expect_error);
+  const char* nstr = str;
+
+  BigInt bi;
+  T_assert(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, SIZE_MAX, 0, flags) == expect_error);
   T_assert(bi == expect_value);
   T_assert(nstr - str == expect_len);
+
+  std::string str2 = str;
+  nstr = str2.c_str();
+  str2.push_back('0');
+  T_assert(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, strlen(str), 0, flags) == expect_error);
+  T_assert(bi == expect_value);
+  T_assert(nstr - str2.c_str() == expect_len);
+
+  nstr = str2.c_str();
+  str2.push_back('1');
+  T_assert(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, strlen(str), 0, flags) == expect_error);
+  T_assert(bi == expect_value);
+  T_assert(nstr - str2.c_str() == expect_len);
 }
 
 void subtestSetString() {
@@ -313,6 +327,13 @@ void subtestBigString() {
     BigInt x = BigInt::fromRandom(bits).asInt(bits);
     auto str = x.toString();
     T_assert(BigInt(str) == x);
+
+    auto ins_num = mt64() % 10;
+    while(ins_num-- != 0) {
+      auto pos = mt64() % (str.size() + 1);
+      str.insert(pos, 1, '_');
+    }
+    T_assert(BigInt::fromString(str, 0, ~0) == x);
   }
 }
 void testCastTo() {
