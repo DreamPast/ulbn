@@ -5,7 +5,9 @@ ulbn - Big Number Library (C++ Wrapper)
   - C++20
     - Concepts and constranints
     - Three-way comparison
-    - `<bit>` header file (The platform is big-endian or little-endian)
+    - `<bit>` header file
+    - std::span
+    - std::format
   - "ulbn.h"
 
 # License
@@ -2022,15 +2024,15 @@ struct std::formatter<ul::bn::BigInt, char> {
   constexpr auto parse(ParseContext& ctx) {
     ul::FormatHelper helper;
     auto iter = helper.parse(ctx.begin(), ctx.end());
-    formatter.parse(helper);
+    formatterHelper.parse(helper);
     return iter;
   }
 
   template<class FmtContext>
   auto format(const ul::bn::BigInt& obj, FmtContext& ctx) const {
-    return formatter.format(ctx.out(), obj);
+    return formatterHelper.format(ctx.out(), obj);
   }
 
 private:
-  BigInt::Formatter formatter;
+  BigInt::Formatter formatterHelper;
 };
