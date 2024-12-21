@@ -5884,9 +5884,9 @@ fix_remainder:
   }
   if(ro) {
     if(op != 0) {
-      ulbi_t tmp;
+      ulbi_t tmp = ULBI_INIT;
       ULBN_RETURN_IF_SSIZE_COND(idx > ULBN_SSIZE_LIMIT - 1, ULBN_ERR_EXCEED_RANGE);
-      err = _ulbi_set_2exp(alloc, ulbi_init(&tmp), idx, shift);
+      err = _ulbi_set_2exp(alloc, &tmp, idx, shift);
       ULBN_DO_IF_PUBLIC_COND(err < 0, return err;);
       if(a_pos) { /* r - b */
         ulbn_assert(op == 1);

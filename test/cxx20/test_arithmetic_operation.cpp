@@ -5,23 +5,23 @@ void testAddSub() {
 
   for(int a = -LIMIT; a <= LIMIT; ++a)
     for(int b = -LIMIT; b <= LIMIT; ++b) {
-      T_assert(BigInt(a) + BigInt(b) == a + b);
-      T_assert(BigInt(a) - BigInt(b) == a - b);
+      T_assert_eq(BigInt(a) + BigInt(b), a + b);
+      T_assert_eq(BigInt(a) - BigInt(b), a - b);
       if(fitType<int8_t>(b)) {
-        T_assert(BigInt(a) + static_cast<int8_t>(b) == a + b);
-        T_assert(BigInt(a) - static_cast<int8_t>(b) == a - b);
+        T_assert_eq(BigInt(a) + static_cast<int8_t>(b), a + b);
+        T_assert_eq(BigInt(a) - static_cast<int8_t>(b), a - b);
       }
       if(fitType<int8_t>(a)) {
-        T_assert(static_cast<int8_t>(a) + BigInt(b) == a + b);
-        T_assert(static_cast<int8_t>(a) - BigInt(b) == a - b);
+        T_assert_eq(static_cast<int8_t>(a) + BigInt(b), a + b);
+        T_assert_eq(static_cast<int8_t>(a) - BigInt(b), a - b);
       }
       if(fitType<uint8_t>(b)) {
-        T_assert(BigInt(a) + static_cast<uint8_t>(b) == a + b);
-        T_assert(BigInt(a) - static_cast<uint8_t>(b) == a - b);
+        T_assert_eq(BigInt(a) + static_cast<uint8_t>(b), a + b);
+        T_assert_eq(BigInt(a) - static_cast<uint8_t>(b), a - b);
       }
       if(fitType<uint8_t>(a)) {
-        T_assert(static_cast<uint8_t>(a) + BigInt(b) == a + b);
-        T_assert(static_cast<uint8_t>(a) - BigInt(b) == a - b);
+        T_assert_eq(static_cast<uint8_t>(a) + BigInt(b), a + b);
+        T_assert_eq(static_cast<uint8_t>(a) - BigInt(b), a - b);
       }
     }
 }
@@ -33,37 +33,37 @@ void testMul() {
   BigInt a2 = BigInt("12345678901234567890");
 
 
-  T_assert(a1 * a2 == BigInt("148148146814814814680"));
-  T_assert(a1 * -a2 == BigInt("-148148146814814814680"));
-  T_assert(-a1 * a2 == BigInt("-148148146814814814680"));
-  T_assert(-a1 * -a2 == BigInt("148148146814814814680"));
+  T_assert_eq(a1 * a2, BigInt("148148146814814814680"));
+  T_assert_eq(a1 * -a2, BigInt("-148148146814814814680"));
+  T_assert_eq(-a1 * a2, BigInt("-148148146814814814680"));
+  T_assert_eq(-a1 * -a2, BigInt("148148146814814814680"));
 
-  T_assert(a2 * a2 == BigInt("152415787532388367501905199875019052100"));
-  T_assert(a2 * -a2 == BigInt("-152415787532388367501905199875019052100"));
-  T_assert(-a2 * a2 == BigInt("-152415787532388367501905199875019052100"));
-  T_assert(-a2 * -a2 == BigInt("152415787532388367501905199875019052100"));
+  T_assert_eq(a2 * a2, BigInt("152415787532388367501905199875019052100"));
+  T_assert_eq(a2 * -a2, BigInt("-152415787532388367501905199875019052100"));
+  T_assert_eq(-a2 * a2, BigInt("-152415787532388367501905199875019052100"));
+  T_assert_eq(-a2 * -a2, BigInt("152415787532388367501905199875019052100"));
 
 
-  T_assert(a2 * static_cast<uint8_t>(12u) == BigInt("148148146814814814680"));
-  T_assert(-a2 * static_cast<uint8_t>(12u) == BigInt("-148148146814814814680"));
+  T_assert_eq(a2 * static_cast<uint8_t>(12u), BigInt("148148146814814814680"));
+  T_assert_eq(-a2 * static_cast<uint8_t>(12u), BigInt("-148148146814814814680"));
 
-  T_assert(a2 * static_cast<int8_t>(12) == BigInt("148148146814814814680"));
-  T_assert(a2 * static_cast<int8_t>(-12) == BigInt("-148148146814814814680"));
-  T_assert(-a2 * static_cast<int8_t>(12) == BigInt("-148148146814814814680"));
-  T_assert(-a2 * static_cast<int8_t>(-12) == BigInt("148148146814814814680"));
+  T_assert_eq(a2 * static_cast<int8_t>(12), BigInt("148148146814814814680"));
+  T_assert_eq(a2 * static_cast<int8_t>(-12), BigInt("-148148146814814814680"));
+  T_assert_eq(-a2 * static_cast<int8_t>(12), BigInt("-148148146814814814680"));
+  T_assert_eq(-a2 * static_cast<int8_t>(-12), BigInt("148148146814814814680"));
 
 
   for(int64_t a = -LIMIT; a <= LIMIT; ++a) {
     for(int64_t b = -LIMIT; b <= LIMIT; ++b) {
-      T_assert(BigInt(a) * BigInt(b) == a * b);
+      T_assert_eq(BigInt(a) * BigInt(b), a * b);
       if(fitType<int8_t>(b))
-        T_assert(BigInt(a) * static_cast<int8_t>(b) == a * b);
+        T_assert_eq(BigInt(a) * static_cast<int8_t>(b), a * b);
       if(fitType<uint8_t>(b))
-        T_assert(BigInt(a) * static_cast<uint8_t>(b) == a * b);
+        T_assert_eq(BigInt(a) * static_cast<uint8_t>(b), a * b);
     }
     {
       BigInt r(a);
-      T_assert((r *= r) == a * a);
+      T_assert_eq((r *= r), a * a);
     }
   }
 
@@ -71,8 +71,8 @@ void testMul() {
     BigInt r = 1, a = 0x100;
     for(int t = 1; t <= 0xFF; ++t) {
       r *= a;
-      T_assert(r == BigInt::from2Exp(8 * t));
-      T_assert(r == BigInt::from2Exp(BigInt(8 * t)));
+      T_assert_eq(r, BigInt::from2Exp(8 * t));
+      T_assert_eq(r, BigInt::from2Exp(BigInt(8 * t)));
     }
   }
 
@@ -80,8 +80,8 @@ void testMul() {
     BigInt r = 1, a = BigInt::from2Exp(1000);
     for(int t = 1; t <= 0xFF; ++t) {
       r *= a;
-      T_assert(r == BigInt::from2Exp(1000 * t));
-      T_assert(r == BigInt::from2Exp(BigInt(1000 * t)));
+      T_assert_eq(r, BigInt::from2Exp(1000 * t));
+      T_assert_eq(r, BigInt::from2Exp(BigInt(1000 * t)));
     }
   }
 }
@@ -91,7 +91,7 @@ void testMulRandom() {
   for(auto t = TEST_BIG; t--;) {
     const uint32_t a = dist(mt64);
     const uint32_t b = dist(mt64);
-    T_assert(BigInt(a) * BigInt(b) == static_cast<uint64_t>(a) * b);
+    T_assert_eq(BigInt(a) * BigInt(b), static_cast<uint64_t>(a) * b);
   }
 }
 void testDivMod() {
@@ -99,41 +99,46 @@ void testDivMod() {
 
   BigInt a2 = BigInt("12345678901234567890");
 
-  T_assert(a2 / 12_bi == "1028806575102880657"_bi && a2 % 12_bi == 6);
-  T_assert(a2 / 12u == "1028806575102880657"_bi && a2 % 12u == 6);
-  T_assert(a2 / 12 == "1028806575102880657"_bi && a2 % 12 == 6);
+  T_assert_eq(a2 / 12_bi, "1028806575102880657"_bi);
+  T_assert_eq(a2 % 12_bi, 6);
+  T_assert_eq(a2 / 12u, "1028806575102880657"_bi);
+  T_assert_eq(a2 % 12u, 6);
+  T_assert_eq(a2 / 12, "1028806575102880657"_bi);
+  T_assert_eq(a2 % 12, 6);
 
   for(unsigned i = 64; i < 256; ++i) {
     BigInt d = BigInt::from2Exp(i);
-    T_assert((a2 / d) * d + (a2 % d) == a2);
-    T_assert((a2 * d) / d == a2 && (a2 * d) % d == 0);
+    T_assert_eq((a2 / d) * d + (a2 % d), a2);
+    T_assert_eq((a2 * d) / d, a2);
+    T_assert_eq((a2 * d) % d, 0);
     d = BigInt::from2Exp(BigInt(i));
-    T_assert((a2 / d) * d + (a2 % d) == a2);
-    T_assert((a2 * d) / d == a2 && (a2 * d) % d == 0);
+    T_assert_eq((a2 / d) * d + (a2 % d), a2);
+    T_assert_eq((a2 * d) / d, a2);
+    T_assert_eq((a2 * d) % d, 0);
   }
 
 
   for(int a = -LIMIT; a <= LIMIT; ++a)
     for(int b = -LIMIT; b <= LIMIT; ++b)
       if(b != 0) {
-        T_assert(BigInt(a) / BigInt(b) == a / b);
-        T_assert(BigInt(a) % BigInt(b) == a % b);
+        T_assert_eq(BigInt(a) / BigInt(b), a / b);
+        T_assert_eq(BigInt(a) % BigInt(b), a % b);
         if(fitType<int8_t>(b)) {
-          T_assert(BigInt(a) / static_cast<int8_t>(b) == a / b);
+          T_assert_eq(BigInt(a) / static_cast<int8_t>(b), a / b);
 
           ulbn_slimb_t r;
           T_assert(
             ulbi_divmod_slimb(ulbn_default_alloc(), ul_nullptr, &r, BigInt(a).get(), static_cast<ulbn_slimb_t>(b)) >= 0
           );
-          T_assert(r == a % b);
+          T_assert_eq(r, a % b);
         }
         if(fitType<uint8_t>(b)) {
-          T_assert(BigInt(a) / static_cast<uint8_t>(b) == a / b);
+          T_assert_eq(BigInt(a) / static_cast<uint8_t>(b), a / b);
 
           BigInt tmp(a);
           ulbn_limb_t r;
           T_assert(ulbi_divmod_limb(ulbn_default_alloc(), ul_nullptr, &r, tmp.get(), static_cast<ulbn_limb_t>(b)) >= 0);
-          T_assert(static_cast<int>(r) == (a % b + b) % b);
+          T_assert_eq(static_cast<int>(r), (a % b + b) % b);
         }
       }
 }
@@ -147,7 +152,7 @@ void testDivModRandom() {
     const uint64_t a = ud1(mt);
     const uint64_t b = ud2(mt);
 
-    T_assert(BigInt(a).divmod(BigInt(b)) == (std::make_pair<BigInt, BigInt>(a / b, a % b)));
+    T_assert_pair_eq(BigInt(a).divmod(BigInt(b)), (a / b), (a % b));
   }
 }
 void testDivModOverlapRandom() {
@@ -162,33 +167,33 @@ void testDivModOverlapRandom() {
     {  // a == b
       BigInt ra;
       ra = a;
-      T_assert((ra /= ra) == 1);
+      T_assert_eq((ra /= ra), 1);
       ra = a;
-      T_assert((ra %= ra) == 0);
+      T_assert_eq((ra %= ra), 0);
     }
 
     {  // q == a
       BigInt ra(a);
       ra /= BigInt(b);
-      T_assert(ra == a / b);
+      T_assert_eq(ra, a / b);
     }
 
     {  // r == a
       BigInt ra(a);
       ra %= BigInt(b);
-      T_assert(ra == a % b);
+      T_assert_eq(ra, a % b);
     }
 
     {  // q == b
       BigInt ra(a), rb(b);
       T_assert(ulbi_divmod(ulbn_default_alloc(), rb.get(), ul_nullptr, ra.get(), rb.get()) >= 0);
-      T_assert(rb == a / b);
+      T_assert_eq(rb, a / b);
     }
 
     {  // r == b
       BigInt ra(a), rb(b);
       T_assert(ulbi_divmod(ulbn_default_alloc(), ul_nullptr, rb.get(), ra.get(), rb.get()) >= 0);
-      T_assert(rb == a % b);
+      T_assert_eq(rb, a % b);
     }
 
     {  // q == r
@@ -238,8 +243,8 @@ void testDivModEx() {
   puts("======Test DivMod Ex");
 
   for(auto&& item: _divmod_cases) {
-    T_assert(pairEqual(BigInt(item.a).divmod(4, item.round_mode), item.q, item.r));
-    T_assert(pairEqual(BigInt(item.a).divmod(4_bi, item.round_mode), item.q, item.r));
+    T_assert_pair_eq(BigInt(item.a).divmod(4, item.round_mode), item.q, item.r);
+    T_assert_pair_eq(BigInt(item.a).divmod(4_bi, item.round_mode), item.q, item.r);
     T_assert(BigInt(item.a).div(4, item.round_mode) == item.q);
     T_assert(BigInt(item.a).mod(4, item.round_mode) == item.r);
     T_assert(BigInt(item.a).div(4_bi, item.round_mode) == item.q);
@@ -254,7 +259,7 @@ void testDivMod2Exp() {
     for(short i = 0; i < 32; ++i) {
       auto pair = a.divmod2Exp(i);
       auto ansPair = a.divmod(BigInt::from2Exp(i));
-      T_assert(pairEqual(pair, ansPair));
+      T_assert_pair_eq(pair, ansPair.first, ansPair.second);
 
       BigInt q = a;
       T_assert(
@@ -269,10 +274,10 @@ void testDivMod2Exp() {
     for(short i = 0; i < 32; ++i) {
       auto pair = a.divmod2Exp(BigInt(i));
       auto ansPair = a.divmod(BigInt::from2Exp(BigInt(i)));
-      T_assert(pairEqual(pair, ansPair));
+      T_assert_pair_eq(pair, ansPair.first, ansPair.second);
     }
     for(int i = 0; i >= -4; --i) {
-      T_assert(pairEqual(a.divmod2Exp(i), a * BigInt::from2Exp(-i), 0));
+      T_assert_pair_eq(a.divmod2Exp(i), a * BigInt::from2Exp(-i), 0);
     }
   }
 }
@@ -280,12 +285,12 @@ void testDivMod2ExpEx() {
   puts("======Test DivMod 2Exp Ex");
 
   for(auto&& item: _divmod_cases) {
-    T_assert(pairEqual(BigInt(item.a).divmod2Exp(2, item.round_mode), item.q, item.r));
-    T_assert(pairEqual(BigInt(item.a).divmod2Exp(2_bi, item.round_mode), item.q, item.r));
-    T_assert(BigInt(item.a).div2Exp(2, item.round_mode) == item.q);
-    T_assert(BigInt(item.a).mod2Exp(2, item.round_mode) == item.r);
-    T_assert(BigInt(item.a).div2Exp(2_bi, item.round_mode) == item.q);
-    T_assert(BigInt(item.a).mod2Exp(2_bi, item.round_mode) == item.r);
+    T_assert_pair_eq(BigInt(item.a).divmod2Exp(2, item.round_mode), item.q, item.r);
+    T_assert_pair_eq(BigInt(item.a).divmod2Exp(2_bi, item.round_mode), item.q, item.r);
+    T_assert_eq(BigInt(item.a).div2Exp(2, item.round_mode), item.q);
+    T_assert_eq(BigInt(item.a).mod2Exp(2, item.round_mode), item.r);
+    T_assert_eq(BigInt(item.a).div2Exp(2_bi, item.round_mode), item.q);
+    T_assert_eq(BigInt(item.a).mod2Exp(2_bi, item.round_mode), item.r);
   }
 }
 void testBigMulDiv() {
@@ -296,8 +301,10 @@ void testBigMulDiv() {
     x = 1 + BigInt::fromRandom("0xFFF");
     y = 1 + BigInt::fromRandom("0xFFF");
     z = x * y;
-    T_assert(z / x == y && z % x == 0);
-    T_assert(z / y == x && z % y == 0);
+    T_assert_eq(z / x, y);
+    T_assert_eq(z % x, 0);
+    T_assert_eq(z / y, x);
+    T_assert_eq(z % y, 0);
   }
 
   for(int t = TEST_SMALL; t--;) {
@@ -305,8 +312,10 @@ void testBigMulDiv() {
     x = 1 + BigInt::fromRandom("0xFFF");
     y = 1 + BigInt::fromRandom("0xFF");
     z = x * y;
-    T_assert(z / x == y && z % x == 0);
-    T_assert(z / y == x && z % y == 0);
+    T_assert_eq(z / x, y);
+    T_assert_eq(z % x, 0);
+    T_assert_eq(z / y, x);
+    T_assert_eq(z % y, 0);
   }
 
   for(int t = TEST_VERY_SMALL; t--;) {
@@ -314,7 +323,9 @@ void testBigMulDiv() {
     x = 1 + BigInt::fromRandom("0xFFFFFF");
     y = 1 + BigInt::fromRandom("0xFFFF");
     auto [q, r] = x.divmod(y);
-    T_assert(r > 0 && q > 0 && q * y + r == x);
+    T_assert(r > 0);
+    T_assert(q > 0);
+    T_assert_eq(q * y + r, x);
   }
 }
 void testPower() {
@@ -331,12 +342,12 @@ void testPower() {
   };
   for(int64_t a = 2; a <= 32; ++a) {
     for(unsigned e = 1; pow(static_cast<double>(a), e) < static_cast<double>(1ull << 63); ++e) {
-      T_assert(BigInt(a).pow(e) == fastpow(a, e));
-      T_assert(BigInt(a).pow(BigInt(e)) == fastpow(a, e));
+      T_assert_eq(BigInt(a).pow(e), fastpow(a, e));
+      T_assert_eq(BigInt(a).pow(BigInt(e)), fastpow(a, e));
     }
   }
 
-  T_assert(BigInt("0x100").pow(0xFFFF) == BigInt::from2Exp(0xFFFF * 8));
+  T_assert_eq(BigInt("0x100").pow(0xFFFF), BigInt::from2Exp(0xFFFF * 8));
 }
 void testSqrt() {
   puts("======Test Sqrt");

@@ -14,9 +14,16 @@ using ul::bn::operator""_bi;
 
 [[noreturn]] void _T_assert(const char* msg, const char* file, int line) {
   std::cerr << "Assertion failed: " << msg << " at " << file << ":" << line << std::endl;
-  throw "Assertion failed";
+  throw std::runtime_error("Assertion failed");
 }
 #define T_assert(cond) ((void)(!!(cond) || (_T_assert(#cond, __FILE__, __LINE__), 0)))
+
+template<class Lhs, class Rhs>
+[[noreturn]] void _T_assert_eq(Lhs lhs, Rhs rhs, const char* file, int line) {
+  std::cerr << "Assertion failed: " << lhs << " == " << rhs << " at " << file << ":" << line << std::endl;
+  throw std::runtime_error("Assertion failed");
+}
+#define T_assert_eq(lhs, rhs) ((void)(!!((lhs) == (rhs)) || (_T_assert_eq(lhs, rhs, __FILE__, __LINE__), 0)))
 
 template<class Func>
 int _getExceptionCode(Func&& func) {
@@ -27,7 +34,7 @@ int _getExceptionCode(Func&& func) {
     return e.getError();
   }
 }
-#define T_assert_exception(func, expect) T_assert(_getExceptionCode(func) == (expect))
+#define T_assert_exception(func, expect) T_assert_eq(_getExceptionCode(func), (expect))
 
 template<class To, class From>
 bool fitType(From from) {
@@ -50,13 +57,13 @@ bool fitType(From from) {
 }
 
 template<class LT1, class LT2, class RT1, class RT2>
-bool pairEqual(const std::pair<LT1, LT2>& l, const std::pair<RT1, RT2>& r) {
-  return l.first == r.first && l.second == r.second;
+void _T_assert_pair_eq(const std::pair<LT1, LT2>& l, RT1&& rt1, RT2&& rt2, const char* file, int line) {
+  if(l.first != rt1)
+    _T_assert_eq(l.first, rt1, file, line);
+  if(l.second != rt2)
+    _T_assert_eq(l.second, rt2, file, line);
 }
-template<class LT1, class LT2, class RT1, class RT2>
-bool pairEqual(const std::pair<LT1, LT2>& l, RT1&& rt1, RT2&& rt2) {
-  return l.first == rt1 && l.second == rt2;
-}
+#define T_assert_pair_eq(lhs, rt1, rt2) _T_assert_pair_eq(lhs, rt1, rt2, __FILE__, __LINE__)
 
 inline constexpr const int LIMIT = 1024;
 inline constexpr const int64_t TEST_BIG = 1000000ll;
@@ -82,7 +89,16 @@ void testIt(Func func) {
     return original_alloc_func(original_alloc_opaque, ptr, on, nn);
   };
 
-  func();
+  setvbuf(stdout, NULL, _IONBF, 0);
+  try {
+    func();
+  } catch(const std::exception& e) {
+    std::cerr << e.what() << std::endl;
+    throw;
+  } catch(...) {
+    std::cerr << "unknown exception" << std::endl;
+    throw;
+  }
 
   std::cout << "Maximum Memory:" << max_mem << '\n';
   std::cout << "Total Memory:" << tot_mem << '\n';

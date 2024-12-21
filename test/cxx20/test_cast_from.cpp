@@ -9,22 +9,22 @@ void _checkSetString(
   const char* nstr = str;
 
   BigInt bi;
-  T_assert(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, SIZE_MAX, 0, flags) == expect_error);
-  T_assert(bi == expect_value);
-  T_assert(nstr - str == expect_len);
+  T_assert_eq(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, SIZE_MAX, 0, flags), expect_error);
+  T_assert_eq(bi, expect_value);
+  T_assert_eq(nstr - str, expect_len);
 
   std::string str2 = str;
   nstr = str2.c_str();
   str2.push_back('0');
-  T_assert(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, strlen(str), 0, flags) == expect_error);
-  T_assert(bi == expect_value);
-  T_assert(nstr - str2.c_str() == expect_len);
+  T_assert_eq(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, strlen(str), 0, flags), expect_error);
+  T_assert_eq(bi, expect_value);
+  T_assert_eq(nstr - str2.c_str(), expect_len);
 
   nstr = str2.c_str();
   str2.push_back('1');
-  T_assert(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, strlen(str), 0, flags) == expect_error);
-  T_assert(bi == expect_value);
-  T_assert(nstr - str2.c_str() == expect_len);
+  T_assert_eq(ulbi_set_string_ex(ulbn_default_alloc(), bi.get(), &nstr, strlen(str), 0, flags), expect_error);
+  T_assert_eq(bi, expect_value);
+  T_assert_eq(nstr - str2.c_str(), expect_len);
 }
 
 void testSetString() {
@@ -147,94 +147,94 @@ void testBytes() {
 
   for(auto t = TEST_BIG; t--;) {
     int64_t x = static_cast<int64_t>(mt64()), y;
-    T_assert(BigInt::fromBytesUnsigned(&x, sizeof(x)).asInt(64) == x);
-    T_assert(BigInt::fromBytesUnsigned(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
+    T_assert_eq(BigInt::fromBytesUnsigned(&x, sizeof(x)).asInt(64), x);
+    T_assert_eq(BigInt::fromBytesUnsigned(&x, sizeof(x)).asUint(64), static_cast<uint64_t>(x));
     std::reverse_copy(
       reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
     );
-    T_assert(BigInt::fromBytesUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asInt(64) == y);
-    T_assert(
-      BigInt::fromBytesUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64)
-      == static_cast<uint64_t>(y)
+    T_assert_eq(BigInt::fromBytesUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asInt(64), y);
+    T_assert_eq(
+      BigInt::fromBytesUnsigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64),
+      static_cast<uint64_t>(y)
     );
   }
 
   for(auto t = TEST_BIG; t--;) {
     int64_t x = static_cast<int64_t>(mt64()), y;
-    T_assert(BigInt::fromBytesSigned(&x, sizeof(x)) == x);
-    T_assert(BigInt::fromBytesSigned(&x, sizeof(x)).asUint(64) == static_cast<uint64_t>(x));
+    T_assert_eq(BigInt::fromBytesSigned(&x, sizeof(x)), x);
+    T_assert_eq(BigInt::fromBytesSigned(&x, sizeof(x)).asUint(64), static_cast<uint64_t>(x));
     std::reverse_copy(
       reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x), reinterpret_cast<char*>(&y)
     );
-    T_assert(BigInt::fromBytesSigned(&x, sizeof(x), std::endian::native != std::endian::big) == y);
-    T_assert(
-      BigInt::fromBytesSigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64)
-      == static_cast<uint64_t>(y)
+    T_assert_eq(BigInt::fromBytesSigned(&x, sizeof(x), std::endian::native != std::endian::big), y);
+    T_assert_eq(
+      BigInt::fromBytesSigned(&x, sizeof(x), std::endian::native != std::endian::big).asUint(64),
+      static_cast<uint64_t>(y)
     );
   }
 
   for(auto t = TEST_BIG; t--;) {
     int64_t x = static_cast<int64_t>(mt64()), y;
     BigInt bx = BigInt::fromBytesSigned(&x, sizeof(x));
-    T_assert(bx == x);
+    T_assert_eq(bx, x);
     bx.toBytesSigned(&y, sizeof(y));
-    T_assert(x == y);
+    T_assert_eq(x, y);
 
     std::reverse(reinterpret_cast<char*>(&x), reinterpret_cast<char*>(&x) + sizeof(x));
     bx.toBytesSigned(&y, sizeof(y), std::endian::native != std::endian::big);
-    T_assert(x == y);
+    T_assert_eq(x, y);
   }
 }
 
 void test() {
-  T_assert(BigInt("0x12") == 0x12);
-  T_assert(BigInt("+0x12") == +0x12);
-  T_assert(BigInt("-0x12") == -0x12);
+  T_assert_eq(BigInt("0x12"), 0x12);
+  T_assert_eq(BigInt("+0x12"), +0x12);
+  T_assert_eq(BigInt("-0x12"), -0x12);
 
-  T_assert(BigInt("0x1Ab") == 0x1Ab);
-  T_assert(BigInt("+0x1Ab") == +0x1Ab);
-  T_assert(BigInt("-0x1Ab") == -0x1Ab);
+  T_assert_eq(BigInt("0x1Ab"), 0x1Ab);
+  T_assert_eq(BigInt("+0x1Ab"), +0x1Ab);
+  T_assert_eq(BigInt("-0x1Ab"), -0x1Ab);
 
-  T_assert(BigInt("012") == 012);
-  T_assert(BigInt("+012") == +012);
-  T_assert(BigInt("-012") == -012);
+  T_assert_eq(BigInt("012"), 012);
+  T_assert_eq(BigInt("+012"), +012);
+  T_assert_eq(BigInt("-012"), -012);
 
-  T_assert(BigInt("0o12") == 012);
-  T_assert(BigInt("+0o12") == +012);
-  T_assert(BigInt("-0o12") == -012);
+  T_assert_eq(BigInt("0o12"), 012);
+  T_assert_eq(BigInt("+0o12"), +012);
+  T_assert_eq(BigInt("-0o12"), -012);
 
-  T_assert(BigInt("0b1101") == 13);
-  T_assert(BigInt("+0b1101") == +13);
-  T_assert(BigInt("-0b1101") == -13);
+  T_assert_eq(BigInt("0b1101"), 13);
+  T_assert_eq(BigInt("+0b1101"), +13);
+  T_assert_eq(BigInt("-0b1101"), -13);
 
 
-  T_assert(BigInt(static_cast<ulbn_limb_t>(0u)) == 0u);
-  T_assert(BigInt(static_cast<ulbn_limb_t>(12u)) == 12u);
+  T_assert_eq(BigInt(static_cast<ulbn_limb_t>(0u)), 0u);
+  T_assert_eq(BigInt(static_cast<ulbn_limb_t>(12u)), 12u);
 
-  T_assert(BigInt(static_cast<ulbn_slimb_t>(0)) == 0);
-  T_assert(BigInt(static_cast<ulbn_slimb_t>(-12)) == -12);
-  T_assert(BigInt(static_cast<ulbn_slimb_t>(12)) == 12);
+  T_assert_eq(BigInt(static_cast<ulbn_slimb_t>(0)), 0);
+  T_assert_eq(BigInt(static_cast<ulbn_slimb_t>(-12)), -12);
+  T_assert_eq(BigInt(static_cast<ulbn_slimb_t>(12)), 12);
 
   static const double _INF = HUGE_VAL;
   T_assert_exception([] { BigInt x{ _INF }; }, ULBN_ERR_INVALID);
   T_assert_exception([] { BigInt x{ -_INF }; }, ULBN_ERR_INVALID);
   T_assert_exception([] { BigInt x{ nan("") }; }, ULBN_ERR_INVALID);
 
-  T_assert(BigInt(+0.0) == 0);
-  T_assert(BigInt(-0.0) == 0);
+  T_assert_eq(BigInt(+0.0), 0);
+  T_assert_eq(BigInt(-0.0), 0);
 
-  T_assert(BigInt(1.0) == 1);
-  T_assert(BigInt(0.5) == 0);
-  T_assert(BigInt(-1.0) == -1);
-  T_assert(BigInt(-0.5) == 0);
-  T_assert(BigInt(ldexp(1.0, 51) + 0.5) == BigInt::from2Exp(51));
-  T_assert(BigInt(ldexp(1.0, 52) + 0.5) == BigInt::from2Exp(52));
+  T_assert_eq(BigInt(1.0), 1);
+  T_assert_eq(BigInt(0.5), 0);
+  T_assert_eq(BigInt(-1.0), -1);
+  T_assert_eq(BigInt(-0.5), 0);
+  T_assert_eq(BigInt(ldexp(1.0, 51) + 0.5), BigInt::from2Exp(51));
+  T_assert_eq(BigInt(ldexp(1.0, 52) + 0.5), BigInt::from2Exp(52));
 
   {
     BigInt tmp;
-    T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +0.0) == 0);
-    T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +0.5) == ULBN_ERR_INEXACT);
-    T_assert(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +1.0) == 0);
+    T_assert_eq(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +0.0), 0);
+    T_assert_eq(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +0.5), ULBN_ERR_INEXACT);
+    T_assert_eq(ulbi_set_double(ulbn_default_alloc(), tmp.get(), +1.0), 0);
   }
 
   testBytes();
