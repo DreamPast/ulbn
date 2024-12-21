@@ -34,7 +34,6 @@ ulbn - Big Number Library (C++ Wrapper)
 #pragma once
 #include <algorithm>
 #include <bit>
-#include <cctype>
 #include <compare>
 #include <cstdint>
 #include <cstdio>
@@ -55,6 +54,140 @@ ulbn - Big Number Library (C++ Wrapper)
 #include <utility>
 
 #include "ulbn.h"
+
+namespace ul {
+
+struct FormatHelper {
+  enum class Align : int8_t {
+    DEFUALT,
+    LEFT,
+    RIGHT,
+    INTERNAL,
+  };
+  enum class Sign : int8_t {
+    ONLY_NEGATIVE,
+    ALWAYS,
+    SPACE_ON_NONNEGATIVE,
+  };
+
+  char fill = ' ';
+  Align align = Align::DEFUALT;
+  Sign sign = Sign::ONLY_NEGATIVE;
+  bool use_alter = false;
+  size_t width = 0;
+  bool has_precision = false;
+  size_t precision = 0;
+  bool use_locale = false;
+  std::string target_type;
+
+  template<class Iter, class IterEnd>
+  constexpr Iter parse(Iter first, IterEnd last) {
+    if(first == last)
+      return first;
+    {
+      char c0 = *first;
+      if(std::next(first) != last) {
+        char c1 = *std::next(first);
+        if(c1 == '<' || c1 == '>' || c1 == '^') {
+          fill = c0;
+          ++first;
+        }
+      }
+    }
+
+    switch(*first) {
+    case '<':
+      align = Align::LEFT;
+      ++first;
+      break;
+    case '>':
+      align = Align::RIGHT;
+      ++first;
+      break;
+    case '^':
+      align = Align::INTERNAL;
+      ++first;
+      break;
+    default:
+      break;
+    }
+    if(first == last || _isIllegal(*first))
+      return first;
+
+    switch(*first) {
+    case '+':
+      sign = Sign::ALWAYS;
+      ++first;
+      break;
+    case '-':
+      sign = Sign::ONLY_NEGATIVE;
+      ++first;
+      break;
+    case ' ':
+      sign = Sign::SPACE_ON_NONNEGATIVE;
+      ++first;
+      break;
+    default:
+      break;
+    }
+    if(first == last || _isIllegal(*first))
+      return first;
+
+    if(*first == '#') {
+      use_alter = true;
+      ++first;
+      if(first == last || _isIllegal(*first))
+        return first;
+    }
+
+    size_t w = 0;
+    for(; first != last && (*first >= '0' && *first <= '9'); ++first) {
+      if(w >= _SIZE_LIMIT)
+        throw std::format_error("width is too large");
+      w = w * 10 + static_cast<size_t>(*first - '0');
+    }
+    width = w;
+    if(first == last || _isIllegal(*first))
+      return first;
+
+    if(*first == '.') {
+      has_precision = true;
+      ++first;
+      if(first == last || _isIllegal(*first))
+        return first;
+
+      w = 0;
+      for(; first != last && (*first >= '0' && *first <= '9'); ++first) {
+        if(w >= _SIZE_LIMIT)
+          throw std::format_error("precision is too large");
+        w = w * 10 + static_cast<size_t>(*first - '0');
+      }
+      precision = w;
+      if(first == last || _isIllegal(*first))
+        return first;
+    }
+
+    if(*first == 'L') {
+      use_locale = true;
+      ++first;
+      if(first == last || _isIllegal(*first))
+        return first;
+    }
+
+    target_type.clear();
+    for(; first != last && !_isIllegal(*first); ++first)
+      target_type.push_back(*first);
+    return first;
+  }
+
+private:
+  static constexpr const size_t _SIZE_LIMIT = (std::numeric_limits<size_t>::max() - 9) / 10;
+  static constexpr bool _isIllegal(char c) {
+    return c == '{' || c == '}';
+  }
+};
+
+}  // namespace ul
 
 namespace ul::bn {
 
@@ -1290,78 +1423,9 @@ public:
     _check(ulbi_print(_ctx(), fp, _value, base));
   }
   std::ostream& print(std::ostream& ost, int base = 0) const {
-    auto flags = ost.flags();
-    const size_t width = ost.width() < 0 ? 0 : static_cast<size_t>(ost.width());
-
-    if(base == 0) {
-      auto flag_base = flags & std::ios_base::basefield;
-      if(flag_base == std::ios_base::oct)
-        base = 8;
-      else if(flag_base == std::ios_base::dec)
-        base = 10;
-      else if(flag_base == std::ios_base::hex)
-        base = 16;
-      else
-        base = 10;
-
-      if((flags & std::ios_base::uppercase) == 0)
-        base = -base;
-    }
-
-    if((flags & std::ios_base::adjustfield) == std::ios_base::left && (flags & std::ios_base::showbase) == 0
-       && (flags & std::ios_base::showpos) == 0 && width <= 1) {
-      Wrapper<std::ostream&> wrapper(ost);
-      const int err = ulbi_print_ex(
-        _ctx(),
-        [](void* opaque, const char* ptr, size_t len) -> int {
-          return reinterpret_cast<Wrapper<std::ostream&>*>(opaque)->call([&](std::ostream& os) {
-            os.write(ptr, static_cast<std::streamsize>(len));
-          });
-        },
-        &wrapper, _value, base
-      );
-      return wrapper.check(err);
-    }
-
-    auto str = toString(base);
-    {
-      std::string preffix;
-      if((flags & std::ios_base::showbase) != 0) {
-        if(base == 8 || base == -8) {
-          if(!isZero())
-            preffix += "0";
-        } else if(base == 16 || base == -16)
-          preffix += "0x";
-        else if(base == 2 || base == -2)
-          preffix += "0b";
-      }
-      if((flags & std::ios_base::showpos) != 0 && sign() > 0)
-        preffix += "+";
-      if((flags & std::ios_base::uppercase) != 0)
-        for(auto& ch: preffix)
-          ch = static_cast<char>(std::toupper(ch));
-      str.insert(0, preffix);
-    }
-
-    size_t lpad = 0, rpad = 0;
-    if(width > str.size())
-      switch((flags & std::ios_base::adjustfield)) {
-      case std::ios_base::internal:
-        lpad = (width - str.size()) >> 1;
-        rpad = width - str.size() - lpad;
-        break;
-      case std::ios_base::right:
-        lpad = width - str.size();
-        break;
-      default:
-        rpad = width - str.size();
-        break;
-      }
-    std::string pad;
-    pad.resize(lpad, ost.fill());
-    ost << pad << str;
-    pad.resize(rpad, ost.fill());
-    ost << pad;
+    Formatter formatter;
+    formatter.parse(ost, base);
+    formatter.format(std::ostream_iterator<char>(ost), *this);
     return ost;
   }
   template<class Iter>
@@ -1736,6 +1800,8 @@ public:
 
 
 private:
+  ulbi_t _value[1] = { ULBI_INIT };
+
   static const ulbn_alloc_t* _ctx() noexcept {
     return getCurrentAllocator();
   }
@@ -1790,7 +1856,148 @@ private:
     std::exception_ptr exception;
   };
 
-  ulbi_t _value[1] = { ULBI_INIT };
+  friend struct std::formatter<BigInt, char>;
+  class Formatter {
+  private:
+    using FormatHelper = ul::FormatHelper;
+
+    char fill = ' ';
+    FormatHelper::Align align = FormatHelper::Align::INTERNAL;
+    FormatHelper::Sign sign = FormatHelper::Sign::ONLY_NEGATIVE;
+    bool show_base = false;
+    size_t width = 0;
+    int base = 10;
+
+  public:
+    constexpr void parse(const FormatHelper& helper) {
+      fill = helper.fill;
+      align = helper.align;
+      sign = helper.sign;
+      show_base = helper.use_alter;
+      width = helper.width;
+      if(helper.target_type.empty()) {
+        base = 10;
+        return;
+      }
+      if(helper.target_type.size() != 1)
+        throw std::format_error("invalid target type");
+      switch(helper.target_type[0]) {
+      case 'b':
+        base = -2;
+        break;
+      case 'B':
+        base = 2;
+        break;
+      case 'o':
+        base = 8;
+        break;
+      case 'd':
+        base = 10;
+        break;
+      case 'x':
+        base = -16;
+        break;
+      case 'X':
+        base = 16;
+        break;
+      default:
+        throw std::format_error("invalid target type");
+      }
+    }
+    void parse(const std::ostream& ost, int _base) {
+      auto flags = ost.flags();
+
+      fill = ost.fill();
+      if((flags & std::ios_base::adjustfield) == std::ios_base::internal)
+        align = FormatHelper::Align::INTERNAL;
+      else if((flags & std::ios_base::adjustfield) == std::ios_base::right)
+        align = FormatHelper::Align::RIGHT;
+      else
+        align = FormatHelper::Align::LEFT;
+
+      if((flags & std::ios_base::showpos) != 0)
+        sign = FormatHelper::Sign::ALWAYS;
+      else
+        sign = FormatHelper::Sign::ONLY_NEGATIVE;
+
+      show_base = (flags & std::ios_base::showbase) != 0;
+      width = ost.width() < 0 ? 0 : static_cast<size_t>(ost.width());
+
+      if(_base == 0) {
+        if((flags & std::ios_base::basefield) == std::ios_base::oct)
+          base = 8;
+        else if((flags & std::ios_base::basefield) == std::ios_base::hex)
+          base = 16;
+        else
+          base = 10;
+        if((flags & std::ios_base::uppercase) != 0)
+          base = -base;
+      } else
+        base = _base;
+    }
+
+    template<class Iter>
+    Iter format(Iter iter, const BigInt& obj) const {
+      if(align == FormatHelper::Align::LEFT && sign == FormatHelper::Sign::ONLY_NEGATIVE && !show_base && width <= 1) {
+        Wrapper<Iter&> wrapper(iter);
+        const int err = ulbi_print_ex(
+          obj._ctx(),
+          [](void* opaque, const char* ptr, size_t len) -> int {
+            return reinterpret_cast<Wrapper<Iter&>*>(opaque)->call([&](Iter& itr) { std::copy_n(ptr, len, itr); });
+          },
+          &wrapper, obj._value, base
+        );
+        return wrapper.check(err);
+      }
+
+      std::string str = obj.toString(base);
+      if(str[0] == '-')
+        str.erase(0, 1);
+
+      {
+        std::string preffix;
+        if(sign == FormatHelper::Sign::ALWAYS)
+          preffix += (obj.sign() >= 0 ? "+" : "-");
+        else if(sign == FormatHelper::Sign::ONLY_NEGATIVE) {
+          if(obj.sign() < 0)
+            preffix += "-";
+        } else /* if(sign == FormatHelper::Sign::SPACE_ON_NONNEGATIVE) */
+          preffix += (obj.sign() >= 0 ? " " : "-");
+        if(show_base) {
+          if(base == 2)
+            preffix += "0B";
+          else if(base == -2)
+            preffix += "0b";
+          else if(base == 8 || base == -8) {
+            if(!obj.isZero())
+              preffix += "0";
+          } else if(base == 16)
+            preffix += "0x";
+          else if(base == -16)
+            preffix += "0X";
+        }
+        str.insert(0, preffix);
+      }
+
+      size_t lpad = 0, rpad = 0;
+      if(width > str.size()) {
+        if(align == FormatHelper::Align::INTERNAL) {
+          lpad = (width - str.size()) >> 1;
+          rpad = width - str.size() - lpad;
+        } else if(align == FormatHelper::Align::RIGHT)
+          lpad = width - str.size();
+        else
+          rpad = width - str.size();
+      }
+      std::string pad;
+      pad.resize(lpad, fill);
+      iter = std::copy(pad.begin(), pad.end(), iter);
+      iter = std::copy(str.begin(), str.end(), iter);
+      pad.resize(rpad, fill);
+      iter = std::copy(pad.begin(), pad.end(), iter);
+      return iter;
+    }
+  };
 };
 
 inline BigInt operator""_bi(unsigned long long value) {
@@ -1806,20 +2013,24 @@ inline BigInt operator""_bi(const char* str, size_t len) {
 
 }  // namespace ul::bn
 
+
 template<>
 struct std::formatter<ul::bn::BigInt, char> {
-  char align;
+  using BigInt = ul::bn::BigInt;
 
   template<class ParseContext>
   constexpr auto parse(ParseContext& ctx) {
-    auto iter = ctx.begin(), iter_end = ctx.end();
-    if(iter == iter_end || *iter == '}')
-      return iter;
-    throw std::format_error("invalid format");
+    ul::FormatHelper helper;
+    auto iter = helper.parse(ctx.begin(), ctx.end());
+    formatter.parse(helper);
+    return iter;
   }
 
   template<class FmtContext>
   auto format(const ul::bn::BigInt& obj, FmtContext& ctx) const {
-    return obj.print(ctx.out());
+    return formatter.format(ctx.out(), obj);
   }
+
+private:
+  BigInt::Formatter formatter;
 };

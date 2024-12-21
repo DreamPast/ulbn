@@ -56,22 +56,52 @@ void test() {
 
   for(auto base: { 8, 10, 16 })
     for(auto uppercase: { false, true })
-      for(auto showbase: { false, true }) {
-        BigInt obj("12345678901234567890");
-        std::ostringstream osst;
+      for(auto showbase: { false, true })
+        for(auto sign: { -1, 0, 1 }) {
+          BigInt obj("12345678901234567890");
+          if(sign == -1)
+            obj.negLoc();
+          else if(sign == 0)
+            obj = 0;
+          std::ostringstream osst;
 
-        if(base == 8)
-          osst << std::oct;
-        else if(base == 10)
-          osst << std::dec;
-        else if(base == 16)
-          osst << std::hex;
-        osst << (uppercase ? std::uppercase : std::nouppercase);
-        osst << (showbase ? std::showbase : std::noshowbase);
-        osst << obj;
+          if(base == 8)
+            osst << std::oct;
+          else if(base == 10)
+            osst << std::dec;
+          else if(base == 16)
+            osst << std::hex;
+          osst << (uppercase ? std::uppercase : std::nouppercase);
+          osst << (showbase ? std::showbase : std::noshowbase);
+          osst << obj;
 
-        T_assert_eq(obj, BigInt::fromString(osst.str(), showbase ? 0 : base));
-      }
+          T_assert_eq(obj, BigInt::fromString(osst.str(), showbase ? 0 : base));
+        }
+
+
+  for(auto sign: { -1, 0, 1 }) {
+    BigInt obj = "12345678901234567890";
+    if(sign == -1)
+      obj.negLoc();
+    else if(sign == 0)
+      obj = 0;
+
+    T_assert_eq(BigInt::fromString(std::format("{:d}", obj), 10), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:x}", obj), 16), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:X}", obj), 16), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:b}", obj), 2), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:B}", obj), 2), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:o}", obj), 8), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:}", obj), 10), obj);
+
+    T_assert_eq(BigInt::fromString(std::format("{:#d}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#x}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#X}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#b}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#B}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#o}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#}", obj)), obj);
+  }
 
 
   T_assert_eq(BigInt(0.0).toDouble(), 0.0);
