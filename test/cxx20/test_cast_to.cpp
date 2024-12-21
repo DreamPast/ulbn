@@ -18,6 +18,7 @@ void testBigString() {
   }
 }
 void test() {
+  puts("---Some integers");
   T_assert(BigInt("0").toString() == "0");
   T_assert(BigInt("12").toString() == "12");
   T_assert(BigInt("-12").toString() == "-12");
@@ -31,12 +32,14 @@ void test() {
     T_assert(BigInt(i).toString() == std::to_string(i));
 
 
+  puts("---Print");
   BigInt("12345678901234567890").print(std::cout);
   fprintf(stdout, "\n");
   BigInt("-12345678901234567890").print(std::cout);
   fprintf(stdout, "\n");
   T_assert_exception([] { BigInt("12345678901234567890").print(stdout, 0); }, ULBN_ERR_EXCEED_RANGE);
 
+  puts("---Float, Double, Long double");
   T_assert(BigInt(0.0).toDouble() == 0.0);
   T_assert(BigInt(-0.0).toDouble() == 0.0);
   T_assert(BigInt(1.0).toDouble() == 1.0);
@@ -54,6 +57,7 @@ void test() {
   T_assert(BigInt(1.0).toLongDouble() == 1.0L);
   T_assert(BigInt(-1.0).toLongDouble() == -1.0L);
 
+  puts("---Fit/To slong/ulong/limb/slimb");
   for(ulbn_slong_t i = -LIMIT; i <= LIMIT; ++i) {
     T_assert(BigInt(i).toSlong() == i);
     T_assert(BigInt(i).toUlong() == static_cast<ulbn_ulong_t>(i));
@@ -64,7 +68,10 @@ void test() {
     T_assert(BigInt(i).fitSlong() == fitType<ulbn_slong_t>(i));
     T_assert(BigInt(i).fitLimb() == fitType<ulbn_limb_t>(i));
     T_assert(BigInt(i).fitSlimb() == fitType<ulbn_slimb_t>(i));
+  }
 
+  puts("---Fit/To float/double/longdouble");
+  for(ulbn_slong_t i = -LIMIT; i <= LIMIT; ++i) {
     float fd = BigInt(i).toFloat();
     T_assert(fd == static_cast<float>(i));
     T_assert(BigInt(i).fitFloat() == (std::truncf(fd) == fd));
@@ -90,12 +97,14 @@ void test() {
       T_assert(BigInt(static_cast<long double>(i) - 0.5L).toLongDouble() == static_cast<long double>(i));
   }
 
+  puts("---Random");
   for(int t = TEST_SMALL; t--;) {
     BigInt x = BigInt::fromRandom(1024).asInt(1024);
     auto str = x.toString();
     T_assert(str == BigInt(str));
   }
 
+  puts("---Random (10pow)");
   for(int t = TEST_SMALL; t--;) {
     BigInt x = BigInt(10).pow(BigInt::fromRandom(12));
     auto str = x.toString();
