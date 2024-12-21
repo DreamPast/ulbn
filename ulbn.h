@@ -1870,7 +1870,7 @@ ULBN_PUBLIC void ulbi_to_bytes_signed_be(const ulbi_t* ao, void* dst, size_t siz
  *                   If `NULL` is passed, `alloc` will be used;
  *                   and then you need to call `ulbn_dealloc` to free the memory.
  * @param alloc_opaque Parameter for the allocation function.
- * @param base String base (2 <= base <= 36).
+ * @param base String base (2 <= base <= 36 with uppercase letters, -36 <= base <= -2 with lowercase letters).
  *
  * @return String if successful (allocated by alloc_func);
  * @return `NULL` if out of memory (considered as `ULBN_ERR_NOMEM`);
@@ -1886,7 +1886,7 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
  * @note The `printer` function should return 0 if successful; otherwise, it should return a non-zero value.
  * @warning It's unsafe to throw an exception or do a no-return operation in the `printer` function.
  *
- * @param base String base (2 <= base <= 36)
+ * @param base String base (2 <= base <= 36 with uppercase letters, -36 <= base <= -2 with lowercase letters).
  *
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
@@ -1894,14 +1894,13 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
  * @return `0` if successful.
  */
 ULBN_PUBLIC int ulbi_print_ex(
-  const ulbn_alloc_t* alloc,             /* */
-  ulbn_printer_t* printer, void* opaque, /* */
-  const ulbi_t* ao, int base             /* */
+  const ulbn_alloc_t* alloc, ulbn_printer_t* printer, void* opaque, /* */
+  const ulbi_t* ao, int base                                        /* */
 );
 /**
  * @brief Prints `o` to `fp`.
  *
- * @param base String base (2 <= base <= 36).
+ * @param base String base (2 <= base <= 36 with uppercase letters, -36 <= base <= -2 with lowercase letters).
  *
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;

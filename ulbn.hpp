@@ -34,11 +34,13 @@ ulbn - Big Number Library (C++ Wrapper)
 #pragma once
 #include <algorithm>
 #include <bit>
+#include <cctype>
 #include <compare>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <exception>
+#include <format>
 #include <ios>
 #include <iterator>
 #include <limits>
@@ -244,9 +246,7 @@ concept FitLongDoubleCase = requires {
 
 class BigInt {
 public:
-  BigInt() noexcept {
-    ulbi_init(_value);
-  }
+  BigInt() noexcept = default;
   ~BigInt() noexcept {
     ulbi_deinit(_ctx(), _value);
   }
@@ -268,29 +268,17 @@ public:
   }
 
   BigInt(const char* str, int base = 0) {
-    const int err = ulbi_init_string(_ctx(), _value, str, base);
-    if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
-    _check(err);
+    _checkSetString(ulbi_init_string(_ctx(), _value, str, base));
   }
   BigInt(const std::string& str, int base = 0) {
-    const int err = ulbi_init_string(_ctx(), _value, str.c_str(), base);
-    if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
-    _check(err);
+    _checkSetString(ulbi_init_string(_ctx(), _value, str.c_str(), base));
   }
   BigInt& operator=(const char* str) {
-    const int err = ulbi_set_string(_ctx(), _value, str, 0);
-    if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
-    _check(err);
+    _checkSetString(ulbi_set_string(_ctx(), _value, str, 0));
     return *this;
   }
   BigInt& operator=(const std::string& str) {
-    const int err = ulbi_set_string(_ctx(), _value, str.c_str(), 0);
-    if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
-    _check(err);
+    _checkSetString(ulbi_set_string(_ctx(), _value, str.c_str(), 0));
     return *this;
   }
 
@@ -502,12 +490,6 @@ public:
   }
 
   template<size_t Extent>
-  static BigInt fromLimbs(std::span<ulbn_limb_t, Extent> limbs) {
-    BigInt ret;
-    _check(ulbi_set_limbs(_ctx(), ret._value, limbs.data(), limbs.size()));
-    return ret;
-  }
-  template<size_t Extent>
   static BigInt fromLimbs(std::span<const ulbn_limb_t, Extent> limbs) {
     BigInt ret;
     _check(ulbi_set_limbs(_ctx(), ret._value, limbs.data(), limbs.size()));
@@ -533,12 +515,6 @@ public:
   template<size_t Extent>
   static BigInt fromString(
     std::span<const char, Extent> str, int base = 0, int flag = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
-  ) {
-    return fromString(str.data(), str.size(), base, flag);
-  }
-  template<size_t Extent>
-  static BigInt fromString(
-    std::span<char, Extent> str, int base = 0, int flag = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
   ) {
     return fromString(str.data(), str.size(), base, flag);
   }
@@ -1229,39 +1205,51 @@ public:
   }
 
 
-  bool fitUlong() const noexcept {
-    return ulbi_fit_ulong(_value) != 0;
-  }
-  bool fitSlong() const noexcept {
-    return ulbi_fit_slong(_value) != 0;
+  bool fitSlimb() const noexcept {
+    return ulbi_fit_slimb(_value) != 0;
   }
   bool fitLimb() const noexcept {
     return ulbi_fit_limb(_value) != 0;
   }
-  bool fitSlimb() const noexcept {
-    return ulbi_fit_slimb(_value) != 0;
+  bool fitSlong() const noexcept {
+    return ulbi_fit_slong(_value) != 0;
+  }
+  bool fitUlong() const noexcept {
+    return ulbi_fit_ulong(_value) != 0;
   }
 
 
-  ulbn_ulong_t toUlong() const noexcept {
-    return ulbi_to_ulong(_value);
-  }
-  ulbn_slong_t toSlong() const noexcept {
-    return ulbi_to_slong(_value);
+  ulbn_slimb_t toSlimb() const noexcept {
+    return ulbi_to_slimb(_value);
   }
   ulbn_limb_t toLimb() const noexcept {
     return ulbi_to_limb(_value);
   }
-  ulbn_slimb_t toSlimb() const noexcept {
-    return ulbi_to_slimb(_value);
+  ulbn_slong_t toSlong() const noexcept {
+    return ulbi_to_slong(_value);
+  }
+  ulbn_ulong_t toUlong() const noexcept {
+    return ulbi_to_ulong(_value);
   }
 
 
-  explicit operator ulbn_ulong_t() const noexcept {
-    return toUlong();
+  template<FitSlimb T>
+  explicit operator T() const noexcept {
+    return static_cast<T>(toSlimb());
   }
-  explicit operator ulbn_slong_t() const noexcept {
-    return toSlong();
+  template<FitLimb T>
+  explicit operator T() const noexcept {
+    return static_cast<T>(toLimb());
+  }
+  template<FitSlong T>
+    requires(!FitSlimb<T>)
+  explicit operator T() const noexcept {
+    return static_cast<T>(toSlong());
+  }
+  template<FitUlong T>
+    requires(!FitLimb<T>)
+  explicit operator T() const noexcept {
+    return static_cast<T>(toUlong());
   }
 
 
@@ -1269,7 +1257,7 @@ public:
   auto toString(int base = 10) const {
     using String = std::basic_string<char, std::char_traits<char>, StringAllocator>;
     Wrapper<String> wrapper(String{});
-    int err = ulbi_print_ex(
+    const int err = ulbi_print_ex(
       _ctx(),
       [](void* opaque, const char* str, size_t len) -> int {
         return reinterpret_cast<Wrapper<String>*>(opaque)->call([&](String& s) { s.append(str, len); });
@@ -1286,7 +1274,7 @@ public:
     int err = ulbi_print_ex(
       _ctx(),
       [](void* opaque, const char* str, size_t len) -> int {
-        return reinterpret_cast<Wrapper<String>*>(opaque)->call([&](String& s) { s.append(str, len); });
+        return reinterpret_cast<Wrapper<String&>*>(opaque)->call([&](String& s) { s.append(str, len); });
       },
       &wrapper, _value, base
     );
@@ -1297,34 +1285,97 @@ public:
     value.print(ost);
     return ost;
   }
+
   void print(FILE* fp, int base = 10) const {
     _check(ulbi_print(_ctx(), fp, _value, base));
   }
-  std::ostream& print(std::ostream& ost, int base = 10) const {
-    Wrapper<std::ostream&> wrapper(ost);
-    const int err = ulbi_print_ex(
-      _ctx(),
-      [](void* opaque, const char* ptr, size_t len) -> int {
-        return reinterpret_cast<Wrapper<std::ostream&>*>(opaque)->call([&](std::ostream& os) {
-          os.write(ptr, static_cast<std::streamsize>(len));
-        });
-      },
-      &wrapper, _value, base
-    );
-    return wrapper.check(err);
+  std::ostream& print(std::ostream& ost, int base = 0) const {
+    auto flags = ost.flags();
+    const size_t width = ost.width() < 0 ? 0 : static_cast<size_t>(ost.width());
+
+    if(base == 0) {
+      auto flag_base = flags & std::ios_base::basefield;
+      if(flag_base == std::ios_base::oct)
+        base = 8;
+      else if(flag_base == std::ios_base::dec)
+        base = 10;
+      else if(flag_base == std::ios_base::hex)
+        base = 16;
+      else
+        base = 10;
+
+      if((flags & std::ios_base::uppercase) == 0)
+        base = -base;
+    }
+
+    if((flags & std::ios_base::adjustfield) == std::ios_base::left && (flags & std::ios_base::showbase) == 0
+       && (flags & std::ios_base::showpos) == 0 && width <= 1) {
+      Wrapper<std::ostream&> wrapper(ost);
+      const int err = ulbi_print_ex(
+        _ctx(),
+        [](void* opaque, const char* ptr, size_t len) -> int {
+          return reinterpret_cast<Wrapper<std::ostream&>*>(opaque)->call([&](std::ostream& os) {
+            os.write(ptr, static_cast<std::streamsize>(len));
+          });
+        },
+        &wrapper, _value, base
+      );
+      return wrapper.check(err);
+    }
+
+    auto str = toString(base);
+    {
+      std::string preffix;
+      if((flags & std::ios_base::showbase) != 0) {
+        if(base == 8 || base == -8) {
+          if(!isZero())
+            preffix += "0";
+        } else if(base == 16 || base == -16)
+          preffix += "0x";
+        else if(base == 2 || base == -2)
+          preffix += "0b";
+      }
+      if((flags & std::ios_base::showpos) != 0 && sign() > 0)
+        preffix += "+";
+      if((flags & std::ios_base::uppercase) != 0)
+        for(auto& ch: preffix)
+          ch = static_cast<char>(std::toupper(ch));
+      str.insert(0, preffix);
+    }
+
+    size_t lpad = 0, rpad = 0;
+    if(width > str.size())
+      switch((flags & std::ios_base::adjustfield)) {
+      case std::ios_base::internal:
+        lpad = (width - str.size()) >> 1;
+        rpad = width - str.size() - lpad;
+        break;
+      case std::ios_base::right:
+        lpad = width - str.size();
+        break;
+      default:
+        rpad = width - str.size();
+        break;
+      }
+    std::string pad;
+    pad.resize(lpad, ost.fill());
+    ost << pad << str;
+    pad.resize(rpad, ost.fill());
+    ost << pad;
+    return ost;
   }
   template<class Iter>
     requires std::output_iterator<Iter, char>
   Iter print(Iter iter, int base = 10) const {
     Wrapper<Iter&> wrapper(iter);
     int err = ulbi_print_ex(
-      _ctx(), _value, base,
+      _ctx(),
       [](void* opaque, const char* ptr, size_t len) -> int {
         return reinterpret_cast<Wrapper<Iter&>*>(opaque)->call([&](Iter& itr) { std::copy_n(ptr, len, itr); });
       },
-      &wrapper
+      &wrapper, _value, base
     );
-    return wrapper->check(err);
+    return wrapper.check(err);
   }
 
 
@@ -1693,6 +1744,11 @@ private:
       throw Exception(err);
     return err;
   }
+  static int _checkSetString(int err) {
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the string cannot be fully parsed as an integer");
+    return _check(err);
+  }
   static int _checkDivmodEx(int err) {
     if(err == ULBN_ERR_INVALID)
       throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
@@ -1734,7 +1790,7 @@ private:
     std::exception_ptr exception;
   };
 
-  ulbi_t _value[1];
+  ulbi_t _value[1] = { ULBI_INIT };
 };
 
 inline BigInt operator""_bi(unsigned long long value) {
@@ -1749,3 +1805,21 @@ inline BigInt operator""_bi(const char* str, size_t len) {
 }
 
 }  // namespace ul::bn
+
+template<>
+struct std::formatter<ul::bn::BigInt, char> {
+  char align;
+
+  template<class ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    auto iter = ctx.begin(), iter_end = ctx.end();
+    if(iter == iter_end || *iter == '}')
+      return iter;
+    throw std::format_error("invalid format");
+  }
+
+  template<class FmtContext>
+  auto format(const ul::bn::BigInt& obj, FmtContext& ctx) const {
+    return obj.print(ctx.out());
+  }
+};

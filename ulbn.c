@@ -893,6 +893,7 @@ ULBN_INTERNAL ulbn_usize_t ulbn_set_ulong(ulbn_limb_t* p, ulbn_ulong_t v) {
 }
 
 
+static const char _ULBN_LOWER_TABLE[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 static const char _ULBN_UPPER_TABLE[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 #if 0
 ul_unused ULBN_INTERNAL void ulbn_dumplimb(FILE* fp, ulbn_limb_t l) {
@@ -2976,7 +2977,6 @@ ULBN_INTERNAL void ulbn_prepare_baseconv(ulbn_baseconv_t* conv, ulbn_limb_t base
     ++conv->base_pow;
   conv->bi = ulbn_divinv1(conv->b);
 #endif
-  conv->char_table = _ULBN_UPPER_TABLE;
 }
 ULBN_INTERNAL int ulbn_conv2print_generic(
   const ulbn_alloc_t* alloc, size_t desire_len, /* */
@@ -7522,9 +7522,8 @@ ULBN_PUBLIC void ulbi_to_bytes_signed_be(const ulbi_t* ao, void* dst, size_t siz
  ****************************/
 
 ULBN_PRIVATE int _ulbi_print_ex(
-  const ulbn_alloc_t* alloc,              /* */
-  ulbn_printer_t* printer, void* opaque,  /* */
-  ulbi_t* ao, int base, size_t desire_len /* */
+  const ulbn_alloc_t* alloc, ulbn_printer_t* printer, void* opaque, /* */
+  ulbi_t* ao, int base, size_t desire_len, const char* char_table   /* */
 ) {
   /**
    * Fast base conversion algorithm:
@@ -7559,8 +7558,9 @@ ULBN_PRIVATE int _ulbi_print_ex(
     ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
     ulbi_deinit(alloc, _do);
 
-    err =
-      _ulbi_print_ex(alloc, printer, opaque, qo, base, desire_len > pow ? ul_static_cast(size_t, desire_len - pow) : 0);
+    err = _ulbi_print_ex(
+      alloc, printer, opaque, qo, base, desire_len > pow ? ul_static_cast(size_t, desire_len - pow) : 0, char_table
+    );
     ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
     desire_len = ul_static_cast(size_t, pow);
   }
@@ -7569,6 +7569,7 @@ ULBN_PRIVATE int _ulbi_print_ex(
   if(ao->len != 0) {
     ulbn_baseconv_t conv;
     ulbn_prepare_baseconv(&conv, _ulbn_cast_limb(base));
+    conv.char_table = char_table;
     err = ulbn_conv2print_generic(alloc, desire_len, printer, opaque, _ulbi_limbs(ao), ulbn_cast_usize(ao->len), &conv);
   } else
     err = _ulbn_write0(printer, opaque, desire_len);
@@ -7580,14 +7581,13 @@ cleanup:
 }
 
 ULBN_PUBLIC int ulbi_print_ex(
-  const ulbn_alloc_t* alloc,             /* */
-  ulbn_printer_t* printer, void* opaque, /* */
-  const ulbi_t* ao, int base             /* */
+  const ulbn_alloc_t* alloc, ulbn_printer_t* printer, void* opaque, /* */
+  const ulbi_t* ao, int base                                        /* */
 ) {
   ulbi_t ro[1] = { ULBI_INIT };
   int err;
 
-  if(ul_unlikely(base < 2 || base > 36))
+  if(ul_unlikely(!((base >= 2 && base <= 36) || (base >= -36 && base <= -2))))
     return ULBN_ERR_EXCEED_RANGE;
   if(ao->len == 0)
     return ul_unlikely(printer(opaque, "0", 1)) ? ULBN_ERR_EXTERNAL : 0;
@@ -7596,7 +7596,10 @@ ULBN_PUBLIC int ulbi_print_ex(
 
   err = ulbi_abs(alloc, ro, ao);
   ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
-  err = _ulbi_print_ex(alloc, printer, opaque, ro, base, 0);
+  if(base > 0)
+    err = _ulbi_print_ex(alloc, printer, opaque, ro, base, 0, _ULBN_UPPER_TABLE);
+  else
+    err = _ulbi_print_ex(alloc, printer, opaque, ro, -base, 0, _ULBN_LOWER_TABLE);
   ulbi_deinit(alloc, ro);
   return err;
 }

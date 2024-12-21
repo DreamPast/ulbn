@@ -31,6 +31,8 @@ Depends on the following C++20 features:
 - Concepts and constranints
 - Three-way comparison
 - `<bit>` header file
+- std::span
+- std::format
 
 ### test
 

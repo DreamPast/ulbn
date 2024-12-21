@@ -1,4 +1,7 @@
 #include "test.hpp"
+#include <format>
+#include <iomanip>
+#include <sstream>
 
 void testBigString() {
   puts("======Test Big String");
@@ -24,7 +27,6 @@ void testBigString() {
   }
 }
 void test() {
-  puts("---Some integers");
   T_assert_eq(BigInt("0").toString(), "0");
   T_assert_eq(BigInt("12").toString(), "12");
   T_assert_eq(BigInt("-12").toString(), "-12");
@@ -32,20 +34,46 @@ void test() {
   T_assert_eq(BigInt("012").toString(8), "12");
   T_assert_eq(BigInt("0x12").toString(16), "12");
 
+  T_assert_eq(std::format("{}", BigInt("0")), "0");
+  T_assert_eq(std::format("{}", BigInt("12")), "12");
+  T_assert_eq(std::format("{}", BigInt("-12")), "-12");
+  T_assert_eq(std::format("{}", BigInt("12345678901234567890")), "12345678901234567890");
+
   T_assert_exception([] { (12_bi).toString(0); }, ULBN_ERR_EXCEED_RANGE);
 
-  for(int i = -LIMIT; i <= LIMIT; ++i)
+  for(int i = -LIMIT; i <= LIMIT; ++i) {
     T_assert_eq(BigInt(i).toString(), std::to_string(i));
+    T_assert_eq(std::format("{}", BigInt(i)), std::to_string(i));
+  }
 
 
-  puts("---Print");
   BigInt("12345678901234567890").print(std::cout);
   fprintf(stdout, "\n");
   BigInt("-12345678901234567890").print(std::cout);
   fprintf(stdout, "\n");
   T_assert_exception([] { BigInt("12345678901234567890").print(stdout, 0); }, ULBN_ERR_EXCEED_RANGE);
 
-  puts("---Float, Double, Long double");
+
+  for(auto base: { 8, 10, 16 })
+    for(auto uppercase: { false, true })
+      for(auto showbase: { false, true }) {
+        BigInt obj("12345678901234567890");
+        std::ostringstream osst;
+
+        if(base == 8)
+          osst << std::oct;
+        else if(base == 10)
+          osst << std::dec;
+        else if(base == 16)
+          osst << std::hex;
+        osst << (uppercase ? std::uppercase : std::nouppercase);
+        osst << (showbase ? std::showbase : std::noshowbase);
+        osst << obj;
+
+        T_assert_eq(obj, BigInt::fromString(osst.str(), showbase ? 0 : base));
+      }
+
+
   T_assert_eq(BigInt(0.0).toDouble(), 0.0);
   T_assert_eq(BigInt(-0.0).toDouble(), 0.0);
   T_assert_eq(BigInt(1.0).toDouble(), 1.0);
@@ -63,7 +91,7 @@ void test() {
   T_assert_eq(BigInt(1.0).toLongDouble(), 1.0L);
   T_assert_eq(BigInt(-1.0).toLongDouble(), -1.0L);
 
-  puts("---Fit/To slong/ulong/limb/slimb");
+
   for(ulbn_slong_t i = -LIMIT; i <= LIMIT; ++i) {
     T_assert_eq(BigInt(i).toSlong(), i);
     T_assert_eq(BigInt(i).toUlong(), static_cast<ulbn_ulong_t>(i));
@@ -76,7 +104,7 @@ void test() {
     T_assert_eq(BigInt(i).fitSlimb(), fitType<ulbn_slimb_t>(i));
   }
 
-  puts("---Fit/To float/double/longdouble");
+
   for(ulbn_slong_t i = -LIMIT; i <= LIMIT; ++i) {
     float fd = BigInt(i).toFloat();
     T_assert_eq(fd, static_cast<float>(i));
@@ -103,14 +131,14 @@ void test() {
       T_assert_eq(BigInt(static_cast<long double>(i) - 0.5L).toLongDouble(), static_cast<long double>(i));
   }
 
-  puts("---Random");
+
   for(int t = TEST_SMALL; t--;) {
     BigInt x = BigInt::fromRandom(1024).asInt(1024);
     auto str = x.toString();
     T_assert_eq(str, BigInt(str));
   }
 
-  puts("---Random (10pow)");
+
   for(int t = TEST_SMALL; t--;) {
     BigInt x = BigInt(10).pow(BigInt::fromRandom(12));
     auto str = x.toString();
