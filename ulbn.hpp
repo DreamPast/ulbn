@@ -789,25 +789,19 @@ public:
   std::pair<BigInt, BigInt> divmod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode) const {
     BigInt q, r;
     const int err = ulbi_divmod_ex(_ctx(), q._value, r._value, _value, other._value, round_mode);
-    if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
-    _check(err);
+    _checkDivmodEx(err);
     return { q, r };
   }
   BigInt div(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt q;
     const int err = ulbi_divmod_ex(_ctx(), q._value, nullptr, _value, other._value, round_mode);
-    if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
-    _check(err);
+    _checkDivmodEx(err);
     return q;
   }
   BigInt mod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt r;
     const int err = ulbi_divmod_ex(_ctx(), nullptr, r._value, _value, other._value, round_mode);
-    if(err == ULBN_ERR_INVALID)
-      throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
-    _check(err);
+    _checkDivmodEx(err);
     return r;
   }
 
@@ -822,19 +816,20 @@ public:
   std::pair<BigInt, BigInt> divmod(T other, enum ULBN_ROUND_ENUM round_mode) const {
     BigInt q;
     ulbn_slimb_t rl;
-    _check(ulbi_divmod_slimb_ex(_ctx(), q._value, &rl, _value, static_cast<ulbn_slimb_t>(other), round_mode));
+    _checkDivmodEx(ulbi_divmod_slimb_ex(_ctx(), q._value, &rl, _value, static_cast<ulbn_slimb_t>(other), round_mode));
     return { q, BigInt(rl) };
   }
   template<FitSlimb T>
   BigInt div(T other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     BigInt q;
-    _check(ulbi_divmod_slimb_ex(_ctx(), q._value, nullptr, _value, static_cast<ulbn_slimb_t>(other), round_mode));
+    _checkDivmodEx(ulbi_divmod_slimb_ex(_ctx(), q._value, nullptr, _value, static_cast<ulbn_slimb_t>(other), round_mode)
+    );
     return q;
   }
   template<FitSlimb T>
   BigInt mod(T other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_DOWN) const {
     ulbn_slimb_t rl;
-    _check(ulbi_divmod_slimb_ex(_ctx(), nullptr, &rl, _value, static_cast<ulbn_slimb_t>(other), round_mode));
+    _checkDivmodEx(ulbi_divmod_slimb_ex(_ctx(), nullptr, &rl, _value, static_cast<ulbn_slimb_t>(other), round_mode));
     return rl;
   }
 
@@ -890,6 +885,72 @@ public:
   BigInt mod2Exp(const BigInt& other) const {
     BigInt r;
     _check(ulbi_divmod_2exp(_ctx(), ul_nullptr, r._value, _value, other._value));
+    return r;
+  }
+
+
+  template<FitBits T>
+  std::pair<BigInt, BigInt> divmod2Exp(T n, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt q, r;
+    _checkDivmodEx(ulbi_divmod_2exp_bits_ex(_ctx(), q._value, r._value, _value, static_cast<ulbn_bits_t>(n), round_mode)
+    );
+    return { q, r };
+  }
+  template<FitSbits T>
+  std::pair<BigInt, BigInt> divmod2Exp(T n, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt q, r;
+    _checkDivmodEx(
+      ulbi_divmod_2exp_sbits_ex(_ctx(), q._value, r._value, _value, static_cast<ulbn_sbits_t>(n), round_mode)
+    );
+    return { q, r };
+  }
+  std::pair<BigInt, BigInt> divmod2Exp(const BigInt& other, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt q, r;
+    _checkDivmodEx(ulbi_divmod_2exp_ex(_ctx(), q._value, r._value, _value, other._value, round_mode));
+    return { q, r };
+  }
+
+  template<FitBits T>
+  BigInt div2Exp(T n, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt q;
+    _checkDivmodEx(
+      ulbi_divmod_2exp_bits_ex(_ctx(), q._value, ul_nullptr, _value, static_cast<ulbn_bits_t>(n), round_mode)
+    );
+    return q;
+  }
+  template<FitSbits T>
+  BigInt div2Exp(T n, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt q;
+    _checkDivmodEx(
+      ulbi_divmod_2exp_sbits_ex(_ctx(), q._value, ul_nullptr, _value, static_cast<ulbn_sbits_t>(n), round_mode)
+    );
+    return q;
+  }
+  BigInt div2Exp(const BigInt& other, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt q;
+    _checkDivmodEx(ulbi_divmod_2exp_ex(_ctx(), q._value, ul_nullptr, _value, other._value, round_mode));
+    return q;
+  }
+
+  template<FitBits T>
+  BigInt mod2Exp(T n, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt r;
+    _checkDivmodEx(
+      ulbi_divmod_2exp_bits_ex(_ctx(), ul_nullptr, r._value, _value, static_cast<ulbn_bits_t>(n), round_mode)
+    );
+    return r;
+  }
+  template<FitSbits T>
+  BigInt mod2Exp(T n, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt r;
+    _checkDivmodEx(
+      ulbi_divmod_2exp_sbits_ex(_ctx(), ul_nullptr, r._value, _value, static_cast<ulbn_sbits_t>(n), round_mode)
+    );
+    return r;
+  }
+  BigInt mod2Exp(const BigInt& other, enum ULBN_ROUND_ENUM round_mode) const {
+    BigInt r;
+    _checkDivmodEx(ulbi_divmod_2exp_ex(_ctx(), ul_nullptr, r._value, _value, other._value, round_mode));
     return r;
   }
 
@@ -1631,6 +1692,11 @@ private:
     if(err != ULBN_ERR_INEXACT && err != 0 && err != 1)
       throw Exception(err);
     return err;
+  }
+  static int _checkDivmodEx(int err) {
+    if(err == ULBN_ERR_INVALID)
+      throw Exception(ULBN_ERR_INVALID, "the round mode is illegal");
+    return _check(err);
   }
 
   template<class T>
