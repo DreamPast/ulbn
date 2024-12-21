@@ -138,5 +138,5 @@ endif()
 
 if(BUILD_TEST)
     enable_testing()
-    add_subdirectory(test)
+    add_subdirectory(test/cxx20)
 endif()
