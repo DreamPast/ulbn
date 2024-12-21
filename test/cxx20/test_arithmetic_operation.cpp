@@ -440,9 +440,11 @@ void testRoot() {
     }
   }
 
-  for(int t = TEST_SMALL; t--;) {
+  for(auto t = TEST_SMALL; t--;) {
     BigInt x = BigInt::fromRandom("0xFFF");
     BigInt e = BigInt::fromRandom("0x10");
+    if(x == 0 || e == 0)
+      continue;
     auto obj = x.rootrem(e);
     BigInt pow = obj.first.pow(e);
     T_assert(pow <= x && x < (obj.first + 1).pow(e));
