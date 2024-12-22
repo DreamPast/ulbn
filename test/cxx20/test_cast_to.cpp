@@ -1,5 +1,4 @@
 #include "test.hpp"
-#include <format>
 #include <iomanip>
 #include <sstream>
 
@@ -34,17 +33,22 @@ void test() {
   T_assert_eq(BigInt("012").toString(8), "12");
   T_assert_eq(BigInt("0x12").toString(16), "12");
 
+  T_assert_exception([] { (12_bi).toString(0); }, ULBN_ERR_EXCEED_RANGE);
+
+  for(int i = -LIMIT; i <= LIMIT; ++i) {
+    T_assert_eq(BigInt(i).toString(), std::to_string(i));
+  }
+
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
   T_assert_eq(std::format("{}", BigInt("0")), "0");
   T_assert_eq(std::format("{}", BigInt("12")), "12");
   T_assert_eq(std::format("{}", BigInt("-12")), "-12");
   T_assert_eq(std::format("{}", BigInt("12345678901234567890")), "12345678901234567890");
 
-  T_assert_exception([] { (12_bi).toString(0); }, ULBN_ERR_EXCEED_RANGE);
-
   for(int i = -LIMIT; i <= LIMIT; ++i) {
-    T_assert_eq(BigInt(i).toString(), std::to_string(i));
     T_assert_eq(std::format("{}", BigInt(i)), std::to_string(i));
   }
+#endif
 
 
   BigInt("12345678901234567890").print(std::cout);
@@ -79,6 +83,7 @@ void test() {
         }
 
 
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
   for(auto sign: { -1, 0, 1 }) {
     BigInt obj = "12345678901234567890";
     if(sign == -1)
@@ -102,6 +107,7 @@ void test() {
     T_assert_eq(BigInt::fromString(std::format("{:#o}", obj)), obj);
     T_assert_eq(BigInt::fromString(std::format("{:#}", obj)), obj);
   }
+#endif
 
 
   T_assert_eq(BigInt(0.0).toDouble(), 0.0);

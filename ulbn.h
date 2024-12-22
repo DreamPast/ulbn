@@ -1,14 +1,14 @@
 /*
 ulbn - Big Number Library
 
-# Dependence
+# Requirements
   - C89/C++98
   - `CHAR_BIT` should be even
 
 # License
   The MIT License (MIT)
 
-  Copyright (C) 2024 Jin Cai
+  Copyright (C) 2024-2025 Jin Cai
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal

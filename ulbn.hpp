@@ -1,19 +1,19 @@
 /*
 ulbn - Big Number Library (C++ Wrapper)
 
-# Dependence
+# Requirements
   - C++20
     - Concepts and constranints
     - Three-way comparison
-    - `<bit>` header file
+    - std::endian
     - std::span
-    - std::format
+    - std::format (optional)
   - "ulbn.h"
 
 # License
   The MIT License (MIT)
 
-  Copyright (C) 2024 Jin Cai
+  Copyright (C) 2024-2025 Jin Cai
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,6 @@ ulbn - Big Number Library (C++ Wrapper)
 #include <cstdio>
 #include <cstring>
 #include <exception>
-#include <format>
 #include <ios>
 #include <iterator>
 #include <limits>
@@ -54,6 +53,10 @@ ulbn - Big Number Library (C++ Wrapper)
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
+  #include <format>
+#endif
 
 #include "ulbn.h"
 
@@ -71,6 +74,11 @@ struct FormatHelper {
     ALWAYS,
     SPACE_ON_NONNEGATIVE,
   };
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
+  using FormatError = std::format_error;
+#else
+  using FormatError = std::runtime_error;
+#endif
 
   char fill = ' ';
   Align align = Align::DEFUALT;
@@ -145,7 +153,7 @@ struct FormatHelper {
     size_t w = 0;
     for(; first != last && (*first >= '0' && *first <= '9'); ++first) {
       if(w >= _SIZE_LIMIT)
-        throw std::format_error("width is too large");
+        throw FormatError("width is too large");
       w = w * 10 + static_cast<size_t>(*first - '0');
     }
     width = w;
@@ -161,7 +169,7 @@ struct FormatHelper {
       w = 0;
       for(; first != last && (*first >= '0' && *first <= '9'); ++first) {
         if(w >= _SIZE_LIMIT)
-          throw std::format_error("precision is too large");
+          throw FormatError("precision is too large");
         w = w * 10 + static_cast<size_t>(*first - '0');
       }
       precision = w;
@@ -1858,7 +1866,9 @@ private:
     std::exception_ptr exception;
   };
 
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
   friend struct std::formatter<BigInt, char>;
+#endif
   class Formatter {
   private:
     using FormatHelper = ul::FormatHelper;
@@ -1871,6 +1881,7 @@ private:
     int base = 10;
 
   public:
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
     constexpr void parse(const FormatHelper& helper) {
       fill = helper.fill;
       align = helper.align;
@@ -1906,6 +1917,7 @@ private:
         throw std::format_error("invalid target type");
       }
     }
+#endif
     void parse(const std::ostream& ost, int _base) {
       auto flags = ost.flags();
 
@@ -2016,6 +2028,7 @@ inline BigInt operator""_bi(const char* str, size_t len) {
 }  // namespace ul::bn
 
 
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
 template<>
 struct std::formatter<ul::bn::BigInt, char> {
   using BigInt = ul::bn::BigInt;
@@ -2036,3 +2049,4 @@ struct std::formatter<ul::bn::BigInt, char> {
 private:
   BigInt::Formatter formatterHelper;
 };
+#endif

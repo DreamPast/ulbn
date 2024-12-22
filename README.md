@@ -26,17 +26,22 @@ Hardware Assumptions:
 
 ### ulbn.hpp
 
-Depends on the following C++20 features:
+Requires the following C++20 features:
 
 - Concepts and constranints
 - Three-way comparison
-- `<bit>` header file
+- std::endian
 - std::span
-- std::format
+- std::format (optional)
+
+According to [cppreference](https://en.cppreference.com/), the minimum compiler requirements is:
+- GCC 10 (May, 7, 2020)
+- Clang 10 (March, 24, 2020)
+- MSVC 19.26 (May, 19, 2020)
 
 ### test
 
-Depends on the following assumptions for modern platforms:
+Requires the following assumptions for modern platforms:
 
 - Signed integers are stored in two's complement form
 - `float` has 23 bits of precision (IEEE754)
@@ -44,6 +49,8 @@ Depends on the following assumptions for modern platforms:
 - `char` is 8-bits
 - `int64_t` exists
 - The platform is little-endian or big-endian
+- \<bit\>
+- std::format (optional)
 
 ## Roadmap
 

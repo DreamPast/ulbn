@@ -26,17 +26,22 @@
 
 ### ulbn.hpp
 
-依赖C++20的以下特性：
+要求C++20的以下特性：
 
 - 约束与概念
 - 三路比较
-- \<bit\>头文件
+- std::endian
 - std::span
-- std::format
+- std::format（可选）
+
+根据[cppreference](https://zh.cppreference.com)，最低编译器要求为：
+- GCC 10（2020年5月7日）
+- Clang 10（2020年3月24日）
+- MSVC 19.26（2020年5月19日）
 
 ### test
 
-依赖以下对于现代平台的假设：
+要求以下对于现代平台的假设：
 
 - 以补码形式存储有符号整数
 - float的有效位数为23（IEEE754标准）
@@ -44,6 +49,8 @@
 - char为8比特
 - int64_t存在
 - 平台要么大端，要么小端
+- \<bit\>
+- std::format（可选）
 
 ## 路线图
 
