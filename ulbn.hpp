@@ -273,6 +273,20 @@ inline ulbn_alloc_t* getCurrentAllocator() {
 }
 
 template<class T>
+concept FitSlimb = requires {
+  requires std::is_integral_v<T>;
+  requires std::is_signed_v<T>;
+  requires sizeof(T) <= sizeof(ulbn_slimb_t);
+  requires std::is_convertible_v<T, ulbn_slimb_t>;
+};
+template<class T>
+concept FitLimb = requires {
+  requires std::is_integral_v<T>;
+  requires std::is_unsigned_v<T>;
+  requires sizeof(T) <= sizeof(ulbn_limb_t);
+  requires std::is_convertible_v<T, ulbn_limb_t>;
+};
+template<class T>
 concept FitSlong = requires {
   requires std::is_integral_v<T>;
   requires std::is_signed_v<T>;
@@ -287,19 +301,16 @@ concept FitUlong = requires {
   requires std::is_convertible_v<T, ulbn_ulong_t>;
 };
 template<class T>
-concept FitLimb = requires {
-  requires std::is_integral_v<T>;
-  requires std::is_unsigned_v<T>;
-  requires sizeof(T) <= sizeof(ulbn_limb_t);
-  requires std::is_convertible_v<T, ulbn_limb_t>;
+concept FitSlongCase = requires {
+  requires FitSlong<T>;
+  requires !FitSlimb<T>;
 };
 template<class T>
-concept FitSlimb = requires {
-  requires std::is_integral_v<T>;
-  requires std::is_signed_v<T>;
-  requires sizeof(T) <= sizeof(ulbn_slimb_t);
-  requires std::is_convertible_v<T, ulbn_slimb_t>;
+concept FitUlongCase = requires {
+  requires FitUlong<T>;
+  requires !FitLimb<T>;
 };
+
 template<class T>
 concept FitUsize = requires {
   requires std::is_integral_v<T>;
@@ -333,6 +344,7 @@ concept FitOutBit = requires {
   requires std::is_integral_v<T>;
   requires std::is_convertible_v<bool, T>;
 };
+
 #if ULBN_CONF_HAS_FLOAT
 template<class T>
 concept FitFloat = requires {
@@ -345,6 +357,7 @@ concept FitFloat = requires {
   requires std::numeric_limits<T>::max_exponent <= std::numeric_limits<float>::max_exponent;
 };
 #endif /* ULBN_CONF_HAS_FLOAT */
+
 #if ULBN_CONF_HAS_DOUBLE
 template<class T>
 concept FitDouble = requires {
@@ -364,6 +377,7 @@ concept FitDoubleCase = requires {
   #endif
 };
 #endif /* ULBN_CONF_HAS_DOUBLE */
+
 #if ULBN_CONF_HAS_LONG_DOUBLE
 template<class T>
 concept FitLongDouble = requires {
@@ -465,24 +479,20 @@ public:
     return *this;
   }
 
-  template<FitSlong T>
-    requires(!FitSlimb<T>)
+  template<FitSlongCase T>
   BigInt(T value) noexcept {
     ulbi_init_slong(_value, static_cast<ulbn_slong_t>(value));
   }
-  template<FitUlong T>
-    requires(!FitLimb<T>)
+  template<FitUlongCase T>
   BigInt(T value) noexcept {
     ulbi_init_ulong(_value, static_cast<ulbn_ulong_t>(value));
   }
-  template<FitSlong T>
-    requires(!FitSlimb<T>)
+  template<FitSlongCase T>
   BigInt& operator=(T value) noexcept {
     ulbi_set_slong(_value, static_cast<ulbn_slong_t>(value));
     return *this;
   }
-  template<FitUlong T>
-    requires(!FitLimb<T>)
+  template<FitUlongCase T>
   BigInt& operator=(T value) noexcept {
     ulbi_set_ulong(_value, static_cast<ulbn_ulong_t>(value));
     return *this;
@@ -1086,13 +1096,11 @@ public:
   friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) noexcept {
     return ulbi_comp_slimb(lhs._value, static_cast<ulbn_slimb_t>(rhs)) <=> 0;
   }
-  template<FitUlong T>
-    requires(!FitLimb<T>)
+  template<FitUlongCase T>
   friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) noexcept {
     return ulbi_comp_ulong(lhs._value, static_cast<ulbn_ulong_t>(rhs)) <=> 0;
   }
-  template<FitSlong T>
-    requires(!FitSlimb<T>)
+  template<FitSlongCase T>
   friend std::strong_ordering operator<=>(const BigInt& lhs, T rhs) noexcept {
     return ulbi_comp_slong(lhs._value, static_cast<ulbn_slong_t>(rhs)) <=> 0;
   }
@@ -1105,13 +1113,11 @@ public:
   friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) noexcept {
     return (-ulbi_comp_slimb(rhs._value, static_cast<ulbn_slimb_t>(lhs))) <=> 0;
   }
-  template<FitUlong T>
-    requires(!FitLimb<T>)
+  template<FitUlongCase T>
   friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) noexcept {
     return (-ulbi_comp_ulong(rhs._value, static_cast<ulbn_ulong_t>(lhs))) <=> 0;
   }
-  template<FitSlong T>
-    requires(!FitSlimb<T>)
+  template<FitSlongCase T>
   friend std::strong_ordering operator<=>(T lhs, const BigInt& rhs) noexcept {
     return (-ulbi_comp_slong(rhs._value, static_cast<ulbn_slong_t>(lhs))) <=> 0;
   }
@@ -1129,13 +1135,11 @@ public:
   friend bool operator==(const BigInt& lhs, T rhs) noexcept {
     return ulbi_eq_slimb(lhs._value, static_cast<ulbn_slimb_t>(rhs)) != 0;
   }
-  template<FitUlong T>
-    requires(!FitLimb<T>)
+  template<FitUlongCase T>
   friend bool operator==(const BigInt& lhs, T rhs) noexcept {
     return ulbi_eq_ulong(lhs._value, static_cast<ulbn_ulong_t>(rhs)) != 0;
   }
-  template<FitSlong T>
-    requires(!FitSlimb<T>)
+  template<FitSlongCase T>
   friend bool operator==(const BigInt& lhs, T rhs) noexcept {
     return ulbi_eq_slong(lhs._value, static_cast<ulbn_slong_t>(rhs)) != 0;
   }
@@ -1148,13 +1152,11 @@ public:
   friend bool operator==(T lhs, const BigInt& rhs) noexcept {
     return ulbi_eq_slimb(rhs._value, static_cast<ulbn_slimb_t>(lhs)) != 0;
   }
-  template<FitUlong T>
-    requires(!FitLimb<T>)
+  template<FitUlongCase T>
   friend bool operator==(T lhs, const BigInt& rhs) noexcept {
     return ulbi_eq_ulong(rhs._value, static_cast<ulbn_ulong_t>(lhs)) != 0;
   }
-  template<FitSlong T>
-    requires(!FitSlimb<T>)
+  template<FitSlongCase T>
   friend bool operator==(T lhs, const BigInt& rhs) noexcept {
     return ulbi_eq_slong(rhs._value, static_cast<ulbn_slong_t>(lhs)) != 0;
   }
@@ -1384,13 +1386,11 @@ public:
   explicit operator T() const noexcept {
     return static_cast<T>(toLimb());
   }
-  template<FitSlong T>
-    requires(!FitSlimb<T>)
+  template<FitSlongCase T>
   explicit operator T() const noexcept {
     return static_cast<T>(toSlong());
   }
-  template<FitUlong T>
-    requires(!FitLimb<T>)
+  template<FitUlongCase T>
   explicit operator T() const noexcept {
     return static_cast<T>(toUlong());
   }
@@ -1892,8 +1892,12 @@ private:
         base = 10;
         return;
       }
+      if(helper.has_precision)
+        throw std::format_error("precision is not supported");
+      if(helper.use_locale)
+        throw std::format_error("locale is not supported");
       if(helper.target_type.size() != 1)
-        throw std::format_error("invalid target type");
+        throw std::format_error("invalid type");
       switch(helper.target_type[0]) {
       case 'b':
         base = -2;
@@ -1914,7 +1918,7 @@ private:
         base = 16;
         break;
       default:
-        throw std::format_error("invalid target type");
+        throw std::format_error("invalid type");
       }
     }
 #endif
