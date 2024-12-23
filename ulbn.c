@@ -3452,7 +3452,7 @@ ULBN_INTERNAL unsigned ulbn_rand_gen(ulbn_rand_t* rng) {
   unsigned ret, shift;
   state = rng->state;
   rng->state = state * ULBN_RAND_MULTIPLIER + rng->inc;
-  shift = state >> 28;
+  shift = ul_static_cast(unsigned, state >> 28);
   ret = ul_static_cast(unsigned, (((state >> 10u) ^ state) >> 12u) & 0xFFFFu);
   ret = (ret >> shift) | (ret << ((0u - shift) & 15));
   return ret & 0xFFFFu;
