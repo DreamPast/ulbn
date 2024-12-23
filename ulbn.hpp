@@ -35,6 +35,7 @@ ulbn - Big Number Library (C++ Wrapper)
 */
 #pragma once
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <compare>
 #include <cstdint>
@@ -42,10 +43,12 @@ ulbn - Big Number Library (C++ Wrapper)
 #include <cstring>
 #include <exception>
 #include <ios>
+#include <istream>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <ostream>
+#include <random>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -248,23 +251,108 @@ private:
 };
 
 #if ULBN_CONF_USE_RAND
-inline ulbn_rand_t* getCurrentRand() {
-  class _RandManager {
-  public:
-    _RandManager() {
-      ulbn_rand_init(&hold);
-    }
-    ulbn_rand_t* get() {
-      return &hold;
-    }
+class Rand {
+public:
+  using result_type = ulbn_limb_t;
 
-  private:
-    ulbn_rand_t hold{};
-  };
+  /* NOTE: This class does not fully meet the requirements of "RandomNumberEngine" (C++11),
+    as its initial state created by the default constructor is not the same */
+  Rand() noexcept {
+    ulbn_rand_init(&_rand);
+  }
+  explicit Rand(result_type seed) noexcept {
+    ulbn_rand_init2(&_rand, static_cast<ulbn_rand_uint_t>(seed));
+  }
+  template<class SeedSeq>
+  explicit Rand(SeedSeq& seq) {
+    std::array<uint_least32_t, 1> seed;
+    seq.generate(seed.begin(), seed.end());
+    ulbn_rand_init2(&_rand, static_cast<ulbn_rand_uint_t>(seed[0]));
+  }
 
-  static thread_local _RandManager rng;
-  return rng.get();
-}
+  ~Rand() noexcept = default;
+  Rand(const Rand& other) noexcept = default;
+  Rand(Rand&& other) noexcept = default;
+  Rand& operator=(const Rand& other) noexcept = default;
+  Rand& operator=(Rand&& other) noexcept = default;
+
+  void seed(result_type seed) noexcept {
+    ulbn_rand_init2(&_rand, static_cast<ulbn_rand_uint_t>(seed));
+  }
+  template<class SeedSeq>
+  void seed(SeedSeq& seq) {
+    std::array<uint_least32_t, 1> seed;
+    seq.generate(seed.begin(), seed.end());
+    ulbn_rand_init2(&_rand, static_cast<ulbn_rand_uint_t>(seed[0]));
+  }
+
+#if ULBN_LIMB_MAX < UINT32_MAX
+  explicit Rand(ulbn_rand_uint_t seed) noexcept {
+    ulbn_rand_init2(&_rand, seed);
+  }
+  void seed(ulbn_rand_uint_t seed) noexcept {
+    ulbn_rand_init2(&_rand, seed);
+  }
+#endif
+
+  ulbn_limb_t operator()() noexcept {
+    return ulbn_rand_step(&_rand);
+  }
+
+  void discard(unsigned long long steps) noexcept {
+    ulbn_rand_advance(&_rand, static_cast<ulbn_rand_uint_t>(steps));
+  }
+
+  static constexpr ulbn_limb_t min() noexcept {
+    return 0;
+  }
+  static constexpr ulbn_limb_t max() noexcept {
+    return std::numeric_limits<ulbn_limb_t>::max();
+  }
+
+  friend bool operator==(const Rand& lhs, const Rand& rhs) noexcept {
+    return memcmp(&lhs._rand, &rhs._rand, sizeof(ulbn_rand_t)) == 0;
+  }
+  friend bool operator!=(const Rand& lhs, const Rand& rhs) noexcept {
+    return memcmp(&lhs._rand, &rhs._rand, sizeof(ulbn_rand_t)) != 0;
+  }
+
+  template<class CharT, class CharTraits>
+  friend std::basic_ostream<CharT, CharTraits>& operator<<(std::basic_ostream<CharT, CharTraits>& ost, Rand& rng) {
+    return ost << rng._rand.state << static_cast<CharT>(' ') << rng._rand.inc;
+  }
+  template<class CharT, class CharTraits>
+  friend std::basic_istream<CharT, CharTraits>& operator>>(std::basic_istream<CharT, CharTraits>& ist, Rand& rng) {
+    ulbn_rand_uint_t state;
+    ulbn_rand_uint_t inc;
+    if(ist >> state >> inc) {
+      rng._rand.state = state;
+      rng._rand.inc = inc;
+    }
+    return ist;
+  }
+
+
+  ulbn_rand_t* get() noexcept {
+    return &_rand;
+  }
+  const ulbn_rand_t* get() const noexcept {
+    return &_rand;
+  }
+
+  static Rand& current() noexcept {
+    static thread_local Rand rng;
+    return rng;
+  }
+
+private:
+  ulbn_rand_t _rand;
+};
+
+static_assert(std::is_standard_layout_v<Rand>);
+static_assert(std::is_trivially_copyable_v<Rand>);
+static_assert(std::is_trivially_destructible_v<Rand>);
+static_assert(std::uniform_random_bit_generator<Rand>);
 #endif
 
 inline ulbn_alloc_t* getCurrentAllocator() {
@@ -546,30 +634,30 @@ public:
   template<FitBits T>
   static BigInt fromRandom(T n) {
     BigInt ret;
-    _check(ulbi_set_rand_bits(_ctx(), getCurrentRand(), ret._value, static_cast<ulbn_bits_t>(n)));
+    _check(ulbi_set_rand_bits(_ctx(), Rand::current().get(), ret._value, static_cast<ulbn_bits_t>(n)));
     return ret;
   }
   template<FitSbits T>
   static BigInt fromRandom(T n) {
     BigInt ret;
-    _check(ulbi_set_rand_sbits(_ctx(), getCurrentRand(), ret._value, static_cast<ulbn_sbits_t>(n)));
+    _check(ulbi_set_rand_sbits(_ctx(), Rand::current().get(), ret._value, static_cast<ulbn_sbits_t>(n)));
     return ret;
   }
   static BigInt fromRandom(const BigInt& n) {
     BigInt ret;
-    _check(ulbi_set_rand(_ctx(), getCurrentRand(), ret._value, n._value));
+    _check(ulbi_set_rand(_ctx(), Rand::current().get(), ret._value, n._value));
     return ret;
   }
 
 
   static BigInt fromRandomRange(const BigInt& limit) {
     BigInt ret;
-    _check(ulbi_set_rand_range(_ctx(), getCurrentRand(), ret._value, limit._value));
+    _check(ulbi_set_rand_range(_ctx(), Rand::current().get(), ret._value, limit._value));
     return ret;
   }
   static BigInt fromRandomRange(const BigInt& lo, const BigInt& hi) {
     BigInt ret;
-    _check(ulbi_set_rand_range2(_ctx(), getCurrentRand(), ret._value, lo._value, hi._value));
+    _check(ulbi_set_rand_range2(_ctx(), Rand::current().get(), ret._value, lo._value, hi._value));
     return ret;
   }
 #endif

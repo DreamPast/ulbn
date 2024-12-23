@@ -701,22 +701,45 @@ typedef int ulbn_printer_t(void* opaque, const char* str, size_t len);
 
 
 #if ULBN_CONF_USE_RAND
-  #if UINT_MAX >= 0xFFFFFFFFu
-typedef unsigned ulbn_rand_uint_t;
+  #if defined(UINT_FAST32_MAX)
+typedef uint_fast32_t ulbn_rand_uint_t; 
+  #elif UINT_MAX >= 0xFFFFFFFFu
+typedef unsigned ulbn_rand_uint_t; /* uint_fast32_t */
   #else
-typedef unsigned long ulbn_rand_uint_t;
+typedef unsigned long ulbn_rand_uint_t; /* uint_fast32_t */
   #endif
 /* [PCG Random Number Generators](https://www.pcg-random.org/) */
 /* Note: `ulbn_rand_t` is not thread-safe. */
 typedef struct ulbn_rand_t {
   ulbn_rand_uint_t state;
   ulbn_rand_uint_t inc;
-
-  unsigned cache;
-  unsigned bits;
 } ulbn_rand_t;
+
+/**
+ * @brief sizeof(ulbn_rand_t)
+ * @note When you want to use FFI to call this library, you can call this function to get the size of `ulbn_rand_t`.
+ */
+ULBN_PUBLIC size_t ulbn_rand_sizeof(void);
+/**
+ * @brief Initializes a random number generator.
+ * @return Random seed.
+ */
 ULBN_PUBLIC ulbn_rand_uint_t ulbn_rand_init(ulbn_rand_t* rng);
+/**
+ * @brief Initializes a random number generator with a seed.
+ */
 ULBN_PUBLIC void ulbn_rand_init2(ulbn_rand_t* rng, ulbn_rand_uint_t seed);
+/**
+ * @brief Generates a random `ulbn_limb_t`.
+ */
+ULBN_PUBLIC ulbn_limb_t ulbn_rand_step(ulbn_rand_t* rng);
+/**
+ * @brief Advances the random number generator.
+ */
+ULBN_PUBLIC void ulbn_rand_advance(ulbn_rand_t* rng, ulbn_rand_uint_t steps);
+/**
+ * @brief Generates random bytes.
+ */
 ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n);
 #endif /* ULBN_CONF_USE_RAND */
 
