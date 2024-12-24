@@ -398,6 +398,10 @@ ulbn - Big Number Library
   #define ULBN_CONF_USE_RAND 1
 #endif
 
+#ifndef ULBN_CONF_BIG_INT
+  #define ULBN_CONF_BIG_INT 1
+#endif
+
 
 /*********************
  * Basic Definitions *
@@ -749,6 +753,7 @@ ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n);
  ********************/
 
 
+#if ULBN_CONF_BIG_INT
 typedef struct ulbi_t {
   ulbn_ssize_t len;
   ulbn_usize_t cap;
@@ -757,7 +762,7 @@ typedef struct ulbi_t {
     ulbn_limb_t* ul_restrict lng;
   } u;
 } ulbi_t;
-/* clang-format off */
+  /* clang-format off */
 #define ULBI_INIT { 0, _ULBN_SHORT_LIMB_SIZE, { { 0 } } }
 /* clang-format on */
 
@@ -1939,7 +1944,7 @@ ULBN_PUBLIC int ulbi_print_ex(
 ULBN_PUBLIC int ulbi_print(const ulbn_alloc_t* alloc, FILE* fp, const ulbi_t* ao, int base);
 
 
-#if ULBN_CONF_HAS_FLOAT
+  #if ULBN_CONF_HAS_FLOAT
 /**
  * @brief Sets `dst` to `x`.
  * @return `0` if `x` can be exactly represented as an integer;
@@ -1962,10 +1967,10 @@ ULBN_PUBLIC float ulbi_to_float(const ulbi_t* src);
  * @brief Checks if `src` can be represented as `float`.
  */
 ULBN_PUBLIC int ulbi_fit_float(const ulbi_t* src);
-#endif /* ULBN_CONF_HAS_FLOAT */
+  #endif /* ULBN_CONF_HAS_FLOAT */
 
 
-#if ULBN_CONF_HAS_DOUBLE
+  #if ULBN_CONF_HAS_DOUBLE
 /**
  * @brief Sets `dst` to `x`.
  * @return `0` if `x` can be exactly represented as an integer;
@@ -1988,10 +1993,10 @@ ULBN_PUBLIC double ulbi_to_double(const ulbi_t* src);
  * @brief Checks if `src` can be represented as `double`.
  */
 ULBN_PUBLIC int ulbi_fit_double(const ulbi_t* src);
-#endif /* ULBN_CONF_HAS_DOUBLE */
+  #endif /* ULBN_CONF_HAS_DOUBLE */
 
 
-#if ULBN_CONF_HAS_LONG_DOUBLE
+  #if ULBN_CONF_HAS_LONG_DOUBLE
 /**
  * @brief Sets `dst` to `x`.
  * @return `0` if `x` can be exactly represented as an integer;
@@ -2014,10 +2019,10 @@ ULBN_PUBLIC long double ulbi_to_long_double(const ulbi_t* src);
  * @brief Checks if `src` can be represented as `long double`.
  */
 ULBN_PUBLIC int ulbi_fit_long_double(const ulbi_t* src);
-#endif /* ULBN_CONF_HAS_LONG_DOUBLE */
+  #endif /* ULBN_CONF_HAS_LONG_DOUBLE */
 
 
-#if ULBN_CONF_USE_RAND
+  #if ULBN_CONF_USE_RAND
 /**
  * @brief Sets `dst` to a random number in the range [0, 2**n).
  *
@@ -2093,7 +2098,7 @@ ULBN_PUBLIC int ulbi_init_rand_range2(
   const ulbn_alloc_t* alloc, ulbn_rand_t* rng,    /* */
   ulbi_t* dst, const ulbi_t* lo, const ulbi_t* hi /* */
 );
-#endif /* ULBN_CONF_USE_RAND */
+  #endif /* ULBN_CONF_USE_RAND */
 
 
 /**
@@ -2141,6 +2146,7 @@ ULBN_PUBLIC int ulbi_gcdext(
  * @return `ULBN_ERR_INVALID` if there is no modular inverse.
  */
 ULBN_PUBLIC int ulbi_invert(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* mo);
+#endif /* ULBN_CONF_BIG_INT */
 
 
 /*******
