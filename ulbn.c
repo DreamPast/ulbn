@@ -3443,8 +3443,8 @@ ULBN_INTERNAL int ulbn_to_bit_info(const ulbn_limb_t* limb, ulbn_usize_t n, ulbn
 
 #if ULBN_CONF_USE_RAND
 
-#define ULBN_RAND_MULTIPLIER 0x321Du
-#define ULBN_RAND_INCREMENT 0xBB75u
+  #define ULBN_RAND_MULTIPLIER 0x321Du
+  #define ULBN_RAND_INCREMENT 0xBB75u
 
 /* generate 16 bits */
 ULBN_INTERNAL unsigned ulbn_rand_gen(ulbn_rand_t* rng) {
@@ -3495,15 +3495,15 @@ ULBN_PUBLIC ulbn_rand_uint_t ulbn_rand_init(ulbn_rand_t* rng) {
 }
 
 ULBN_INTERNAL ulbn_limb_t ulbn_rand0(ulbn_rand_t* rng) {
-#if ULBN_LIMB_MAX <= 0xFFFFu
+  #if ULBN_LIMB_MAX <= 0xFFFFu
   return _ulbn_cast_limb(ulbn_rand_gen(rng));
-#elif ULBN_LIMB_MAX <= 0xFFFFFFFFu
+  #elif ULBN_LIMB_MAX <= 0xFFFFFFFFu
   return _ulbn_cast_limb((_ulbn_cast_limb(ulbn_rand_gen(rng)) << 16u) | ulbn_rand_gen(rng));
-#elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
+  #elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
   const ulbn_limb_t vh = _ulbn_cast_limb((_ulbn_cast_limb(ulbn_rand_gen(rng)) << 16u) | ulbn_rand_gen(rng));
   const ulbn_limb_t vl = _ulbn_cast_limb((_ulbn_cast_limb(ulbn_rand_gen(rng)) << 16u) | ulbn_rand_gen(rng));
   return _ulbn_cast_limb((vh << 32u) | vl);
-#else
+  #else
   ulbn_limb_t v = 0;
   signed bits = ul_static_cast(signed, ULBN_LIMB_BITS);
   do {
@@ -3511,7 +3511,7 @@ ULBN_INTERNAL ulbn_limb_t ulbn_rand0(ulbn_rand_t* rng) {
     bits -= 16;
   } while(bits > 0);
   return v;
-#endif
+  #endif
 }
 ULBN_INTERNAL ulbn_limb_t ulbn_randx(ulbn_rand_t* rng, unsigned n) {
   ulbn_assert(n != 0 && n < ULBN_LIMB_BITS);
@@ -3522,20 +3522,20 @@ ULBN_PUBLIC ulbn_limb_t ulbn_rand_step(ulbn_rand_t* rng) {
   return ulbn_rand0(rng);
 }
 ULBN_PUBLIC void ulbn_rand_advance(ulbn_rand_t* rng, ulbn_rand_uint_t steps) {
-#if ULBN_LIMB_MAX <= 0xFFFFu
-#elif ULBN_LIMB_MAX <= 0xFFFFFFFFu
+  #if ULBN_LIMB_MAX <= 0xFFFFu
+  #elif ULBN_LIMB_MAX <= 0xFFFFFFFFu
   steps <<= 1;
   steps &= 0xFFFFFFFFu;
-#elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
+  #elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
   steps <<= 2;
   steps &= 0xFFFFFFFFu;
-#else
+  #else
   signed bits = ul_static_cast(signed, ULBN_LIMB_BITS) - 16;
   const ulbn_rand_uint_t delta = steps;
   for(; bits > 0; bits -= 16)
     steps += delta;
   steps &= 0xFFFFFFFFu;
-#endif
+  #endif
   ulbn_rand_adv(rng, steps);
 }
 
@@ -3549,11 +3549,11 @@ ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n) {
   unsigned char* p = ul_reinterpret_cast(unsigned char*, dst);
   ulbn_usize_t i;
   for(i = 0; i < n; ++i)
-#if ULBN_LIMB_MAX == UCHAR_MAX
+  #if ULBN_LIMB_MAX == UCHAR_MAX
     p[i] = ul_static_cast(unsigned char, ulbn_rand0(rng));
-#else
+  #else
     p[i] = ul_static_cast(unsigned char, ulbn_randx(rng, CHAR_BIT));
-#endif
+  #endif
 }
 #endif /* ULBN_CONF_USE_RAND */
 
@@ -5770,7 +5770,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp_sbits(
   int err;
   if(ul_likely(e >= 0))
     return ulbi_divmod_2exp_bits(alloc, qo, ro, ao, _ulbn_from_pos_sbits(e));
-  err = ulbi_sal_bits(alloc, qo, ao, _ulbn_from_neg_sbits(e));
+  err = qo ? ulbi_sal_bits(alloc, qo, ao, _ulbn_from_neg_sbits(e)) : 0;
   _ulbi_may_set_zero(ro);
   return err;
 }
@@ -5792,7 +5792,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp(
   if(ul_likely(eo->len >= 0))
     return _ulbi_divmod_2exp(alloc, qo, ro, ao, idx, shift);
   else {
-    err = _ulbi_sal(alloc, qo, ao, idx, shift);
+    err = qo ? _ulbi_sal(alloc, qo, ao, idx, shift) : 0;
     _ulbi_may_set_zero(ro);
     return err;
   }

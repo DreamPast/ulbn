@@ -123,6 +123,8 @@ void testDivMod() {
       if(b != 0) {
         T_assert_eq(BigInt(a) / BigInt(b), a / b);
         T_assert_eq(BigInt(a) % BigInt(b), a % b);
+        T_assert_eq(BigInt(a).isDivisible(BigInt(b)), (a % b) == 0);
+
         if(fitType<int8_t>(b)) {
           T_assert_eq(BigInt(a) / static_cast<int8_t>(b), a / b);
 
@@ -131,6 +133,7 @@ void testDivMod() {
             ulbi_divmod_slimb(ulbn_default_alloc(), ul_nullptr, &r, BigInt(a).get(), static_cast<ulbn_slimb_t>(b)) >= 0
           );
           T_assert_eq(r, a % b);
+          T_assert_eq(BigInt(a).isDivisible(static_cast<int8_t>(b)), r == 0);
         }
         if(fitType<uint8_t>(b)) {
           T_assert_eq(BigInt(a) / static_cast<uint8_t>(b), a / b);
@@ -139,6 +142,7 @@ void testDivMod() {
           ulbn_limb_t r;
           T_assert(ulbi_divmod_limb(ulbn_default_alloc(), ul_nullptr, &r, tmp.get(), static_cast<ulbn_limb_t>(b)) >= 0);
           T_assert_eq(static_cast<int>(r), (a % b + b) % b);
+          T_assert_eq(BigInt(a).isDivisible(static_cast<uint8_t>(b)), r == 0);
         }
       }
 }
@@ -153,6 +157,7 @@ void testDivModRandom() {
     const uint64_t b = ud2(mt);
 
     T_assert_pair_eq(BigInt(a).divmod(BigInt(b)), (a / b), (a % b));
+    T_assert_eq(BigInt(a).isDivisible(BigInt(b)), (a % b) == 0);
   }
 }
 void testDivModOverlapRandom() {
@@ -260,6 +265,7 @@ void testDivMod2Exp() {
       auto pair = a.divmod2Exp(i);
       auto ansPair = a.divmod(BigInt::from2Exp(i));
       T_assert_pair_eq(pair, ansPair.first, ansPair.second);
+      T_assert_eq(a.is2ExpDivisible(i), ansPair.second == 0);
 
       BigInt q = a;
       T_assert(
@@ -275,9 +281,11 @@ void testDivMod2Exp() {
       auto pair = a.divmod2Exp(BigInt(i));
       auto ansPair = a.divmod(BigInt::from2Exp(BigInt(i)));
       T_assert_pair_eq(pair, ansPair.first, ansPair.second);
+      T_assert_eq(a.is2ExpDivisible(BigInt(i)), ansPair.second == 0);
     }
     for(int i = 0; i >= -4; --i) {
       T_assert_pair_eq(a.divmod2Exp(i), a * BigInt::from2Exp(-i), 0);
+      T_assert_eq(a.is2ExpDivisible(i), true);
     }
   }
 }

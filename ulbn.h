@@ -702,7 +702,7 @@ typedef int ulbn_printer_t(void* opaque, const char* str, size_t len);
 
 #if ULBN_CONF_USE_RAND
   #if defined(UINT_FAST32_MAX)
-typedef uint_fast32_t ulbn_rand_uint_t; 
+typedef uint_fast32_t ulbn_rand_uint_t;
   #elif UINT_MAX >= 0xFFFFFFFFu
 typedef unsigned ulbn_rand_uint_t; /* uint_fast32_t */
   #else
@@ -1411,6 +1411,7 @@ ULBN_PUBLIC int ulbi_divmod_slimb_ex(
 /**
  * @brief `qo` = `ao` // (2**`e`), `ro` = `ao` % (2**`e`).
  * @note `qo` and `ro` are allowed to be `NULL`.
+ * @note If `qo` and `ro` are NULL, this function won't allocate any memory.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
  * @return `0` otherwise.
@@ -1422,6 +1423,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp_bits(
 /**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
  * @note `qo` and `ro` are allowed to be `NULL`.
+ * @note If `qo` and `ro` are NULL, this function won't allocate any memory.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
  * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
@@ -1434,6 +1436,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp_sbits(
 /**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
  * @note `qo` and `ro` are allowed to be `NULL`.
+ * @note If `qo` and `ro` are NULL, this function won't allocate any memory.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_INEXACT` if `ro` is NULL and the remainder is not zero;
  * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
@@ -1444,6 +1447,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp(const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* 
 /**
  * @brief `qo` = `ao` // (2**`e`), `ro` = `ao` % (2**`e`).
  * @note `qo` and `ro` are allowed to be `NULL`.
+ * @note If `qo` and `ro` are NULL, this function won't allocate any memory.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
  * @return `ULBN_ERR_INEXACT` if the ramainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
@@ -1457,6 +1461,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp_bits_ex(
 /**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
  * @note `qo` and `ro` are allowed to be `NULL`.
+ * @note If `qo` and `ro` are NULL, this function won't allocate any memory.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
  * @return `ULBN_ERR_INEXACT` if the ramainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
@@ -1471,6 +1476,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp_sbits_ex(
 /**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
  * @note `qo` and `ro` are allowed to be `NULL`.
+ * @note If `qo` and `ro` are NULL, this function won't allocate any memory.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
  * @return `ULBN_ERR_INEXACT` if the ramainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
