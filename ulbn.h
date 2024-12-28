@@ -110,7 +110,7 @@ ulbn - Big Number Library
  */
 #ifndef ul_static_cast
   #ifdef __cplusplus
-    #define ul_static_cast(T, val) static_cast<T>(val)
+    #define ul_static_cast(T, val) (static_cast<T>(val))
   #else
     #define ul_static_cast(T, val) ((T)(val))
   #endif
@@ -123,7 +123,7 @@ ulbn - Big Number Library
  */
 #ifndef ul_reinterpret_cast
   #ifdef __cplusplus
-    #define ul_reinterpret_cast(T, val) reinterpret_cast<T>(val)
+    #define ul_reinterpret_cast(T, val) (reinterpret_cast<T>(val))
   #else
     #define ul_reinterpret_cast(T, val) ((T)(val))
   #endif
@@ -562,6 +562,14 @@ typedef signed long ulbn_slong_t;
 #ifndef ULBN_PRIVATE
   #define ULBN_PRIVATE static
 #endif /* ULBN_PRIVATE */
+
+#ifndef ULBN_CONF_FFT
+  #if ULBN_LIMB_MAX >= 0xFFFu
+    #define ULBN_CONF_FFT 1
+  #else
+    #define ULBN_CONF_FFT 0
+  #endif
+#endif
 
 #define _ULBN_SHORT_LIMB_SIZE                                                                              \
   _ulbn_max_(                                                                                              \

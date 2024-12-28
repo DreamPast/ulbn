@@ -9,7 +9,7 @@
 - Avoids most UB (Undefined Behavior)
 - Strict boundary checks
 - Custom memory allocator support
-- Most functions are optimized
+- Almost all functions reach time complexity of O(n*log(n))
 - No external dependencies
 
 ## Dependencies
@@ -56,11 +56,11 @@ Requires the following assumptions for modern platforms:
 
 - [ ] High-precision integers
   - [x] Arithmetic
-    - [ ] Faster multiplicatin
+    - [x] Faster multiplicatin
       - [x] Karatsuba algorithm (Toom-2)
       - [x] Toom-3 algorithm
       - [x] Toom-4 algorithm
-      - [ ] FFT
+      - [x] FFT
     - [x] Faster base conversion
       - [x] Faster input
       - [x] Faster output
