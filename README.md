@@ -12,7 +12,7 @@
 - Almost all functions reach time complexity of O(n*log(n))
 - No external dependencies
 
-## Dependencies
+## Requirements
 
 No external dependencies needed.
 
@@ -51,6 +51,100 @@ Requires the following assumptions for modern platforms:
 - The platform is little-endian or big-endian
 - \<bit\>
 - std::format (optional)
+
+## How to use
+
+### ulbn.h
+
+Add "ulbn.h" and "ulbn.c" to your project.
+
+```c
+#include "ulbn.h"
+#include <stdio.h>
+
+int main(void) {
+  const ulbn_alloc_t* alloc = ulbn_default_alloc(); /* get default allocator */
+  ulbi_t ro, ao, bo;
+  int err;
+
+  /* first, we must initialize them */
+  ulbi_init(&ro);
+  ulbi_init(&ao);
+  ulbi_init(&bo);
+
+
+  ulbi_set_slimb(&ao, 99);              /* set ao = 99, `ulbi_set_slimb` doesn't make errors */
+  ulbi_set_slimb(&bo, 99);              /* set bo = 99, `ulbi_set_slimb` doesn't make errors */
+  err = ulbi_add(alloc, &ro, &ao, &bo); /* ro = ao + bo */
+  if(err) {
+    fprintf(stderr, "error: %d\n", err);
+    return 1;
+  }
+  ulbi_print(alloc, stdout, &ro, 10); /* print ro */
+  putchar('\n');
+
+
+  err = ulbi_add_slimb(alloc, &ro, &ao, 99); /* some functions have a simpler version */
+  if(err) {
+    fprintf(stderr, "error: %d\n", err);
+    return 1;
+  }
+  ulbi_print(alloc, stdout, &ro, 10); /* print ro */
+  putchar('\n');
+
+
+  err = ulbi_pow(alloc, &ro, &ao, &bo); /* we can try larger number */
+  if(err) {
+    fprintf(stderr, "error: %d\n", err);
+    return 1;
+  }
+  ulbi_print(alloc, stdout, &ro, 10); /* print ro */
+  putchar('\n');
+
+
+  /* finally, don't forget to deinitialize them */
+  ulbi_deinit(alloc, &ro);
+  ulbi_deinit(alloc, &ao);
+  ulbi_deinit(alloc, &bo);
+
+  return 0;
+}
+
+#include "ulbn.c" /* we can include source code directly */
+
+```
+
+### ulbn.hpp
+
+Add "ulbn.hpp", "ulbn.h" and "ulbn.c" to your project, and make sure your compiler support C++20.
+
+```cpp
+#include "ulbn.hpp"
+#include <iostream>
+
+int main() {
+  // In C++, we don't need to explicitly manage memory and check errors.
+  // With the help of operator overloading, we can use high precision more conveniently.
+  using ul::bn::BigInt;
+  BigInt ro, ao, bo;
+
+  ao = 99;
+  bo = 99;
+  ro = ao + bo;
+  std::cout << ro << '\n';
+
+  ro = ao + 99;
+  std::cout << ro << '\n';
+
+  ro = ao.pow(bo);
+  std::cout << ro << '\n';
+
+  return 0;
+}
+
+#include "ulbn.c" // we can include source code directly
+
+```
 
 ## Roadmap
 

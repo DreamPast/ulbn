@@ -12,7 +12,7 @@
 - 几乎所有函数的时间复杂度达到了O(n*log(n))
 - 无外置依赖
 
-## 依赖
+## 要求
 
 项目文件均无外部依赖
 
@@ -51,6 +51,102 @@
 - 平台要么大端，要么小端
 - \<bit\>
 - std::format（可选）
+
+## 如何使用
+
+### ulbn.h
+
+添加"ulbn.h"和"ulbn.c"到项目中。
+
+```c
+#include "ulbn.h"
+#include <stdio.h>
+
+int main(void) {
+  const ulbn_alloc_t* alloc = ulbn_default_alloc(); /* 获得默认分配器 */
+  ulbi_t ro, ao, bo;
+  int err;
+
+  /* 首先，我们需要初始化它们 */
+  ulbi_init(&ro);
+  ulbi_init(&ao);
+  ulbi_init(&bo);
+
+
+  ulbi_set_slimb(&ao, 99);              /* 设置ao为99，`ulbi_set_slimb`不会产生错误 */
+  ulbi_set_slimb(&bo, 99);              /* 设置bo为99，`ulbi_set_slimb`不会产生错误 */
+  err = ulbi_add(alloc, &ro, &ao, &bo); /* ro = ao + bo */
+  if(err) {
+    fprintf(stderr, "error: %d\n", err);
+    return 1;
+  }
+  ulbi_print(alloc, stdout, &ro, 10); /* 输出ro */
+  putchar('\n');
+
+
+  err = ulbi_add_slimb(alloc, &ro, &ao, 99); /* 一些函数有更简单的版本 */
+  if(err) {
+    fprintf(stderr, "error: %d\n", err);
+    return 1;
+  }
+  ulbi_print(alloc, stdout, &ro, 10); /* 输出ro */
+  putchar('\n');
+
+
+  err = ulbi_pow(alloc, &ro, &ao, &bo); /* 我们可以试试大一点的数字 */
+  if(err) {
+    fprintf(stderr, "error: %d\n", err);
+    return 1;
+  }
+  ulbi_print(alloc, stdout, &ro, 10); /* 输出ro */
+  putchar('\n');
+
+
+  /* 最终，我们需要解分配它们 */
+  ulbi_deinit(alloc, &ro);
+  ulbi_deinit(alloc, &ao);
+  ulbi_deinit(alloc, &bo);
+
+  return 0;
+}
+
+#include "ulbn.c" /* 我们可以直接引用源代码 */
+
+```
+
+### ulbn.hpp
+
+添加"ulbn.hpp"、"ulbn.h"、"ulbn.c"到项目中，并且确保编译器支持C++20。
+
+```cpp
+#include "ulbn.hpp"
+#include <iostream>
+
+int main() {
+  // 在C++中，我们不需要显式管理内存以及检查错误。
+  // 在函数重载的帮助下，我们可以更自然地使用高精度。
+  using ul::bn::BigInt;
+  BigInt ro, ao, bo;
+
+  ao = 99;
+  bo = 99;
+  ro = ao + bo;
+  std::cout << ro << '\n';
+
+  ro = ao + 99;
+  std::cout << ro << '\n';
+
+  ro = ao.pow(bo);
+  std::cout << ro << '\n';
+
+  return 0;
+}
+
+#include "ulbn.c" // 我们可以直接引用源代码
+
+```
+
+
 
 ## 路线图
 
