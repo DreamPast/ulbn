@@ -2553,6 +2553,7 @@ cleanup:
  **************/
 
 #if ULBN_CONF_FFT
+
 ULBN_PRIVATE ulbn_limb_t ulbnfft_addmod(ulbn_limb_t a, ulbn_limb_t b, ulbn_limb_t m) {
   const ulbn_limb_t c = a + b;
   ulbn_assert(a < m && b < m && m < ULBN_LIMB_SIGNBIT);
@@ -2589,29 +2590,38 @@ ULBN_PRIVATE ulbn_limb_t ulbnfft_addmod(ulbn_limb_t a, ulbn_limb_t b, ulbn_limb_
   }
   */
 
+  /*
+    During the NTT process, we frequently need to compute $w^{(P-1)/l}$,
+      where $P$ is the modulus, $w$ is the primitive root of the modulus, and $l$ is the length of the NTT.
+    $P$ must to be the form $1 + s * 2^x$,
+      where $s$ is an odd number (not necessarily a prime), and $x$ is a preset size (`ULBNFFT_PROOT_2EXP` in the code).
+    In this way, we can precompute $w^s$ and store it as our primitive root, which is the unit root when $n=2^x$.
+    When we need the unit root for length $n$, we can compute $proot^{x/2^l}$, which is the unit root we need.
+    This process can be precomputed and stored in `ulbnfft_proot_pow`.
+  */
 
   #if ULBN_LIMB_MAX == 0xFFFFFFFFu
-    #define ULBNFFT_MODS 5
+    #define ULBNFFT_NMODS 5
     #define ULBNFFT_MOD_LOG2_MIN 29
     #define ULBNFFT_MOD_LOG2_MAX 30
     #define ULBNFFT_PROOT_2EXP 23
-static const ulbn_limb_t ulbnfft_mods[ULBNFFT_MODS] = {
+static const ulbn_limb_t ulbnfft_mods[ULBNFFT_NMODS] = {
   0x23800001, 0x26800001, 0x34800001, 0x35800001, 0x3B800001,
 };
-static const ulbn_limb_t ulbnfft_mods_div[ULBNFFT_MODS] = {
+static const ulbn_limb_t ulbnfft_mods_div[ULBNFFT_NMODS] = {
   0xE6C2B441, 0xD4C77AFD, 0x9C09C099, 0x991F1A4E, 0x89AE4087,
 };
-static const unsigned ulbnfft_int_bits[ULBNFFT_MODS] = {
+static const unsigned ulbnfft_int_bits[ULBNFFT_NMODS] = {
   147, 118, 89, 59, 29,
 };
-static const ulbn_limb_t ulbnfft_mods_cr[ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2] = {
+static const ulbn_limb_t ulbnfft_mods_cr[ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2] = {
   0x20155563, 0xDE5A5A9, 0x2B18E392, 0x32D2AAAE, 0xD200004, 0x33B7777C, 0x31955559, 0x1AC00036, 0x1DC00009, 0x18CAAAB5,
 };
-static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2] = {
+static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2] = {
   0xD55555AA, 0x43C3C3D2, 0xCE38E39C, 0xDAAAAAB5, 0x40000012,
   0xF7777788, 0xD5555561, 0x800000FF, 0x80000024, 0x6AAAAAD5,
 };
-/* clang-format off */ static const ulbn_limb_t ulbnfft_proot_pow[2][ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = {  { {
+/* clang-format off */ static const ulbn_limb_t ulbnfft_proot_pow[2][ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = { { {
 0x00000000, 0x23800000, 0x0EAED064, 0x040ED6C0, 0x1A6F6DE9, 0x1E160952, 0x0F802E3F, 0x1DA1029A, 0x14E74EDE, 0x05B9ECB8,
 0x10D56243, 0x22138A01, 0x200B701C, 0x2038078F, 0x0D09AF05, 0x0136F2F3, 0x17C6B8FF, 0x057D2C85, 0x107416BF, 0x06D64765,
 0x1CEDB471, 0x1733BA25, 0x1F3B7FC2, 0x158A82F1, }, {   0x0, 0x26800000, 0x0B19D84F, 0x08BD273D, 0x10B79081, 0x0EFC4A1D,
@@ -2636,7 +2646,7 @@ static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) 
 0x15CA7F55, 0x2A7ABF9E, 0x306DCB60, 0x0E8B88E5, 0x150C130F, 0x2F47B7BF, 0x15279CC7, }, {   0x0, 0x3B800000, 0x052929A6,
 0x1E5EA9E6, 0x14191D56, 0x053803C8, 0x245358AD, 0x080F8A3E, 0x1225AFB9, 0x28DB09F8, 0x16BEBAA0, 0x14003AB8, 0x07B4D9B7,
 0x15570604, 0x308D724E, 0x2A395EC1, 0x10DEE6BE, 0x0038933D, 0x073C4B97, 0x2A0445EA, 0x38A5D246, 0x1991700C, 0x16D05613,
-0x1C01A690, }, } }; static const ulbn_limb_t ulbnfft_proot_pow_finv[2][ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = { { {
+0x1C01A690, }, } }; static const ulbn_limb_t ulbnfft_proot_pow_finv[2][ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = { { {
 0x00000000, 0xFFFFFFF8, 0x69E1D053, 0x1D435855, 0xBEA1BE6E, 0xD8F5720F, 0x6FC79CCD, 0xD5A989B9, 0x96BDB6E9, 0x294B2CD7,
 0x79641EB8, 0xF5BBC64F, 0xE7152FA2, 0xE856BF7E, 0x5E04EE1A, 0x08C2562B, 0xAB74FC58, 0x279515C5, 0x76A67FF5, 0x314DBABA,
 0xD09C84F6, 0xA750F634, 0xE139AEE7, 0x9B569E35, }, {   0x0, 0xFFFFFFF9, 0x49D06C6F, 0x3A1B9DD6, 0x6F285321, 0x63A4D585,
@@ -2661,7 +2671,7 @@ static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) 
 0x68455EE3, 0xCB442E00, 0xE7BC0690, 0x459949A8, 0x64B6301F, 0xE23CDAE1, 0x6539F55B, }, {   0x0, 0xFFFFFFFB, 0x16345489,
 0x82AAA75A, 0x5678F6AE, 0x16743B4A, 0x9C4AA217, 0x22AE6C9A, 0x4E1429D3, 0xAFC83C16, 0x61DC69F1, 0x560DE4F8, 0x21283B01,
 0x5BD0C5FA, 0xD0E5F463, 0xB5AB8AC2, 0x489629E9, 0x00F36A6F, 0x1F218A10, 0xB4C71748, 0xF3BA641E, 0x6E01E213, 0x62282B56,
-0x787F928B, }, }, }; static const ulbn_limb_t ulbnfft_len_inv[ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = { {
+0x787F928B, }, }, }; static const ulbn_limb_t ulbnfft_len_inv[ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = { {
 0x00000001, 0x11C00001, 0x1AA00001, 0x1F100001, 0x21480001, 0x22640001, 0x22F20001, 0x23390001, 0x235C8001, 0x236E4001,
 0x23772001, 0x237B9001, 0x237DC801, 0x237EE401, 0x237F7201, 0x237FB901, 0x237FDC81, 0x237FEE41, 0x237FF721, 0x237FFB91,
 0x237FFDC9, 0x237FFEE5, 0x237FFF73, 0x237FFFBA, }, {   0x1, 0x13400001, 0x1CE00001, 0x21B00001, 0x24180001, 0x254C0001,
@@ -2674,7 +2684,7 @@ static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) 
 0x357FF2A1, 0x357FF951, 0x357FFCA9, 0x357FFE55, 0x357FFF2B, 0x357FFF96, }, {   0x1, 0x1DC00001, 0x2CA00001, 0x34100001,
 0x37C80001, 0x39A40001, 0x3A920001, 0x3B090001, 0x3B448001, 0x3B624001, 0x3B712001, 0x3B789001, 0x3B7C4801, 0x3B7E2401,
 0x3B7F1201, 0x3B7F8901, 0x3B7FC481, 0x3B7FE241, 0x3B7FF121, 0x3B7FF891, 0x3B7FFC49, 0x3B7FFE25, 0x3B7FFF13, 0x3B7FFF8A,
-}, }; static const ulbn_limb_t ulbnfft_len_inv_finv[ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = {{
+}, }; static const ulbn_limb_t ulbnfft_len_inv_finv[ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = { {
 0x00000007, 0x80000003, 0xC0000001, 0xE0000000, 0xF0000000, 0xF8000000, 0xFC000000, 0xFE000000, 0xFF000000, 0xFF800000,
 0xFFC00000, 0xFFE00000, 0xFFF00000, 0xFFF80000, 0xFFFC0000, 0xFFFE0000, 0xFFFF0000, 0xFFFF8000, 0xFFFFC000, 0xFFFFE000,
 0xFFFFF000, 0xFFFFF800, 0xFFFFFC00, 0xFFFFFE00, }, {   0x6, 0x80000003, 0xC0000001, 0xE0000000, 0xF0000000, 0xF8000000,
@@ -2692,24 +2702,24 @@ ULBN_PRIVATE void _ulbn_init_fft(void) {
   (void)0;
 }
   #elif _ULBN_IS_64BIT(ULBN_LIMB_MAX)
-    #define ULBNFFT_MODS 5
+    #define ULBNFFT_NMODS 5
     #define ULBNFFT_MOD_LOG2_MIN 61
     #define ULBNFFT_MOD_LOG2_MAX 62
     #define ULBNFFT_PROOT_2EXP 53
-static const ulbn_limb_t ulbnfft_mods[ULBNFFT_MODS] = { 0x3460000000000001, 0x3820000000000001, 0x3960000000000001,
-                                                        0x3AE0000000000001, 0x3EA0000000000001 };
-static const ulbn_limb_t ulbnfft_mods_div[ULBNFFT_MODS] = { 0x9C69169B30446DF6, 0x91F5BCB8BB02D9CA, 0x8EC7AB397255E41A,
-                                                            0x8B246A87E19008AF, 0x82CF750393AC3316 };
-static const unsigned ulbnfft_int_bits[ULBNFFT_MODS] = { 309, 247, 185, 123, 61 };
-static const ulbn_limb_t ulbnfft_mods_cr[ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2] = {
+static const ulbn_limb_t ulbnfft_mods[ULBNFFT_NMODS] = { 0x3460000000000001, 0x3820000000000001, 0x3960000000000001,
+                                                         0x3AE0000000000001, 0x3EA0000000000001 };
+static const ulbn_limb_t ulbnfft_mods_div[ULBNFFT_NMODS] = { 0x9C69169B30446DF6, 0x91F5BCB8BB02D9CA, 0x8EC7AB397255E41A,
+                                                             0x8B246A87E19008AF, 0x82CF750393AC3316 };
+static const unsigned ulbnfft_int_bits[ULBNFFT_NMODS] = { 309, 247, 185, 123, 61 };
+static const ulbn_limb_t ulbnfft_mods_cr[ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2] = {
   0x3641111111111121, 0x2998CCCCCCCCCCD9, 0x32F313B13B13B145, 0x1625DA895DA895E1, 0x33A3333333333362,
   0x0D61745D1745D18A, 0x389A76276276276D, 0x2C28000000000028, 0x165DB6DB6DB6DB7A, 0x0643333333333344,
 };
-static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2] = {
+static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2] = {
   0xF7777777777777BB, 0xB9999999999999CC, 0xDD89D89D89D89DB1, 0x5A895DA895DA8976, 0xE666666666666733,
   0x3A2E8BA2E8BA2EE8, 0xE762762762762789, 0xC0000000000000AA, 0x5B6DB6DB6DB6DB9E, 0x19999999999999DD,
 };
-/* clang-format off */ static const ulbn_limb_t ulbnfft_proot_pow[2][ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = { { {
+/* clang-format off */ static const ulbn_limb_t ulbnfft_proot_pow[2][ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = { { {
 0x0000000000000000, 0x3460000000000000, 0x1C4AEC81D763A90F, 0x1672DB30133DAD42, 0x0B0193D9FC8926B6, 0x3030D104C61A3C77,
 0x19081F778AF1D962, 0x007F34DA6EBAED28, 0x05702421FFD2436A, 0x2ABDC35EBA08B19F, 0x1615B0E2FBE5FC00, 0x285979A7D20F4AE1,
 0x18FED274C8A391D6, 0x2FB80E12B41563BE, 0x3330420475B9FF9B, 0x1102254039259930, 0x220EDF6A0EF1E3AB, 0x29AA9C0888728C7B,
@@ -2800,7 +2810,7 @@ static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) 
 0x2FD770CD7B82EB22, 0x206F42B3584946ED, 0x35ABD43E29F1756D, 0x04C6C4E48DE24DE8, 0x18420BF7B3D8ABFC, 0x1E0BD340AA7A4591,
 0x2767FF0D337FFA03, 0x26A9DE6B5CAE56C2, 0x35EF46ECF18F2E52, 0x368F87CFF7310216, 0x3D38D3C7373878F5, 0x0DE6DC46ACBB8394,
 0x026A4254B56782D4, 0x2FA5A83C31F229CB, 0x0B310B582D4CF822, 0x3225FEA6B396849D, 0x22339C89D93F1FC3, 0x2AF4AFB022785FF6,
-} } }; static const ulbn_limb_t ulbnfft_proot_pow_finv[2][ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = { { {
+} } }; static const ulbn_limb_t ulbnfft_proot_pow_finv[2][ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = { { {
 0x0000000000000000, 0xFFFFFFFFFFFFFFFB, 0x8A4A2ACDBC40535E, 0x6DB9A545686ED718, 0x35CBD5BA48452B2F, 0xEB8C3D306241EB09,
 0x7A59CDBD00573E59, 0x026DC36825C8A6F3, 0x1A948BF3C6EAAE51, 0xD0E9754897B04C56, 0x6BF24518F8C85315, 0xC538B32A8098F3C8,
 0x7A2C57C449FF1E59, 0xE93DFA3F50725309, 0xFA335C57C8E5B866, 0x532250A746FAFB69, 0xA6785A0181DE7756, 0xCBA88DE8F1B0CF9F,
@@ -2891,7 +2901,7 @@ static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) 
 0xC39162D58463D185, 0x8496454A7AC869F8, 0xDB660203BC51966B, 0x138677216F6E1513, 0x6329948FE6D855C6, 0x7AD2D493D707C0E7,
 0xA115F4F822BF0297, 0x9E0CBFCC569591A6, 0xDC79B92E44B6A5D4, 0xDF08CFB6474C2B42, 0xFA43C3D1DF2D5D51, 0x38D3FF15AA1584A8,
 0x09DF55A9FC8B07FB, 0xC2C5E147D2D01FD8, 0x2DBFCC442C26B56D, 0xCCFF77AD05FAF6BD, 0x8BCF66DD254993B6, 0xAF98859F76EFA5E5,
-} } }; static const ulbn_limb_t ulbnfft_len_inv[ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = { {
+} } }; static const ulbn_limb_t ulbnfft_len_inv[ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = { {
 0x0000000000000001, 0x1A30000000000001, 0x2748000000000001, 0x2DD4000000000001, 0x311A000000000001, 0x32BD000000000001,
 0x338E800000000001, 0x33F7400000000001, 0x342BA00000000001, 0x3445D00000000001, 0x3452E80000000001, 0x3459740000000001,
 0x345CBA0000000001, 0x345E5D0000000001, 0x345F2E8000000001, 0x345F974000000001, 0x345FCBA000000001, 0x345FE5D000000001,
@@ -2937,7 +2947,7 @@ static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) 
 0x3E9FFFFFFC160001, 0x3E9FFFFFFE0B0001, 0x3E9FFFFFFF058001, 0x3E9FFFFFFF82C001, 0x3E9FFFFFFFC16001, 0x3E9FFFFFFFE0B001,
 0x3E9FFFFFFFF05801, 0x3E9FFFFFFFF82C01, 0x3E9FFFFFFFFC1601, 0x3E9FFFFFFFFE0B01, 0x3E9FFFFFFFFF0581, 0x3E9FFFFFFFFF82C1,
 0x3E9FFFFFFFFFC161, 0x3E9FFFFFFFFFE0B1, 0x3E9FFFFFFFFFF059, 0x3E9FFFFFFFFFF82D, 0x3E9FFFFFFFFFFC17, 0x3E9FFFFFFFFFFE0C,
-} }; static const ulbn_limb_t ulbnfft_len_inv_finv[ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = { {
+} }; static const ulbn_limb_t ulbnfft_len_inv_finv[ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = { {
 0x0000000000000004, 0x8000000000000002, 0xC000000000000001, 0xE000000000000000, 0xF000000000000000, 0xF800000000000000,
 0xFC00000000000000, 0xFE00000000000000, 0xFF00000000000000, 0xFF80000000000000, 0xFFC0000000000000, 0xFFE0000000000000,
 0xFFF0000000000000, 0xFFF8000000000000, 0xFFFC000000000000, 0xFFFE000000000000, 0xFFFF000000000000, 0xFFFF800000000000,
@@ -2988,33 +2998,26 @@ ULBN_PRIVATE void _ulbn_init_fft(void) {
   (void)0;
 }
   #else /* it seems that we must init table on runtime */
-    #define ULBNFFT_MODS 5
+    #define ULBNFFT_NMODS 5
     #define ULBNFFT_MOD_LOG2_MIN (_ULBN_LIMB_BITS - 3) /* ceil(log2(mods)) */
     #define ULBNFFT_MOD_LOG2_MAX (_ULBN_LIMB_BITS - 2) /* ceil(log2(mods)) */
     #define ULBNFFT_PROOT_2EXP (ULBNFFT_MOD_LOG2_MIN - 8)
+ul_static_assert(
+  ULBNFFT_PROOT_2EXP < ULBNFFT_MOD_LOG2_MIN && ULBNFFT_PROOT_2EXP > 0, "`ulbn_limb_t` is too small to support NTT"
+);
 
-/*
-During the NTT process, we frequently need to compute $w^{(P-1)/l}$,
-  where $P$ is the modulus, $w$ is the primitive root of the modulus, and $l$ is the length of the NTT.
-To facilitate preprocessing, we let $P$ conform to the form $1 + s*2^x$,
-  where $s$ is an odd number (not necessarily a prime), and $x$ is a preset size (`ULBNFFT_PROOT_2EXP` in the code).
-In this way, we can precompute $w^s$ and store it as our primitive root, which is the unit root when $l=2^x$.
-When we need the unit root for length $l$, we can compute $proot^{x/2^l}$, which is the unit root we need.
-This process can be precomputed and stored in `ulbnfft_proot_pow`.
- */
+static ulbn_limb_t ulbnfft_mods[ULBNFFT_NMODS];
+static ulbn_limb_t ulbnfft_mods_div[ULBNFFT_NMODS];
+static unsigned ulbnfft_int_bits[ULBNFFT_NMODS];
 
-static ulbn_limb_t ulbnfft_mods[ULBNFFT_MODS];
-static ulbn_limb_t ulbnfft_mods_div[ULBNFFT_MODS];
-static unsigned ulbnfft_int_bits[ULBNFFT_MODS];
+static ulbn_limb_t ulbnfft_mods_cr[ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2];
+static ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2];
 
-static ulbn_limb_t ulbnfft_mods_cr[ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2];
-static ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2];
+static ulbn_limb_t ulbnfft_proot_pow[2][ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1];
+static ulbn_limb_t ulbnfft_proot_pow_finv[2][ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1];
 
-static ulbn_limb_t ulbnfft_proot_pow[2][ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1];
-static ulbn_limb_t ulbnfft_proot_pow_finv[2][ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1];
-
-static ulbn_limb_t ulbnfft_len_inv[ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1];
-static ulbn_limb_t ulbnfft_len_inv_finv[ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1];
+static ulbn_limb_t ulbnfft_len_inv[ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1];
+static ulbn_limb_t ulbnfft_len_inv_finv[ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1];
 
 
 ULBN_PRIVATE ulbn_limb_t ulbnfft_mulmod_slow(ulbn_limb_t a, ulbn_limb_t b, ulbn_limb_t m) {
@@ -3168,7 +3171,7 @@ ULBN_PRIVATE void ulbnfft_init_mods(ulbn_rand_t* rng) {
   static ul_constexpr const ulbn_limb_t STEP_NUM = ULBN_LIMB_SHL(1, ULBNFFT_PROOT_2EXP) << 1;
 
   ulbn_limb_t m = ULBN_LIMB_SHL(1, ULBNFFT_MOD_LOG2_MAX) - 1;
-  int mods = ULBNFFT_MODS;
+  int mods = ULBNFFT_NMODS;
   m &= ULBN_LIMB_SHL(ULBN_LIMB_MAX, ULBNFFT_PROOT_2EXP);
   m |= 1;
   for(; m >= LOWER_GUARD; m -= STEP_NUM) {
@@ -3181,21 +3184,21 @@ ULBN_PRIVATE void ulbnfft_init_mods(ulbn_rand_t* rng) {
     fprintf(stderr, "ulbn: cannot find enough prime numbers for NTT, try to decrease ULBNFFT_PROOT_2EXP\n");
     abort();
   }
-  for(mods = 0; mods < ULBNFFT_MODS; ++mods)
+  for(mods = 0; mods < ULBNFFT_NMODS; ++mods)
     ulbnfft_mods_div[mods] = ulbnfft_mod_init(ulbnfft_mods[mods]);
 }
 ULBN_PRIVATE void ulbnfft_init_int_bits(void) {
-  ulbn_limb_t mul[ULBNFFT_MODS + 1];
-  ulbn_limb_t mul_copy[ULBNFFT_MODS + 1];
+  ulbn_limb_t mul[ULBNFFT_NMODS + 1];
+  ulbn_limb_t mul_copy[ULBNFFT_NMODS + 1];
   ulbn_usize_t muln = 1;
-  int mods = ULBNFFT_MODS - 1;
+  int mods = ULBNFFT_NMODS - 1;
 
   mul[0] = 1;
   for(; mods >= 0; --mods) {
     ulbn_copy(mul_copy, mul, muln);
     mul[muln] = ulbn_mul1(mul, mul_copy, muln, ulbnfft_mods[mods]);
     muln += (mul[muln] != 0);
-    ulbn_assert(muln > 0 && muln <= ULBNFFT_MODS + 1);
+    ulbn_assert(muln > 0 && muln <= ULBNFFT_NMODS + 1);
     ulbnfft_int_bits[mods] =
       ul_static_cast(unsigned, ULBN_LIMB_BITS* muln - 1u - ul_static_cast(unsigned, _ulbn_clz_(mul[muln - 1])));
   }
@@ -3209,7 +3212,7 @@ ULBN_PRIVATE void ulbnfft_init_proot(ulbn_rand_t* rng) {
 
   ptr.len = ptr.cap = 0;
   ptr.factors = ul_nullptr;
-  for(mods = 0; mods < ULBNFFT_MODS; ++mods) {
+  for(mods = 0; mods < ULBNFFT_NMODS; ++mods) {
     m = ulbnfft_mods[mods];
     mdiv = ulbnfft_mods_div[mods];
 
@@ -3232,8 +3235,8 @@ ULBN_PRIVATE void ulbnfft_init_proot(ulbn_rand_t* rng) {
 }
 ULBN_PRIVATE void ulbnfft_init_mods_cr(void) {
   int inv, mods, cnt = 0;
-  for(inv = 0; inv < ULBNFFT_MODS; ++inv)
-    for(mods = inv + 1; mods < ULBNFFT_MODS; ++mods) {
+  for(inv = 0; inv < ULBNFFT_NMODS; ++inv)
+    for(mods = inv + 1; mods < ULBNFFT_NMODS; ++mods) {
       /* 1/{MODS[inv]} (mod {MODS[mods]}) */
       ulbnfft_mods_cr[cnt] = ulbnfft_invmod_slow(ulbnfft_mods[inv], ulbnfft_mods[mods]);
       ulbnfft_mods_cr_finv[cnt] = ulbnfft_mulmod2_init(ulbnfft_mods_cr[cnt], ulbnfft_mods[mods]);
@@ -3245,7 +3248,7 @@ ULBN_PRIVATE void ulbnfft_init_len_inv(void) {
   unsigned exp;
   ulbn_limb_t m, mdiv;
   ulbn_limb_t c, c_step;
-  for(mods = 0; mods < ULBNFFT_MODS; ++mods) {
+  for(mods = 0; mods < ULBNFFT_NMODS; ++mods) {
     m = ulbnfft_mods[mods];
     mdiv = ulbnfft_mods_div[mods];
     c = 1;
@@ -3271,41 +3274,41 @@ ULBN_PRIVATE void ulbnfft_init(void) {
   {
     unsigned i, j, k;
 
-    printf("#define ULBNFFT_MODS %d\n", ul_static_cast(int, ULBNFFT_MODS));
+    printf("#define ULBNFFT_NMODS %d\n", ul_static_cast(int, ULBNFFT_NMODS));
     printf("#define ULBNFFT_MOD_LOG2_MIN %d\n", ul_static_cast(int, ULBNFFT_MOD_LOG2_MIN));
     printf("#define ULBNFFT_MOD_LOG2_MAX %d\n", ul_static_cast(int, ULBNFFT_MOD_LOG2_MAX));
     printf("#define ULBNFFT_PROOT_2EXP %d\n", ul_static_cast(int, ULBNFFT_PROOT_2EXP));
 
-    printf("static const ulbn_limb_t ulbnfft_mods[ULBNFFT_MODS] = {");
-    for(i = 0; i < ULBNFFT_MODS; ++i)
+    printf("static const ulbn_limb_t ulbnfft_mods[ULBNFFT_NMODS] = {");
+    for(i = 0; i < ULBNFFT_NMODS; ++i)
       printf("0x%llX, ", ul_static_cast(unsigned long long, ulbnfft_mods[i]));
     printf("};\n");
 
-    printf("static const ulbn_limb_t ulbnfft_mods_div[ULBNFFT_MODS] = {");
-    for(i = 0; i < ULBNFFT_MODS; ++i)
+    printf("static const ulbn_limb_t ulbnfft_mods_div[ULBNFFT_NMODS] = {");
+    for(i = 0; i < ULBNFFT_NMODS; ++i)
       printf("0x%llX, ", ul_static_cast(unsigned long long, ulbnfft_mods_div[i]));
     printf("};\n");
 
-    printf("static const unsigned ulbnfft_int_bits[ULBNFFT_MODS] = {");
-    for(i = 0; i < ULBNFFT_MODS; ++i)
+    printf("static const unsigned ulbnfft_int_bits[ULBNFFT_NMODS] = {");
+    for(i = 0; i < ULBNFFT_NMODS; ++i)
       printf("%u, ", ulbnfft_int_bits[i]);
     printf("};\n");
 
-    printf("static const ulbn_limb_t ulbnfft_mods_cr[ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2] = {");
-    for(i = 0; i < ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2; ++i)
+    printf("static const ulbn_limb_t ulbnfft_mods_cr[ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2] = {");
+    for(i = 0; i < ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2; ++i)
       printf("0x%llX, ", ul_static_cast(unsigned long long, ulbnfft_mods_cr[i]));
     printf("};\n");
 
-    printf("static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2] = {");
-    for(i = 0; i < ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2; ++i)
+    printf("static const ulbn_limb_t ulbnfft_mods_cr_finv[ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2] = {");
+    for(i = 0; i < ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2; ++i)
       printf("0x%llX, ", ul_static_cast(unsigned long long, ulbnfft_mods_cr_finv[i]));
     printf("};\n");
 
       #define _ULBNFFT_INIT_FMT "%08llX"
-    printf("static const ulbn_limb_t ulbnfft_proot_pow[2][ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = {");
+    printf("static const ulbn_limb_t ulbnfft_proot_pow[2][ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = {");
     for(i = 0; i < 2; ++i) {
       printf("{");
-      for(j = 0; j < ULBNFFT_MODS; ++j) {
+      for(j = 0; j < ULBNFFT_NMODS; ++j) {
         printf("{");
         for(k = 0; k <= ULBNFFT_PROOT_2EXP; ++k)
           printf("0x" _ULBNFFT_INIT_FMT ", ", ul_static_cast(unsigned long long, ulbnfft_proot_pow[i][j][k]));
@@ -3315,10 +3318,10 @@ ULBN_PRIVATE void ulbnfft_init(void) {
     }
     printf("};\n");
 
-    printf("static const ulbn_limb_t ulbnfft_proot_pow_finv[2][ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = {");
+    printf("static const ulbn_limb_t ulbnfft_proot_pow_finv[2][ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = {");
     for(i = 0; i < 2; ++i) {
       printf("{");
-      for(j = 0; j < ULBNFFT_MODS; ++j) {
+      for(j = 0; j < ULBNFFT_NMODS; ++j) {
         printf("{");
         for(k = 0; k <= ULBNFFT_PROOT_2EXP; ++k)
           printf("0x" _ULBNFFT_INIT_FMT ", ", ul_static_cast(unsigned long long, ulbnfft_proot_pow_finv[i][j][k]));
@@ -3328,8 +3331,8 @@ ULBN_PRIVATE void ulbnfft_init(void) {
     }
     printf("};\n");
 
-    printf("static const ulbn_limb_t ulbnfft_len_inv[ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = {");
-    for(i = 0; i < ULBNFFT_MODS; ++i) {
+    printf("static const ulbn_limb_t ulbnfft_len_inv[ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = {");
+    for(i = 0; i < ULBNFFT_NMODS; ++i) {
       printf("{");
       for(j = 0; j <= ULBNFFT_PROOT_2EXP; ++j)
         printf("0x" _ULBNFFT_INIT_FMT ", ", ul_static_cast(unsigned long long, ulbnfft_len_inv[i][j]));
@@ -3337,8 +3340,8 @@ ULBN_PRIVATE void ulbnfft_init(void) {
     }
     printf("};\n");
 
-    printf("static const ulbn_limb_t ulbnfft_len_inv_finv[ULBNFFT_MODS][ULBNFFT_PROOT_2EXP + 1] = {");
-    for(i = 0; i < ULBNFFT_MODS; ++i) {
+    printf("static const ulbn_limb_t ulbnfft_len_inv_finv[ULBNFFT_NMODS][ULBNFFT_PROOT_2EXP + 1] = {");
+    for(i = 0; i < ULBNFFT_NMODS; ++i) {
       printf("{");
       for(j = 0; j <= ULBNFFT_PROOT_2EXP; ++j)
         printf("0x" _ULBNFFT_INIT_FMT ", ", ul_static_cast(unsigned long long, ulbnfft_len_inv_finv[i][j]));
@@ -3382,7 +3385,7 @@ ULBN_PRIVATE void _ulbn_init_fft(void) {
     fprintf(
       stderr,
       "ulbn (fft): it looks like you're using a not modern platform,"
-      "so `ulbnfft_init` is called automatically;"
+      "so `ulbnfft_init` is called automatically which is not thread-safe;"
       "it's recommand to replace this with a constant table generated by ulbnfft_init()\n"
     );
     ulbnfft_init();
@@ -3478,9 +3481,9 @@ ULBN_PRIVATE unsigned ulbnfft_get_size(unsigned* pdpl, unsigned* pnmods, ulbn_us
   unsigned fft_len_log2, fft_len_log2_best = 0;
   ulbn_bits_t fft_len;
 
-  /* use ulbnfft_mods[ULBNFFT_MODS - nmods:] as modules */
-  for(nmods = 3; nmods <= ULBNFFT_MODS; ++nmods) {
-    const unsigned int_bits = ulbnfft_int_bits[ULBNFFT_MODS - nmods];
+  /* use ulbnfft_mods[ULBNFFT_NMODS - nmods:] as modules */
+  for(nmods = 3; nmods <= ULBNFFT_NMODS; ++nmods) {
+    const unsigned int_bits = ulbnfft_int_bits[ULBNFFT_NMODS - nmods];
     unsigned dpl = ul_static_cast(
       unsigned, _ulbn_min_((int_bits - 4) >> 1, 2 * ULBN_LIMB_BITS + 2 * ULBNFFT_MOD_LOG2_MIN - ULBNFFT_MOD_LOG2_MAX)
     );
@@ -3632,7 +3635,8 @@ ULBN_PRIVATE void ulbnfft_fft(
 
   p1 = src;
   p2 = tmp;
-  while(nblocks != 2) {
+  ulbn_assert(nblocks > 1);
+  while(nblocks > 2) {
     nblocks >>= 1;
     k = 0;
     p = 0;
@@ -3688,19 +3692,39 @@ ULBN_PRIVATE void ulbnfft_put(ulbn_limb_t* ptr, ulbn_usize_t len, ulbn_bits_t bi
     ptr[idx + 1] |= val >> (ULBN_LIMB_BITS - shift);
 }
 ULBN_PRIVATE void ulbnfft_ntt_to_limb(
-  ulbn_limb_t* dest, ulbn_usize_t dest_len,                                   /* */
-  const ulbn_limb_t* src, unsigned fft_len_log2, unsigned dpl, unsigned nmods /* */
+  ulbn_limb_t* ul_restrict dest, ulbn_usize_t dest_len,                                   /* */
+  const ulbn_limb_t* ul_restrict src, unsigned fft_len_log2, unsigned dpl, unsigned nmods /* */
 ) {
-  const unsigned cr_idx = ULBNFFT_MODS * (ULBNFFT_MODS - 1) / 2 - nmods * (nmods - 1) / 2;
-  const ulbn_limb_t* const mods_table = ulbnfft_mods + ULBNFFT_MODS - nmods;
+  /*
+
+    Garner's Algorithm:
+      p[i] is modules, x[i] is the modulo result, r[i][j] is (1/p[i]) mod p[j]
+
+      for(0 <= i < k) {
+        for(0 <= j < i) {
+          x[i] = r[j][i] * (x[i] - x[j])
+          x[i] = x[i] % p[i]
+          if(x[i] < 0) {
+            x[i] += p[i]
+          }
+        }
+      }
+      a = x[1] + (x[2] * p[1]) + (x[3] * p[1] * p[2]) + ... + (x[k] * p[1] * p[2] * ... * p[k-1])
+    */
+
+  const unsigned cr_idx = ULBNFFT_NMODS * (ULBNFFT_NMODS - 1) / 2 - nmods * (nmods - 1) / 2;
+  const ulbn_limb_t* const mods_table = ulbnfft_mods + ULBNFFT_NMODS - nmods;
   const ulbn_limb_t* const mods_cr_table = ulbnfft_mods_cr + cr_idx;
   const ulbn_limb_t* const mods_cr_finv_table = ulbnfft_mods_cr_finv + cr_idx;
+  const ulbn_usize_t fft_len = ul_static_cast(ulbn_usize_t, 1) << fft_len_log2;
 
   ulbn_usize_t i;
   unsigned j, k, l;
-  const ulbn_usize_t n = ulbn_cast_usize((ul_static_cast(ulbn_bits_t, dest_len) * ULBN_LIMB_BITS + dpl - 1) / dpl);
+  const ulbn_usize_t n = ulbn_cast_usize(
+    _ulbn_min_(fft_len, ulbn_cast_usize((ul_static_cast(ulbn_bits_t, dest_len) * ULBN_LIMB_BITS + dpl - 1) / dpl))
+  );
 
-  ulbn_limb_t y[ULBNFFT_MODS], u[ULBNFFT_MODS], carry[ULBNFFT_MODS] = { 0 };
+  ulbn_limb_t y[ULBNFFT_NMODS], u[ULBNFFT_NMODS], carry[ULBNFFT_NMODS] = { 0 };
   ulbn_limb_t th, tl;
   ulbn_limb_t r;
 
@@ -3724,7 +3748,7 @@ ULBN_PRIVATE void ulbnfft_ntt_to_limb(
     for(j = 0; j < nmods - 1; ++j) {
       for(k = j + 1; k < nmods; ++k) {
         const ulbn_limb_t m = mods_table[k];
-        /* Note: there is no overflow in the sub_mod() because the modulos are sorted by increasing order */
+        /* Note: there is no overflow because the modulos are sorted by increasing order */
         y[k] = ulbnfft_mulmod2(y[k] - y[j] + m, mods_cr_table[l], m, mods_cr_finv_table[l]);
         if(y[k] >= m)
           y[k] -= m;
@@ -3783,8 +3807,7 @@ ULBN_PRIVATE int _ulbn_mul_fft(
   const ulbn_limb_t* ap, ulbn_usize_t an, const ulbn_limb_t* bp, ulbn_usize_t bn /* */
 ) {
   ulbn_usize_t rn;
-  unsigned dpl, fft_len_log2, mods, mod_idx;
-  unsigned i;
+  unsigned dpl, fft_len_log2, nmods, mod_idx, i;
   int err = ULBN_ERR_NOMEM;
   ulbn_usize_t fft_len;
 
@@ -3794,15 +3817,15 @@ ULBN_PRIVATE int _ulbn_mul_fft(
 
   ulbn_assert(ulbn_cast_usize(an + bn) >= an);
   rn = an + bn;
-  fft_len_log2 = ulbnfft_get_size(&dpl, &mods, rn);
+  fft_len_log2 = ulbnfft_get_size(&dpl, &nmods, rn);
   if(ul_unlikely(fft_len_log2 == 0))
     return ULBN_ERR_EXCEED_RANGE;
-  ulbn_assert(mods >= 3);
+  ulbn_assert(nmods >= 3);
   fft_len = ul_static_cast(ulbn_usize_t, ul_static_cast(ulbn_usize_t, 1) << fft_len_log2);
-  if(ul_unlikely(fft_len > _ULBN_SIZET_MAX / mods))
+  if(ul_unlikely(fft_len > _ULBN_SIZET_MAX / nmods))
     return ULBN_ERR_EXCEED_RANGE;
 
-  fft = ulbn_allocT(ulbn_limb_t, alloc, fft_len * ul_static_cast(size_t, mods) * sizeof(ulbn_limb_t));
+  fft = ulbn_allocT(ulbn_limb_t, alloc, fft_len * ul_static_cast(size_t, nmods) * sizeof(ulbn_limb_t));
   ULBN_DO_IF_ALLOC_FAILED(fft, goto cleanup_fft;);
   buf1 = ulbn_allocT(ulbn_limb_t, alloc, fft_len * sizeof(ulbn_limb_t));
   ULBN_DO_IF_ALLOC_FAILED(buf1, goto cleanup_buf1;);
@@ -3812,8 +3835,8 @@ ULBN_PRIVATE int _ulbn_mul_fft(
   ULBN_DO_IF_ALLOC_FAILED(buf_temp, goto cleanup_buf_temp;);
 
   fft_ptr = fft;
-  for(i = 0; i < mods; ++i) {
-    mod_idx = ULBNFFT_MODS - mods + i;
+  for(i = 0; i < nmods; ++i) {
+    mod_idx = ULBNFFT_NMODS - nmods + i;
     /* printf("m = %llX\n", (unsigned long long)ulbnfft_mods[mod_idx]); */
     ulbnfft_limb_to_ntt(buf2, fft_len, ap, an, dpl, mod_idx);
     /* ulbn_dprint(stdout, "src1 = ", buf2, fft_len); */
@@ -3832,7 +3855,7 @@ ULBN_PRIVATE int _ulbn_mul_fft(
 
     fft_ptr += fft_len;
   }
-  ulbnfft_ntt_to_limb(rp, rn, fft, fft_len_log2, dpl, mods);
+  ulbnfft_ntt_to_limb(rp, rn, fft, fft_len_log2, dpl, nmods);
   err = 0;
 
   ulbn_deallocT(ulbn_limb_t, alloc, buf_temp, fft_len * sizeof(ulbn_limb_t));
@@ -3841,7 +3864,7 @@ cleanup_buf_temp:
 cleanup_buf2:
   ulbn_deallocT(ulbn_limb_t, alloc, buf1, fft_len * sizeof(ulbn_limb_t));
 cleanup_buf1:
-  ulbn_deallocT(ulbn_limb_t, alloc, fft, fft_len * ul_static_cast(size_t, mods) * sizeof(ulbn_limb_t));
+  ulbn_deallocT(ulbn_limb_t, alloc, fft, fft_len * ul_static_cast(size_t, nmods) * sizeof(ulbn_limb_t));
 cleanup_fft:
   return err;
 }
@@ -4432,19 +4455,19 @@ cleanup:
 #if ULBN_CONV2PRINT_GENERIC_THRESHOLD < ULBN_USIZE_MAX
 /* Estimate `ceil(bits * log2(base))` (when `inv=0`) or `ceil(bits / log2(base))` (when `inv=1`) */
 ULBN_INTERNAL ulbn_ulong_t ulbn_estimate_conv2_size(ulbn_ulong_t bits, int base, int inv) {
-    /* Store log2(base) as a fraction, only allowing overestimation */
+    /* Store log2(base) as a fraction, 1/log2(base0) is smaller than exact value */
   #if ULBN_LIMB_MAX >= 0xFFFFFFFF
   static const ulbn_limb_t table_log2[][2] = {
     /* clang-format off */
-    {0x1, 0x1},              {0x333A379, 0x51318AD},  {0x1, 0x2},             {0x2A30F19, 0x61F703B},
-    {0x333A379, 0x846BC26},  {0x1A90993, 0x4A93B18},  {0x1, 0x3},             {0x333A379, 0xA26315A},
-    {0x2A30F19, 0x8C27F54},  {0x42C29E7, 0xE6F3D3D},  {0x333A379, 0xB7A5F9F}, {0x1F11ECF, 0x72F905A},
-    {0x1A90993, 0x65244AB},  {0x1695FAD, 0x583D8FF},  {0x1, 0x4},             {0x1E3B74B, 0x7B92BCF},
-    {0x333A379, 0xD59D4D3},  {0x4F22C47, 0x15029C67}, {0x38DED52, 0xF5CA3A3}, {0xFC4D6E, 0x4543147},
-    {0x42C29E7, 0x129B6724}, {0x24269CB, 0xA387CFA},  {0x333A379, 0xEAE0318}, {0x2A30F19, 0xC3EE076},
-    {0x1F11ECF, 0x920AF29},  {0x333A379, 0xF394A07},  {0x1A90993, 0x7FB4E3E}, {0xE9F3DE2, 0x470898E1},
-    {0x1695FAD, 0x6ED38AC},  {0x376B249, 0x1128DE40}, {0x1, 0x5},             {0x21F31B1, 0xAB415CD},
-    {0x1E3B74B, 0x99CE31A},  {0x1D61D65, 0x96B5A1B},  {0x333A379, 0x108D784C} /* clang-format on */
+    { 0x1, 0x1 },              { 0x5C2C498, 0x92173AF },  { 0x1, 0x2 },              { 0x630FC6B, 0xE60393A },
+    { 0x5C2C498, 0xEE43847 },  { 0x1A90993, 0x4A93B18 },  { 0x1, 0x3 },              { 0x2E1624C, 0x92173AF },
+    { 0x2A30F19, 0x8C27F54 },  { 0x587A443, 0x132150C3 }, { 0x28F211F, 0x92C9D40 },  { 0x1F11ECF, 0x72F905A },
+    { 0x1A90993, 0x65244AB },  { 0x4CB667E, 0x12BB51A5 }, { 0x1, 0x4 },              { 0x440389A, 0x11601035 },
+    { 0x333A379, 0xD59D4D3 },  { 0x4F22C47, 0x15029C67 }, { 0x478CB8B, 0x1353B8D9 }, { 0x4A8E34B, 0x14778ACA },
+    { 0x42C29E7, 0x129B6724 }, { 0x2541D3B, 0xA888F37 },  { 0x333A379, 0xEAE0318 },  { 0x46A05C2, 0x147FA975 },
+    { 0x365C0D6, 0xFF83909 },  { 0x2FCCD5B, 0xE348C5C },  { 0x2D99FD3, 0xDB39023 },  { 0xE2E5200, 0x44E406EF },
+    { 0x4CB667E, 0x1786B823 }, { 0x376B249, 0x1128DE40 }, { 0x1, 0x5 },              { 0x2D11821, 0xE357BCE },
+    { 0x440389A, 0x15A048CF }, { 0x303F25F, 0xF77888E },  { 0x2E1624C, 0xEE43847 }, /* clang-format on */
   };
   #elif ULBN_LIMB_MAX >= 0xFFFF
   static const ulbn_limb_t table_log2[][2] = {
@@ -4453,15 +4476,15 @@ ULBN_INTERNAL ulbn_ulong_t ulbn_estimate_conv2_size(ulbn_ulong_t bits, int base,
     { 2964, 11285 }, { 15659, 61178 }, { 1, 4 },         { 12451, 50893 }, { 15601, 65055 }, { 11701, 49705 },
     { 8651, 37389 }, { 13433, 59002 }, { 4856, 21655 },  { 5963, 26974 },  { 14271, 65432 }, { 10653, 49471 },
     { 5458, 25655 }, { 10179, 48400 }, { 2964, 14249 },  { 10738, 52165 }, { 11610, 56969 }, { 10676, 52891 },
-    { 1, 5 },        { 10159, 51246 }, { 12451, 63344 }, { 3473, 17814 },  { 7468, 38609 }
+    { 1, 5 },        { 10159, 51246 }, { 12451, 63344 }, { 3473, 17814 },  { 7468, 38609 },
   };
   #else
   static const ulbn_limb_t table_log2[][2] = {
-    { 1, 1 },    { 147, 233 }, { 1, 2 },    { 59, 137 }, { 94, 243 }, { 26, 73 },  { 1, 3 },    { 47, 149 },
-    { 59, 196 }, { 37, 128 },  { 41, 147 }, { 67, 248 }, { 26, 99 },  { 43, 168 }, { 1, 4 },    { 57, 233 },
-    { 47, 196 }, { 4, 17 },    { 59, 255 }, { 28, 123 }, { 37, 165 }, { 21, 95 },  { 41, 188 }, { 45, 209 },
-    { 47, 221 }, { 49, 233 },  { 26, 125 }, { 50, 243 }, { 43, 211 }, { 22, 109 }, { 1, 5 },    { 45, 227 },
-    { 34, 173 }, { 23, 118 },  { 47, 243 } /* clang-format off */
+    { 1, 1 },    { 147, 233 }, { 1, 2 },    { 59, 137 }, { 94, 243 }, { 26, 73 },  { 1, 3 },
+    { 47, 149 }, { 59, 196 },  { 37, 128 }, { 41, 147 }, { 67, 248 }, { 26, 99 },  { 43, 168 },
+    { 1, 4 },    { 57, 233 },  { 47, 196 }, { 4, 17 },   { 31, 134 }, { 28, 123 }, { 37, 165 },
+    { 21, 95 },  { 41, 188 },  { 45, 209 }, { 47, 221 }, { 49, 233 }, { 26, 125 }, { 50, 243 },
+    { 43, 211 }, { 22, 109 },  { 1, 5 },    { 45, 227 }, { 34, 173 }, { 23, 118 }, { 47, 243 }, /* clang-format off */
     /* clang-format on */
   };
   #endif
@@ -8980,7 +9003,6 @@ ULBN_PRIVATE int _ulbi_print_ex(
     ulbi_set_limb(_do, _ulbn_cast_limb(base));
     err = ulbi_pow_ulong(alloc, _do, _do, pow);
     ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
-
     err = ulbi_divmod(alloc, qo, ao, ao, _do);
     ULBN_DO_IF_PUBLIC_COND(err < 0, goto cleanup;);
     ulbi_deinit(alloc, _do);
