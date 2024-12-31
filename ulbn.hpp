@@ -10,6 +10,11 @@ ulbn - Big Number Library (C++ Wrapper)
     - std::format (optional)
   - "ulbn.h"
 
+  According to [cppreference](https://en.cppreference.com/), the common minimum compiler requirements is:
+  - GCC 10 (May, 7, 2020)
+  - Clang 10 (March, 24, 2020)
+  - MSVC 19.26 (May, 19, 2020)
+
 # License
   The MIT License (MIT)
 
@@ -37,6 +42,7 @@ ulbn - Big Number Library (C++ Wrapper)
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <climits>
 #include <compare>
 #include <cstdint>
 #include <cstdio>
@@ -62,6 +68,10 @@ ulbn - Big Number Library (C++ Wrapper)
 #endif
 
 #include "ulbn.h"
+
+#if CHAR_BIT != 8
+  #error "CHAR_BIT must be 8"
+#endif
 
 namespace ul {
 
@@ -488,6 +498,13 @@ concept FitLongDoubleCase = requires {
   #endif
 };
 #endif /* ULBN_CONF_HAS_LONG_DOUBLE */
+
+template<class T>
+concept IsCharType = requires {
+  requires std::is_same_v<T, std::decay_t<T>> || std::is_same_v<T, const std::decay_t<T>>;
+  requires std::is_integral_v<T>;
+  requires sizeof(T) <= 4;
+};
 
 class BigInt {
 public:
@@ -1520,28 +1537,28 @@ public:
   }
 
 
-  template<class StringAllocator = std::allocator<char>>
+  template<IsCharType CharT = char, class StringAllocator = std::allocator<CharT>>
   auto toString(int base = 10) const {
-    using String = std::basic_string<char, std::char_traits<char>, StringAllocator>;
-    Wrapper<String> wrapper(String{});
+    std::basic_string<CharT, std::char_traits<CharT>, StringAllocator> ret;
+    toString(ret, base);
+    return ret;
+  }
+  template<IsCharType CharT = char, class StringAllocator>
+  auto& toString(std::basic_string<CharT, std::char_traits<CharT>, StringAllocator>& dst, int base = 10) const {
+    using String = std::basic_string<CharT, std::char_traits<CharT>, StringAllocator>;
+    Wrapper<String&> wrapper(dst);
+    dst.clear();
     const int err = ulbi_print_ex(
       _ctx(),
       [](void* opaque, const char* str, size_t len) -> int {
-        return reinterpret_cast<Wrapper<String>*>(opaque)->call([&](String& s) { s.append(str, len); });
-      },
-      &wrapper, _value, base
-    );
-    return wrapper.check(err);
-  }
-  template<class StringAllocator>
-  auto& toString(std::basic_string<char, std::char_traits<char>, StringAllocator>& dst, int base = 10) const {
-    using String = std::basic_string<char, std::char_traits<char>, StringAllocator>;
-    Wrapper<String&> wrapper(dst);
-    dst.clear();
-    int err = ulbi_print_ex(
-      _ctx(),
-      [](void* opaque, const char* str, size_t len) -> int {
-        return reinterpret_cast<Wrapper<String&>*>(opaque)->call([&](String& s) { s.append(str, len); });
+        return reinterpret_cast<Wrapper<String&>*>(opaque)->call([&](String& s) {
+          if constexpr(sizeof(CharT) == 1) {
+            s.append(reinterpret_cast<std::add_const_t<CharT>*>(str), len);
+          } else {
+            while(len-- != 0)
+              s.push_back(static_cast<CharT>(*str++));
+          }
+        });
       },
       &wrapper, _value, base
     );

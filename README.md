@@ -34,7 +34,7 @@ Requires the following C++20 features:
 - std::span
 - std::format (optional)
 
-According to [cppreference](https://en.cppreference.com/), the minimum compiler requirements is:
+According to [cppreference](https://en.cppreference.com/), the common minimum compiler requirements is:
 - GCC 10 (May, 7, 2020)
 - Clang 10 (March, 24, 2020)
 - MSVC 19.26 (May, 19, 2020)

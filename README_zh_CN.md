@@ -34,7 +34,7 @@
 - std::span
 - std::format（可选）
 
-根据[cppreference](https://zh.cppreference.com)，最低编译器要求为：
+根据[cppreference](https://zh.cppreference.com)，最低的常见编译器要求为：
 - GCC 10（2020年5月7日）
 - Clang 10（2020年3月24日）
 - MSVC 19.26（2020年5月19日）

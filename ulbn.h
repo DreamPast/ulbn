@@ -756,6 +756,16 @@ ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n);
 #endif /* ULBN_CONF_USE_RAND */
 
 
+/**
+ * @brief Get the limit of `ulbn_usize_t`.
+ */
+ULBN_PUBLIC ulbn_usize_t ulbn_usize_limit(void);
+/**
+ * @brief Get the limit of `ulbn_ssize_t`.
+ */
+ULBN_PUBLIC ulbn_ssize_t ulbn_ssize_limit(void);
+
+
 /********************
  * Big Integer APIs *
  ********************/
