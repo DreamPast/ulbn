@@ -79,12 +79,8 @@ set(GNUC_CLOSE_WARNINGS
     -Wno-padded
 )
 
-set(CLANG_ALL_C_WARNINGS
-    -Weverything
-)
-set(CLANG_ALL_CXX_WARNINGS
-    -Weverything
-)
+set(CLANG_ALL_C_WARNINGS -Weverything)
+set(CLANG_ALL_CXX_WARNINGS -Weverything)
 set(CLANG_CLOSE_WARNINGS
     -Wno-unknown-warning-option
     -Wno-reserved-identifier
@@ -136,7 +132,18 @@ elseif(MSVC)
     target_compile_options(ulbn-hxx PRIVATE ${MSVC_ALL_WARNINGS} ${MSVC_CLOSE_WARNINGS})
 endif()
 
+
+# link "libm"
+if(UNIX)
+    target_link_libraries(ulbn PRIVATE m)
+    target_link_libraries(ulbn-cxx PRIVATE m)
+    target_link_libraries(ulbn-hxx PRIVATE m)
+endif()
+
+
+# add test
 if(BUILD_TEST)
     enable_testing()
     add_subdirectory(test/cxx20)
+    add_subdirectory(test/bound)
 endif()
