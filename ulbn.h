@@ -423,7 +423,15 @@ typedef signed char ulbn_slimb_t;
   #define ULBN_SLIMB_MAX SCHAR_MAX
   #define ULBN_SLIMB_MIN SCHAR_MIN
 #endif
-#if !defined(ULBN_LIMB_MAX) || !defined(ULBN_SLIMB_MAX) || !defined(ULBN_SLIMB_MIN)
+#if (!defined(ULBN_LIMB_MAX) || !defined(ULBN_SLIMB_MAX) || !defined(ULBN_SLIMB_MIN)) \
+  && (defined(_WIN64) && defined(LLONG_MAX))
+typedef unsigned long long ulbn_limb_t;
+typedef signed long long ulbn_slimb_t;
+  #define ULBN_LIMB_MAX ULLONG_MAX
+  #define ULBN_SLIMB_MAX LLONG_MAX
+  #define ULBN_SLIMB_MIN LLONG_MIN
+#endif
+#if (!defined(ULBN_LIMB_MAX) || !defined(ULBN_SLIMB_MAX) || !defined(ULBN_SLIMB_MIN))
 typedef unsigned long ulbn_limb_t;
 typedef signed long ulbn_slimb_t;
   #define ULBN_LIMB_MAX ULONG_MAX

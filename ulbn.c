@@ -554,7 +554,7 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
     } while(0)
 #endif
 
-#if !defined(_ulbn_umul_) && defined(_MSC_VER) && _ULBN_IS_64BIT(ULBN_LIMB_MAX)
+#if !defined(_ulbn_umul_) && !defined(UL_PEDANTIC) && defined(_MSC_VER) && _ULBN_IS_64BIT(ULBN_LIMB_MAX)
   #include <intrin.h>
   #if defined(__x86_64__) || defined(_M_X64) /* x86_64 */
     #if _MSC_VER >= 1900
@@ -569,7 +569,7 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
   #endif
 #endif
 
-#if !defined(_ulbn_udiv_) && defined(_MSC_VER) && _ULBN_IS_64BIT(ULBN_LIMB_MAX)
+#if !defined(_ulbn_udiv_) && !defined(UL_PEDANTIC) && defined(_MSC_VER) && _ULBN_IS_64BIT(ULBN_LIMB_MAX)
   #include <intrin.h>
   #if _MSC_VER >= 1929 && !defined(__clang__) && (defined(__x86_64__) || defined(_M_X64)) /* x86_64 */
     #pragma intrinsic(_udiv128)
@@ -3387,7 +3387,7 @@ ULBN_PRIVATE void _ulbn_init_fft(void) {
       #define _ULBN_FFT_AUTOINIT
     #endif /* defined(__cplusplus) */
 
-    #if !defined(_ULBN_FFT_AUTOINIT) && defined(__has_attribute)
+    #if !defined(_ULBN_FFT_AUTOINIT) && defined(__has_attribute) && !defined(UL_PEDANTIC)
       #if __has_attribute(constructor)
 ULBN_PRIVATE __attribute__((constructor)) void _ulbnfft_autoinit(void) {
   ulbnfft_init();
@@ -3397,7 +3397,7 @@ ULBN_PRIVATE void _ulbn_init_fft(void) {
 }
         #define _ULBN_FFT_AUTOINIT
       #endif
-    #endif /* !defined(_ULBN_FFT_AUTOINIT) && defined(__has_attribute) */
+    #endif /* !defined(_ULBN_FFT_AUTOINIT) && defined(__has_attribute) && !defined(UL_PEDANTIC) */
 
     #if !defined(_ULBN_FFT_AUTOINIT)
 static _ulbn_fft_inited = 0;
