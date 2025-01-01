@@ -25,90 +25,9 @@ void testBigString() {
     T_assert_eq(BigInt::fromString(str, 0, ~0), x);
   }
 }
-void test() {
-  T_assert_eq(BigInt("0").toString(), "0");
-  T_assert_eq(BigInt("12").toString(), "12");
-  T_assert_eq(BigInt("-12").toString(), "-12");
-  T_assert_eq(BigInt("12345678901234567890").toString(), "12345678901234567890");
-  T_assert_eq(BigInt("012").toString(8), "12");
-  T_assert_eq(BigInt("0x12").toString(16), "12");
 
-  T_assert_exception([] { (12_bi).toString(0); }, ULBN_ERR_EXCEED_RANGE);
-
-  for(int i = -LIMIT; i <= LIMIT; ++i) {
-    T_assert_eq(BigInt(i).toString(), std::to_string(i));
-  }
-
-#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
-  T_assert_eq(std::format("{}", BigInt("0")), "0");
-  T_assert_eq(std::format("{}", BigInt("12")), "12");
-  T_assert_eq(std::format("{}", BigInt("-12")), "-12");
-  T_assert_eq(std::format("{}", BigInt("12345678901234567890")), "12345678901234567890");
-
-  for(int i = -LIMIT; i <= LIMIT; ++i) {
-    T_assert_eq(std::format("{}", BigInt(i)), std::to_string(i));
-  }
-#endif
-
-
-  BigInt("12345678901234567890").print(std::cout);
-  fprintf(stdout, "\n");
-  BigInt("-12345678901234567890").print(std::cout);
-  fprintf(stdout, "\n");
-  T_assert_exception([] { BigInt("12345678901234567890").print(stdout, 0); }, ULBN_ERR_EXCEED_RANGE);
-
-
-  for(auto base: { 8, 10, 16 })
-    for(auto uppercase: { false, true })
-      for(auto showbase: { false, true })
-        for(auto sign: { -1, 0, 1 }) {
-          BigInt obj("12345678901234567890");
-          if(sign == -1)
-            obj.negLoc();
-          else if(sign == 0)
-            obj = 0;
-          std::ostringstream osst;
-
-          if(base == 8)
-            osst << std::oct;
-          else if(base == 10)
-            osst << std::dec;
-          else if(base == 16)
-            osst << std::hex;
-          osst << (uppercase ? std::uppercase : std::nouppercase);
-          osst << (showbase ? std::showbase : std::noshowbase);
-          osst << obj;
-
-          T_assert_eq(obj, BigInt::fromString(osst.str(), showbase ? 0 : base));
-        }
-
-
-#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
-  for(auto sign: { -1, 0, 1 }) {
-    BigInt obj = "12345678901234567890";
-    if(sign == -1)
-      obj.negLoc();
-    else if(sign == 0)
-      obj = 0;
-
-    T_assert_eq(BigInt::fromString(std::format("{:d}", obj), 10), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:x}", obj), 16), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:X}", obj), 16), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:b}", obj), 2), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:B}", obj), 2), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:o}", obj), 8), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:}", obj), 10), obj);
-
-    T_assert_eq(BigInt::fromString(std::format("{:#d}", obj)), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:#x}", obj)), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:#X}", obj)), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:#b}", obj)), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:#B}", obj)), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:#o}", obj)), obj);
-    T_assert_eq(BigInt::fromString(std::format("{:#}", obj)), obj);
-  }
-#endif
-
+void testValue() {
+  puts("======Test Value");
 
   T_assert_eq(BigInt(0.0).toDouble(), 0.0);
   T_assert_eq(BigInt(-0.0).toDouble(), 0.0);
@@ -166,6 +85,93 @@ void test() {
     else
       T_assert_eq(BigInt(static_cast<long double>(i) - 0.5L).toLongDouble(), static_cast<long double>(i));
   }
+}
+
+void testChar() {
+  puts("======Test Char");
+
+  T_assert_eq(BigInt("0").toString(), "0");
+  T_assert_eq(BigInt("12").toString(), "12");
+  T_assert_eq(BigInt("-12").toString(), "-12");
+  T_assert_eq(BigInt("12345678901234567890").toString(), "12345678901234567890");
+  T_assert_eq(BigInt("012").toString(8), "12");
+  T_assert_eq(BigInt("0x12").toString(16), "12");
+
+  T_assert_exception([] { (12_bi).toString(0); }, ULBN_ERR_EXCEED_RANGE);
+
+  for(int i = -LIMIT; i <= LIMIT; ++i) {
+    T_assert_eq(BigInt(i).toString(), std::to_string(i));
+  }
+
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
+  T_assert_eq(std::format("{}", BigInt("0")), "0");
+  T_assert_eq(std::format("{}", BigInt("12")), "12");
+  T_assert_eq(std::format("{}", BigInt("-12")), "-12");
+  T_assert_eq(std::format("{}", BigInt("12345678901234567890")), "12345678901234567890");
+
+  for(int i = -LIMIT; i <= LIMIT; ++i) {
+    T_assert_eq(std::format("{}", BigInt(i)), std::to_string(i));
+  }
+#endif
+
+
+  BigInt("12345678901234567890").print(std::cout);
+  std::cout << '\n';
+  BigInt("-12345678901234567890").print(std::cout);
+  std::cout << '\n';
+  T_assert_exception([] { BigInt("12345678901234567890").print(stdout, 0); }, ULBN_ERR_EXCEED_RANGE);
+
+
+  for(auto base: { 8, 10, 16 })
+    for(auto uppercase: { false, true })
+      for(auto showbase: { false, true })
+        for(auto sign: { -1, 0, 1 }) {
+          BigInt obj("12345678901234567890");
+          if(sign == -1)
+            obj.negLoc();
+          else if(sign == 0)
+            obj = 0;
+          std::ostringstream osst;
+
+          if(base == 8)
+            osst << std::oct;
+          else if(base == 10)
+            osst << std::dec;
+          else if(base == 16)
+            osst << std::hex;
+          osst << (uppercase ? std::uppercase : std::nouppercase);
+          osst << (showbase ? std::showbase : std::noshowbase);
+          osst << obj;
+
+          T_assert_eq(obj, BigInt::fromString(osst.str(), showbase ? 0 : base));
+        }
+
+
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
+  for(auto sign: { -1, 0, 1 }) {
+    BigInt obj = "12345678901234567890";
+    if(sign == -1)
+      obj.negLoc();
+    else if(sign == 0)
+      obj = 0;
+
+    T_assert_eq(BigInt::fromString(std::format("{:d}", obj), 10), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:x}", obj), 16), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:X}", obj), 16), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:b}", obj), 2), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:B}", obj), 2), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:o}", obj), 8), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:}", obj), 10), obj);
+
+    T_assert_eq(BigInt::fromString(std::format("{:#d}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#x}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#X}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#b}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#B}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#o}", obj)), obj);
+    T_assert_eq(BigInt::fromString(std::format("{:#}", obj)), obj);
+  }
+#endif
 
 
   for(int t = TEST_SMALL; t--;) {
@@ -180,7 +186,215 @@ void test() {
     auto str = x.toString();
     T_assert_eq(str, BigInt(str));
   }
+}
+void testWchar() {
+  puts("======Test Wchar");
 
+  T_assert(BigInt(L"0").toString<wchar_t>() == L"0");
+  T_assert(BigInt(L"12").toString<wchar_t>() == L"12");
+  T_assert(BigInt(L"-12").toString<wchar_t>() == L"-12");
+  T_assert(BigInt(L"12345678901234567890").toString<wchar_t>() == L"12345678901234567890");
+  T_assert(BigInt(L"012").toString<wchar_t>(8) == L"12");
+  T_assert(BigInt(L"0x12").toString<wchar_t>(16) == L"12");
+
+  T_assert_exception([] { (12_bi).toString<wchar_t>(0); }, ULBN_ERR_EXCEED_RANGE);
+
+  for(int i = -LIMIT; i <= LIMIT; ++i) {
+    T_assert(BigInt(i).toString<wchar_t>() == std::to_wstring(i));
+  }
+
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
+  T_assert(std::format(L"{}", BigInt(L"0")) == L"0");
+  T_assert(std::format(L"{}", BigInt(L"12")) == L"12");
+  T_assert(std::format(L"{}", BigInt(L"-12")) == L"-12");
+  T_assert(std::format(L"{}", BigInt(L"12345678901234567890")) == L"12345678901234567890");
+
+  for(int i = -LIMIT; i <= LIMIT; ++i) {
+    T_assert(std::format(L"{}", BigInt(i)) == std::to_wstring(i));
+  }
+#endif
+
+
+  BigInt(L"12345678901234567890").print(std::wcout);
+  std::wcout << '\n';
+  BigInt(L"-12345678901234567890").print(std::wcout);
+  std::wcout << '\n';
+
+
+  for(auto base: { 8, 10, 16 })
+    for(auto uppercase: { false, true })
+      for(auto showbase: { false, true })
+        for(auto sign: { -1, 0, 1 }) {
+          BigInt obj(L"12345678901234567890");
+          if(sign == -1)
+            obj.negLoc();
+          else if(sign == 0)
+            obj = 0;
+          std::wostringstream osst;
+
+          if(base == 8)
+            osst << std::oct;
+          else if(base == 10)
+            osst << std::dec;
+          else if(base == 16)
+            osst << std::hex;
+          osst << (uppercase ? std::uppercase : std::nouppercase);
+          osst << (showbase ? std::showbase : std::noshowbase);
+          osst << obj;
+
+          T_assert(obj == BigInt::fromString(osst.str(), showbase ? 0 : base));
+        }
+
+
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
+  for(auto sign: { -1, 0, 1 }) {
+    BigInt obj = L"12345678901234567890";
+    if(sign == -1)
+      obj.negLoc();
+    else if(sign == 0)
+      obj = 0;
+
+    T_assert(BigInt::fromString(std::format(L"{:d}", obj), 10) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:x}", obj), 16) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:X}", obj), 16) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:b}", obj), 2) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:B}", obj), 2) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:o}", obj), 8) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:}", obj), 10) == obj);
+
+    T_assert(BigInt::fromString(std::format(L"{:#d}", obj)) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:#x}", obj)) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:#X}", obj)) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:#b}", obj)) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:#B}", obj)) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:#o}", obj)) == obj);
+    T_assert(BigInt::fromString(std::format(L"{:#}", obj)) == obj);
+  }
+#endif
+
+
+  for(int t = TEST_SMALL; t--;) {
+    BigInt x = BigInt::fromRandom(1024).asInt(1024);
+    auto str = x.toString<wchar_t>();
+    T_assert(str == BigInt(str));
+  }
+
+
+  for(int t = TEST_SMALL; t--;) {
+    BigInt x = BigInt(10).pow(BigInt::fromRandom(12));
+    auto str = x.toString<wchar_t>();
+    T_assert(str == BigInt(str));
+  }
+}
+void testChar16() {
+  puts("======Test char16_t");
+
+  T_assert(BigInt(u"0").toString<char16_t>() == u"0");
+  T_assert(BigInt(u"12").toString<char16_t>() == u"12");
+  T_assert(BigInt(u"-12").toString<char16_t>() == u"-12");
+  T_assert(BigInt(u"12345678901234567890").toString<char16_t>() == u"12345678901234567890");
+  T_assert(BigInt(u"012").toString<char16_t>(8) == u"12");
+  T_assert(BigInt(u"0x12").toString<char16_t>(16) == u"12");
+
+  T_assert_exception([] { (12_bi).toString<char16_t>(0); }, ULBN_ERR_EXCEED_RANGE);
+
+
+  for(auto base: { 8, 10, 16 })
+    for(auto uppercase: { false, true })
+      for(auto showbase: { false, true })
+        for(auto sign: { -1, 0, 1 }) {
+          BigInt obj(u"12345678901234567890");
+          if(sign == -1)
+            obj.negLoc();
+          else if(sign == 0)
+            obj = 0;
+          std::basic_ostringstream<char16_t> osst;
+
+          if(base == 8)
+            osst << std::oct;
+          else if(base == 10)
+            osst << std::dec;
+          else if(base == 16)
+            osst << std::hex;
+          osst << (uppercase ? std::uppercase : std::nouppercase);
+          osst << (showbase ? std::showbase : std::noshowbase);
+          osst << obj;
+
+          T_assert(obj == BigInt::fromString(osst.str(), showbase ? 0 : base));
+        }
+
+
+  for(int t = TEST_SMALL; t--;) {
+    BigInt x = BigInt::fromRandom(1024).asInt(1024);
+    auto str = x.toString<char16_t>();
+    T_assert(str == BigInt(str));
+  }
+
+
+  for(int t = TEST_SMALL; t--;) {
+    BigInt x = BigInt(10).pow(BigInt::fromRandom(12));
+    auto str = x.toString<char16_t>();
+    T_assert(str == BigInt(str));
+  }
+}
+void testChar32() {
+  puts("======Test char32_t");
+
+  T_assert(BigInt(U"0").toString<char32_t>() == U"0");
+  T_assert(BigInt(U"12").toString<char32_t>() == U"12");
+  T_assert(BigInt(U"-12").toString<char32_t>() == U"-12");
+  T_assert(BigInt(U"12345678901234567890").toString<char32_t>() == U"12345678901234567890");
+  T_assert(BigInt(U"012").toString<char32_t>(8) == U"12");
+  T_assert(BigInt(U"0x12").toString<char32_t>(16) == U"12");
+
+  T_assert_exception([] { (12_bi).toString<char32_t>(0); }, ULBN_ERR_EXCEED_RANGE);
+
+
+  for(auto base: { 8, 10, 16 })
+    for(auto uppercase: { false, true })
+      for(auto showbase: { false, true })
+        for(auto sign: { -1, 0, 1 }) {
+          BigInt obj(U"12345678901234567890");
+          if(sign == -1)
+            obj.negLoc();
+          else if(sign == 0)
+            obj = 0;
+          std::basic_ostringstream<char32_t> osst;
+
+          if(base == 8)
+            osst << std::oct;
+          else if(base == 10)
+            osst << std::dec;
+          else if(base == 16)
+            osst << std::hex;
+          osst << (uppercase ? std::uppercase : std::nouppercase);
+          osst << (showbase ? std::showbase : std::noshowbase);
+          osst << obj;
+
+          T_assert(obj == BigInt::fromString(osst.str(), showbase ? 0 : base));
+        }
+
+
+  for(int t = TEST_SMALL; t--;) {
+    BigInt x = BigInt::fromRandom(1024).asInt(1024);
+    auto str = x.toString<char32_t>();
+    T_assert(str == BigInt(str));
+  }
+
+
+  for(int t = TEST_SMALL; t--;) {
+    BigInt x = BigInt(10).pow(BigInt::fromRandom(12));
+    auto str = x.toString<char32_t>();
+    T_assert(str == BigInt(str));
+  }
+}
+
+void test() {
+  testValue();
+  testChar();
+  testWchar();
+  testChar16();
+  testChar32();
   testBigString();
 }
 

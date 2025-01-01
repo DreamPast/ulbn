@@ -75,6 +75,7 @@ ulbn - Big Number Library (C++ Wrapper)
 
 namespace ul {
 
+template<class CharT = char>
 struct FormatHelper {
   enum class Align : int8_t {
     DEFUALT,
@@ -93,7 +94,7 @@ struct FormatHelper {
   using FormatError = std::runtime_error;
 #endif
 
-  char fill = ' ';
+  CharT fill = SPACE;
   Align align = Align::DEFUALT;
   Sign sign = Sign::ONLY_NEGATIVE;
   bool use_alter = false;
@@ -101,62 +102,49 @@ struct FormatHelper {
   bool has_precision = false;
   size_t precision = 0;
   bool use_locale = false;
-  std::string target_type;
+  std::basic_string<CharT> target_type;
 
   template<class Iter, class IterEnd>
   constexpr Iter parse(Iter first, IterEnd last) {
     if(first == last)
       return first;
     {
-      char c0 = *first;
-      if(std::next(first) != last) {
-        char c1 = *std::next(first);
-        if(c1 == '<' || c1 == '>' || c1 == '^') {
+      CharT c0 = *first;
+      if(auto next = std::next(first); next != last) {
+        if(CharT c1 = *next; c1 == LESS_THAN || c1 == GREATER_THAN || c1 == CARET) {
           fill = c0;
           ++first;
         }
       }
     }
 
-    switch(*first) {
-    case '<':
+    if(*first == LESS_THAN) {
       align = Align::LEFT;
       ++first;
-      break;
-    case '>':
+    } else if(*first == GREATER_THAN) {
       align = Align::RIGHT;
       ++first;
-      break;
-    case '^':
+    } else if(*first == CARET) {
       align = Align::INTERNAL;
       ++first;
-      break;
-    default:
-      break;
     }
     if(first == last || _isIllegal(*first))
       return first;
 
-    switch(*first) {
-    case '+':
+    if(*first == PLUS) {
       sign = Sign::ALWAYS;
       ++first;
-      break;
-    case '-':
+    } else if(*first == MINUS) {
       sign = Sign::ONLY_NEGATIVE;
       ++first;
-      break;
-    case ' ':
+    } else if(*first == SPACE) {
       sign = Sign::SPACE_ON_NONNEGATIVE;
       ++first;
-      break;
-    default:
-      break;
     }
     if(first == last || _isIllegal(*first))
       return first;
 
-    if(*first == '#') {
+    if(*first == HASH) {
       use_alter = true;
       ++first;
       if(first == last || _isIllegal(*first))
@@ -164,33 +152,33 @@ struct FormatHelper {
     }
 
     size_t w = 0;
-    for(; first != last && (*first >= '0' && *first <= '9'); ++first) {
+    for(; first != last && (*first >= ZERO && *first <= NINE); ++first) {
       if(w >= _SIZE_LIMIT)
         throw FormatError("width is too large");
-      w = w * 10 + static_cast<size_t>(*first - '0');
+      w = w * 10 + static_cast<size_t>(*first - ZERO);
     }
     width = w;
     if(first == last || _isIllegal(*first))
       return first;
 
-    if(*first == '.') {
+    if(*first == DOT) {
       has_precision = true;
       ++first;
       if(first == last || _isIllegal(*first))
         return first;
 
       w = 0;
-      for(; first != last && (*first >= '0' && *first <= '9'); ++first) {
+      for(; first != last && (*first >= ZERO && *first <= NINE); ++first) {
         if(w >= _SIZE_LIMIT)
           throw FormatError("precision is too large");
-        w = w * 10 + static_cast<size_t>(*first - '0');
+        w = w * 10 + static_cast<size_t>(*first - ZERO);
       }
       precision = w;
       if(first == last || _isIllegal(*first))
         return first;
     }
 
-    if(*first == 'L') {
+    if(*first == UPPER_L) {
       use_locale = true;
       ++first;
       if(first == last || _isIllegal(*first))
@@ -203,10 +191,24 @@ struct FormatHelper {
     return first;
   }
 
+  static constexpr const CharT SPACE = static_cast<CharT>(' ');
+  static constexpr const CharT LESS_THAN = static_cast<CharT>('<');
+  static constexpr const CharT GREATER_THAN = static_cast<CharT>('>');
+  static constexpr const CharT CARET = static_cast<CharT>('^');
+  static constexpr const CharT PLUS = static_cast<CharT>('+');
+  static constexpr const CharT MINUS = static_cast<CharT>('-');
+  static constexpr const CharT HASH = static_cast<CharT>('#');
+  static constexpr const CharT DOT = static_cast<CharT>('.');
+  static constexpr const CharT ZERO = static_cast<CharT>('0');
+  static constexpr const CharT NINE = static_cast<CharT>('9');
+  static constexpr const CharT UPPER_L = static_cast<CharT>('L');
+  static constexpr const CharT LEFT_BRACKET = static_cast<CharT>('{');
+  static constexpr const CharT RIGHT_BRACKET = static_cast<CharT>('}');
+
 private:
   static constexpr const size_t _SIZE_LIMIT = (std::numeric_limits<size_t>::max() - 9) / 10;
-  static constexpr bool _isIllegal(char c) {
-    return c == '{' || c == '}';
+  static constexpr bool _isIllegal(CharT c) {
+    return c == LEFT_BRACKET || c == RIGHT_BRACKET;
   }
 };
 
@@ -327,12 +329,12 @@ public:
     return memcmp(&lhs._rand, &rhs._rand, sizeof(ulbn_rand_t)) != 0;
   }
 
-  template<class CharT, class CharTraits>
-  friend std::basic_ostream<CharT, CharTraits>& operator<<(std::basic_ostream<CharT, CharTraits>& ost, Rand& rng) {
+  template<class CharT>
+  friend std::basic_ostream<CharT>& operator<<(std::basic_ostream<CharT>& ost, Rand& rng) {
     return ost << rng._rand.state << static_cast<CharT>(' ') << rng._rand.inc;
   }
-  template<class CharT, class CharTraits>
-  friend std::basic_istream<CharT, CharTraits>& operator>>(std::basic_istream<CharT, CharTraits>& ist, Rand& rng) {
+  template<class CharT>
+  friend std::basic_istream<CharT>& operator>>(std::basic_istream<CharT>& ist, Rand& rng) {
     ulbn_rand_uint_t state;
     ulbn_rand_uint_t inc;
     if(ist >> state >> inc) {
@@ -501,10 +503,14 @@ concept FitLongDoubleCase = requires {
 
 template<class T>
 concept IsCharType = requires {
-  requires std::is_same_v<T, std::decay_t<T>> || std::is_same_v<T, const std::decay_t<T>>;
-  requires std::is_integral_v<T>;
-  requires sizeof(T) <= 4;
+  requires(std::is_same_v<T, char> || std::is_same_v<T, signed char> || std::is_same_v<T, unsigned char>)
+            || (std::is_same_v<T, wchar_t> || std::is_same_v<T, char16_t> || std::is_same_v<T, char32_t>)
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+            || (std::is_same_v<T, char8_t>)
+#endif
+              ;
 };
+
 
 class BigInt {
 public:
@@ -520,7 +526,7 @@ public:
     ulbi_init_move(_ctx(), _value, other._value);
   }
   BigInt& operator=(const BigInt& other) {
-    if(this != &other)
+    if(this != &other)  // avoid warnings
       _check(ulbi_set_copy(_ctx(), _value, other._value));
     return *this;
   }
@@ -529,20 +535,93 @@ public:
     return *this;
   }
 
-  BigInt(const char* str, int base = 0) {
-    _checkSetString(ulbi_init_string(_ctx(), _value, str, base));
+
+  template<IsCharType CharT>
+    requires(sizeof(CharT) == 1)                                   // char8_t, signed char, char, unsigned char
+  BigInt(const CharT* str, size_t len = SIZE_MAX, int base = 0) {  // for C-style string, we needn't know length
+    _checkSetString(ulbi_init_string_len(_ctx(), _value, reinterpret_cast<const char*>(str), len, base));
   }
-  BigInt(const std::string& str, int base = 0) {
-    _checkSetString(ulbi_init_string(_ctx(), _value, str.c_str(), base));
+  template<IsCharType CharT, class StringAllocator>
+    requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
+  BigInt(const std::basic_string<CharT, std::char_traits<CharT>, StringAllocator>& str, int base = 0) {
+    _checkSetString(ulbi_init_string_len(_ctx(), _value, reinterpret_cast<const char*>(str.data()), str.size(), base));
   }
-  BigInt& operator=(const char* str) {
-    _checkSetString(ulbi_set_string(_ctx(), _value, str, 0));
+  template<IsCharType CharT>
+    requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
+  BigInt(std::basic_string_view<CharT> str, int base = 0) {
+    _checkSetString(ulbi_init_string_len(_ctx(), _value, reinterpret_cast<const char*>(str.data()), str.size(), base));
+  }
+  template<IsCharType CharT>
+    requires(sizeof(CharT) == 1)         // char8_t, signed char, char, unsigned char
+  BigInt& operator=(const CharT* str) {  // for C-style string, we needn't know length
+    _checkSetString(ulbi_set_string(_ctx(), _value, reinterpret_cast<const char*>(str), 0));
     return *this;
   }
-  BigInt& operator=(const std::string& str) {
-    _checkSetString(ulbi_set_string(_ctx(), _value, str.c_str(), 0));
+  template<IsCharType CharT, class StringAllocator>
+    requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
+  BigInt& operator=(const std::basic_string<CharT, std::char_traits<CharT>, StringAllocator>& str) {
+    _checkSetString(ulbi_set_string_len(_ctx(), _value, reinterpret_cast<const char*>(str.data()), str.size(), 0));
     return *this;
   }
+  template<IsCharType CharT>
+    requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
+  BigInt& operator=(std::basic_string_view<CharT> str) {
+    _checkSetString(ulbi_set_string_len(_ctx(), _value, reinterpret_cast<const char*>(str.data()), str.size(), 0));
+    return *this;
+  }
+
+  template<IsCharType CharT>
+    requires(sizeof(CharT) != 1)                                   // wchar_t, char16_t, char32_t
+  BigInt(const CharT* str, size_t len = SIZE_MAX, int base = 0) {  // for C-style string, we needn't know length
+    std::string str2;
+    for(; *str != 0 && len-- != 0; ++str)
+      str2.push_back(*str >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(*str));
+    _checkSetString(ulbi_init_string_len(_ctx(), _value, str2.c_str(), str2.size(), base));
+  }
+  template<IsCharType CharT, class StringAllocator>
+    requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
+  BigInt(const std::basic_string<CharT, std::char_traits<CharT>, StringAllocator>& str, int base = 0) {
+    std::string str2;
+    for(auto ch: str)
+      str2.push_back(ch >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(ch));
+    _checkSetString(ulbi_init_string_len(_ctx(), _value, str2.data(), str2.size(), base));
+  }
+  template<IsCharType CharT>
+    requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
+  BigInt(std::basic_string_view<CharT> str, int base = 0) {
+    std::string str2;
+    for(auto ch: str)
+      str2.push_back(ch >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(ch));
+    _checkSetString(ulbi_init_string_len(_ctx(), _value, str2.data(), str2.size(), base));
+  }
+  template<IsCharType CharT>
+    requires(sizeof(CharT) != 1)         // wchar_t, char16_t, char32_t
+  BigInt& operator=(const CharT* str) {  // for C-style string, we needn't know length
+    std::string str2;
+    for(; *str != 0; ++str)
+      str2.push_back(*str >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(*str));
+    _checkSetString(ulbi_set_string_len(_ctx(), _value, str2.c_str(), str2.size(), 0));
+    return *this;
+  }
+  template<IsCharType CharT, class StringAllocator>
+    requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
+  BigInt& operator=(const std::basic_string<CharT, std::char_traits<CharT>, StringAllocator>& str) {
+    std::string str2;
+    for(auto ch: str)
+      str2.push_back(ch >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(ch));
+    _checkSetString(ulbi_set_string_len(_ctx(), _value, str2.data(), str2.size(), 0));
+    return *this;
+  }
+  template<IsCharType CharT>
+    requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
+  BigInt& operator=(std::basic_string_view<CharT> str) {
+    std::string str2;
+    for(auto ch: str)
+      str2.push_back(ch >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(ch));
+    _checkSetString(ulbi_set_string_len(_ctx(), _value, str2.data(), str2.size(), 0));
+    return *this;
+  }
+
 
   BigInt(const ulbi_t* src) {
     if(src)
@@ -760,19 +839,71 @@ public:
   }
 
 
+  template<IsCharType CharT>
+    requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
   static BigInt fromString(
-    const char* str, size_t len = SIZE_MAX, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+    const CharT* str, size_t len = SIZE_MAX, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
   ) {
     BigInt ret;
-    _check(ulbi_set_string_ex(_ctx(), ret._value, &str, len, base, flags));
+    const char* ptr = reinterpret_cast<const char*>(str);
+    _check(ulbi_set_string_ex(_ctx(), ret._value, &ptr, len, base, flags));
     return ret;
   }
-  static BigInt fromString(std::string_view str, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX) {
+  template<IsCharType CharT, class StringAllocator>
+    requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
+  static BigInt fromString(
+    const std::basic_string<CharT, std::char_traits<CharT>, StringAllocator>& str, int base = 0,
+    int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  ) {
     return fromString(str.data(), str.size(), base, flags);
   }
-  template<size_t Extent>
+  template<IsCharType CharT>
+    requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
   static BigInt fromString(
-    std::span<const char, Extent> str, int base = 0, int flag = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+    std::basic_string_view<CharT> str, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  ) {
+    return fromString(str.data(), str.size(), base, flags);
+  }
+  template<IsCharType CharT, size_t Extent>
+    requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
+  static BigInt fromString(
+    std::span<const CharT, Extent> str, int base = 0, int flag = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  ) {
+    return fromString(str.data(), str.size(), base, flag);
+  }
+
+  template<IsCharType CharT>
+    requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
+  static BigInt fromString(
+    const CharT* str, size_t len = SIZE_MAX, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  ) {
+    BigInt ret;
+    std::string str2;
+    for(; *str != 0 && len-- != 0; ++str)
+      str2.push_back(*str >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(*str));
+    const char* ptr = str2.c_str();
+    _check(ulbi_set_string_ex(_ctx(), ret._value, &ptr, str2.size(), base, flags));
+    return ret;
+  }
+  template<IsCharType CharT, class StringAllocator>
+    requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
+  static BigInt fromString(
+    const std::basic_string<CharT, std::char_traits<CharT>, StringAllocator>& str, int base = 0,
+    int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  ) {
+    return fromString(str.data(), str.size(), base, flags);
+  }
+  template<IsCharType CharT>
+    requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
+  static BigInt fromString(
+    std::basic_string_view<CharT> str, int base = 0, int flags = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
+  ) {
+    return fromString(str.data(), str.size(), base, flags);
+  }
+  template<IsCharType CharT, size_t Extent>
+    requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
+  static BigInt fromString(
+    std::span<const CharT, Extent> str, int base = 0, int flag = ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX
   ) {
     return fromString(str.data(), str.size(), base, flag);
   }
@@ -1565,7 +1696,8 @@ public:
     return wrapper.check(err);
   }
 
-  friend std::ostream& operator<<(std::ostream& ost, const BigInt& value) {
+  template<IsCharType CharT = char>
+  friend std::basic_ostream<CharT>& operator<<(std::basic_ostream<CharT>& ost, const BigInt& value) {
     value.print(ost);
     return ost;
   }
@@ -1573,14 +1705,15 @@ public:
   void print(FILE* fp, int base = 10) const {
     _check(ulbi_print(_ctx(), fp, _value, base));
   }
-  std::ostream& print(std::ostream& ost, int base = 0) const {
-    Formatter formatter;
+  template<IsCharType CharT = char>
+  std::basic_ostream<CharT>& print(std::basic_ostream<CharT>& ost, int base = 0) const {
+    Formatter<CharT> formatter;
     formatter.parse(ost, base);
-    formatter.format(std::ostream_iterator<char>(ost), *this);
+    formatter.format(std::ostream_iterator<CharT, CharT>(ost), *this);
     return ost;
   }
   template<class Iter>
-    requires std::output_iterator<Iter, char>
+    requires(std::input_or_output_iterator<Iter> && IsCharType<std::iter_value_t<Iter>>)
   Iter print(Iter iter, int base = 10) const {
     Wrapper<Iter&> wrapper(iter);
     int err = ulbi_print_ex(
@@ -2009,16 +2142,23 @@ private:
     std::exception_ptr exception;
   };
 
+  template<class CharT>
+  using SameSignCharType = std::conditional_t<std::is_signed_v<CharT>, signed char, unsigned char>;
+  // avoid MSVC C4365 warnings for `std::copy_n`
+
 #if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
   friend struct std::formatter<BigInt, char>;
+  friend struct std::formatter<BigInt, wchar_t>;
+  // `std::format` only supports `char` and `wchar_t`
 #endif
+  template<IsCharType CharT>
   class Formatter {
   private:
-    using FormatHelper = ul::FormatHelper;
+    using FormatHelper = ul::FormatHelper<CharT>;
 
-    char fill = ' ';
-    FormatHelper::Align align = FormatHelper::Align::INTERNAL;
-    FormatHelper::Sign sign = FormatHelper::Sign::ONLY_NEGATIVE;
+    CharT fill = FormatHelper::SPACE;
+    typename FormatHelper::Align align = FormatHelper::Align::INTERNAL;
+    typename FormatHelper::Sign sign = FormatHelper::Sign::ONLY_NEGATIVE;
     bool show_base = false;
     size_t width = 0;
     int base = 10;
@@ -2042,22 +2182,22 @@ private:
       if(helper.target_type.size() != 1)
         throw std::format_error("invalid type");
       switch(helper.target_type[0]) {
-      case 'b':
+      case static_cast<CharT>('b'):
         base = -2;
         break;
-      case 'B':
+      case static_cast<CharT>('B'):
         base = 2;
         break;
-      case 'o':
+      case static_cast<CharT>('o'):
         base = 8;
         break;
-      case 'd':
+      case static_cast<CharT>('d'):
         base = 10;
         break;
-      case 'x':
+      case static_cast<CharT>('x'):
         base = -16;
         break;
-      case 'X':
+      case static_cast<CharT>('X'):
         base = 16;
         break;
       default:
@@ -2065,7 +2205,7 @@ private:
       }
     }
 #endif
-    void parse(const std::ostream& ost, int _base) {
+    void parse(const std::basic_ostream<CharT>& ost, int _base) {
       auto flags = ost.flags();
 
       fill = ost.fill();
@@ -2104,7 +2244,9 @@ private:
         const int err = ulbi_print_ex(
           obj._ctx(),
           [](void* opaque, const char* ptr, size_t len) -> int {
-            return reinterpret_cast<Wrapper<Iter&>*>(opaque)->call([&](Iter& itr) { std::copy_n(ptr, len, itr); });
+            return reinterpret_cast<Wrapper<Iter&>*>(opaque)->call([&](Iter& itr) {
+              std::copy_n(reinterpret_cast<const SameSignCharType<CharT>*>(ptr), len, itr);
+            });
           },
           &wrapper, obj._value, base
         );
@@ -2150,10 +2292,10 @@ private:
         else
           rpad = width - str.size();
       }
-      std::string pad;
+      std::basic_string<CharT> pad;
       pad.resize(lpad, fill);
       iter = std::copy(pad.begin(), pad.end(), iter);
-      iter = std::copy(str.begin(), str.end(), iter);
+      iter = std::copy_n(reinterpret_cast<const SameSignCharType<CharT>*>(str.c_str()), str.size(), iter);
       pad.resize(rpad, fill);
       iter = std::copy(pad.begin(), pad.end(), iter);
       return iter;
@@ -2176,13 +2318,13 @@ inline BigInt operator""_bi(const char* str, size_t len) {
 
 
 #if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
-template<>
-struct std::formatter<ul::bn::BigInt, char> {
+template<ul::bn::IsCharType CharT>
+struct std::formatter<ul::bn::BigInt, CharT> {
   using BigInt = ul::bn::BigInt;
 
   template<class ParseContext>
   constexpr auto parse(ParseContext& ctx) {
-    ul::FormatHelper helper;
+    ul::FormatHelper<CharT> helper;
     auto iter = helper.parse(ctx.begin(), ctx.end());
     formatterHelper.parse(helper);
     return iter;
@@ -2194,6 +2336,6 @@ struct std::formatter<ul::bn::BigInt, char> {
   }
 
 private:
-  BigInt::Formatter formatterHelper;
+  BigInt::Formatter<CharT> formatterHelper;
 };
 #endif
