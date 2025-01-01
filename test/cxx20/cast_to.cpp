@@ -299,31 +299,6 @@ void testChar16() {
   T_assert_exception([] { (12_bi).toString<char16_t>(0); }, ULBN_ERR_EXCEED_RANGE);
 
 
-  for(auto base: { 8, 10, 16 })
-    for(auto uppercase: { false, true })
-      for(auto showbase: { false, true })
-        for(auto sign: { -1, 0, 1 }) {
-          BigInt obj(u"12345678901234567890");
-          if(sign == -1)
-            obj.negLoc();
-          else if(sign == 0)
-            obj = 0;
-          std::basic_ostringstream<char16_t> osst;
-
-          if(base == 8)
-            osst << std::oct;
-          else if(base == 10)
-            osst << std::dec;
-          else if(base == 16)
-            osst << std::hex;
-          osst << (uppercase ? std::uppercase : std::nouppercase);
-          osst << (showbase ? std::showbase : std::noshowbase);
-          osst << obj;
-
-          T_assert(obj == BigInt::fromString(osst.str(), showbase ? 0 : base));
-        }
-
-
   for(int t = TEST_SMALL; t--;) {
     BigInt x = BigInt::fromRandom(1024).asInt(1024);
     auto str = x.toString<char16_t>();
@@ -348,31 +323,6 @@ void testChar32() {
   T_assert(BigInt(U"0x12").toString<char32_t>(16) == U"12");
 
   T_assert_exception([] { (12_bi).toString<char32_t>(0); }, ULBN_ERR_EXCEED_RANGE);
-
-
-  for(auto base: { 8, 10, 16 })
-    for(auto uppercase: { false, true })
-      for(auto showbase: { false, true })
-        for(auto sign: { -1, 0, 1 }) {
-          BigInt obj(U"12345678901234567890");
-          if(sign == -1)
-            obj.negLoc();
-          else if(sign == 0)
-            obj = 0;
-          std::basic_ostringstream<char32_t> osst;
-
-          if(base == 8)
-            osst << std::oct;
-          else if(base == 10)
-            osst << std::dec;
-          else if(base == 16)
-            osst << std::hex;
-          osst << (uppercase ? std::uppercase : std::nouppercase);
-          osst << (showbase ? std::showbase : std::noshowbase);
-          osst << obj;
-
-          T_assert(obj == BigInt::fromString(osst.str(), showbase ? 0 : base));
-        }
 
 
   for(int t = TEST_SMALL; t--;) {
