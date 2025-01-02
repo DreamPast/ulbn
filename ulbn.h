@@ -415,6 +415,9 @@ extern "C" {
 #define _ulbn_max_(a, b) ((a) > (b) ? (a) : (b))
 #define _ulbn_min_(a, b) ((a) < (b) ? (a) : (b))
 
+#define ulbn_cast_int(v) ul_static_cast(int, (v))
+#define ulbn_cast_uint(v) ul_static_cast(unsigned, (v))
+
 
 #if 0
 typedef unsigned char ulbn_limb_t;
@@ -439,24 +442,32 @@ typedef signed long ulbn_slimb_t;
   #define ULBN_SLIMB_MIN LONG_MIN
 #endif
 
-#if !defined(ulbn_limb2_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
+#define ulbn_cast_limb(v) ul_static_cast(ulbn_limb_t, (v))
+#define ulbn_cast_slimb(v) ul_static_cast(ulbn_slimb_t, (v))
+
+#if !defined(ulbn_dlimb_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
   && USHRT_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
-  #define ulbn_limb2_t unsigned short
+  #define ulbn_dlimb_t unsigned short
+  #define ulbn_sdlimb_t signed short
 #endif
-#if !defined(ulbn_limb2_t) && UINT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX && UINT_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
-  #define ulbn_limb2_t unsigned int
+#if !defined(ulbn_dlimb_t) && UINT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX && UINT_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
+  #define ulbn_dlimb_t unsigned int
+  #define ulbn_sdlimb_t signed int
 #endif
-#if !defined(ulbn_limb2_t) && ULONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
+#if !defined(ulbn_dlimb_t) && ULONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
   && ULONG_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
-  #define ulbn_limb2_t unsigned long
+  #define ulbn_dlimb_t unsigned long
+  #define ulbn_sdlimb_t signed long
 #endif
-#if !defined(ulbn_limb2_t) && defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
+#if !defined(ulbn_dlimb_t) && defined(ULLONG_MAX) && ULLONG_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
   && ULLONG_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
-  #define ulbn_limb2_t unsigned long long
+  #define ulbn_dlimb_t unsigned long long
+  #define ulbn_sdlimb_t signed long long
 #endif
-#if !defined(ulbn_limb2_t) && !defined(UL_PEDANTIC) && defined(__SIZEOF_INT128__) && defined(__GNUC__)
+#if !defined(ulbn_dlimb_t) && !defined(UL_PEDANTIC) && defined(__SIZEOF_INT128__) && defined(__GNUC__)
   #if ULBN_LIMB_MAX <= 0xFFFFFFFFFFFFFFFFu
-    #define ulbn_limb2_t unsigned __int128
+    #define ulbn_dlimb_t unsigned __int128
+    #define ulbn_sdlimb_t signed __int128
   #endif
 #endif
 
@@ -508,6 +519,9 @@ typedef ulbn_ssize_t ulbn_sbits_t;
     #define ULBN_SBITS_MIN ULBN_SSIZE_MIN
   #endif
 #endif
+
+#define ulbn_cast_bits(n) ul_static_cast(ulbn_bits_t, (n))
+#define ulbn_cast_sbits(n) ul_static_cast(ulbn_sbits_t, (n))
 
 
 #if !defined(ULBN_ULONG_MAX) || !defined(ULBN_SLONG_MAX) || !defined(ULBN_SLONG_MIN)
@@ -581,14 +595,6 @@ typedef signed long ulbn_slong_t;
   #endif
 #endif
 
-#define _ULBN_SHORT_LIMB_SIZE                                                                              \
-  _ulbn_max_(                                                                                              \
-    sizeof(void*) / sizeof(ulbn_limb_t), /* same size as `void*` */                                        \
-    _ulbn_max_(                                                                                            \
-      _ULBN_ULONG_LIMB_LEN, /* able to hold `ulbn_ulong_t` */                                              \
-      2u                    /* make operations on a single `ulbn_limb_t` not to cause memory allocation */ \
-    )                                                                                                      \
-  )
 
 /*********
  * Enums *
@@ -770,10 +776,6 @@ ULBN_PUBLIC void ulbn_rand_fill(ulbn_rand_t* rng, void* dst, size_t n);
  * @brief Get the limit of `ulbn_usize_t`.
  */
 ULBN_PUBLIC ulbn_usize_t ulbn_usize_limit(void);
-/**
- * @brief Get the limit of `ulbn_ssize_t`.
- */
-ULBN_PUBLIC ulbn_ssize_t ulbn_ssize_limit(void);
 
 
 /********************
@@ -782,18 +784,32 @@ ULBN_PUBLIC ulbn_ssize_t ulbn_ssize_limit(void);
 
 
 #if ULBN_CONF_BIG_INT
+
+  #define _ULBI_SHORT_LIMB_SIZE                                                                              \
+    _ulbn_max_(                                                                                              \
+      sizeof(void*) / sizeof(ulbn_limb_t), /* same size as `void*` */                                        \
+      _ulbn_max_(                                                                                            \
+        _ULBN_ULONG_LIMB_LEN, /* able to hold `ulbn_ulong_t` */                                              \
+        2u                    /* make operations on a single `ulbn_limb_t` not to cause memory allocation */ \
+      )                                                                                                      \
+    )
+
 typedef struct ulbi_t {
   ulbn_ssize_t len;
   ulbn_usize_t cap;
   union {
-    ulbn_limb_t shrt[_ULBN_SHORT_LIMB_SIZE];
+    ulbn_limb_t shrt[_ULBI_SHORT_LIMB_SIZE];
     ulbn_limb_t* ul_restrict lng;
   } u;
 } ulbi_t;
   /* clang-format off */
-#define ULBI_INIT { 0, _ULBN_SHORT_LIMB_SIZE, { { 0 } } }
+#define ULBI_INIT { 0, _ULBI_SHORT_LIMB_SIZE, { { 0 } } }
 /* clang-format on */
 
+/**
+ * @brief Get the limit of length in `ulbi_t`.
+ */
+ULBN_PUBLIC ulbn_usize_t ulbi_len_limit(void);
 /**
  * @brief sizeof(ulbi_t)
  * @note When you want to use FFI to call this library, you can call this function to get the size of `ulbi_t`.

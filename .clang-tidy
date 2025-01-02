@@ -3,6 +3,7 @@ Checks: |
   -readability-*
   -llvmlibc-*
 
+  -"ulbn.c"
   -altera-id-dependent-backward-branch
   -altera-struct-pack-align
   -altera-unroll-loops
@@ -24,26 +25,35 @@ Checks: |
   -misc-confusable-identifiers
   -misc-no-recursion
 
+  -"ulbn.c in C++ mode"
+  -cppcoreguidelines-avoid-c-arrays
   -cppcoreguidelines-avoid-do-while
   -cppcoreguidelines-avoid-goto
   -cppcoreguidelines-macro-usage
   -cppcoreguidelines-no-malloc
   -cppcoreguidelines-owning-memory
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay
   -cppcoreguidelines-pro-bounds-constant-array-index
   -cppcoreguidelines-pro-bounds-pointer-arithmetic
+  -cppcoreguidelines-pro-type-reinterpret-cast
   -cppcoreguidelines-pro-type-union-access
+  -hicpp-avoid-c-arrays
   -hicpp-avoid-goto
   -hicpp-deprecated-headers
+  -hicpp-no-array-decay
   -hicpp-no-malloc
   -misc-use-anonymous-namespace
+  -modernize-avoid-c-arrays
   -modernize-deprecated-headers
   -modernize-redundant-void-arg
+  -modernize-use-trailing-return-type
   -modernize-use-using
-  -modernize-use-bool-literals
 
-  -bugprone-unhandled-self-assignment
-  -cert-oop54-cpp
-  -cppcoreguidelines-avoid-c-arrays
+  -"ulbn.h in C++ mode"
+  -google-runtime-int
+  -performance-enum-size
+
+  -"ulbn.hpp"
   -cppcoreguidelines-avoid-const-or-ref-data-members
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay
   -cppcoreguidelines-pro-type-member-init
@@ -52,10 +62,8 @@ Checks: |
   -fuchsia-default-arguments-declarations
   -fuchsia-overloaded-operator
   -google-explicit-constructor
-  -hicpp-avoid-c-arrays
+  -google-runtime-int
   -hicpp-explicit-conversions
   -hicpp-member-init
-  -hicpp-no-array-decay
-  -modernize-avoid-c-arrays
   -modernize-use-nodiscard
   -modernize-use-trailing-return-type

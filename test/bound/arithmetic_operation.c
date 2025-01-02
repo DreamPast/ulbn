@@ -98,8 +98,8 @@ static void testMultiplication(void) {
   }
   /* overlap */
   {
-    t_bi_fill(&ao, ul_static_cast(size_t, SSIZE_LIMIT / 2));
-    t_bi_fill(&bo, ul_static_cast(size_t, SSIZE_LIMIT / 2));
+    t_bi_fill(&ao, ul_static_cast(size_t, BI_LEN_LIMIT / 2));
+    t_bi_fill(&bo, ul_static_cast(size_t, BI_LEN_LIMIT / 2));
     t_assert_err(ulbi_mul(alloc, &ro, &ao, &bo), 0);
 
     t_assert_err(ulbi_mul(alloc, &ao, &ao, &bo), 0);

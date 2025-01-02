@@ -244,6 +244,10 @@ static const DivMod4Case _divmod_cases[] = {
   { -7, ULBN_ROUND_HALF_ODD, -2, 1 },   { -7, ULBN_ROUND_HALF_EVEN, -2, 1 },  /* */
   { -7, ULBN_ROUND_HALF_DOWN, -2, 1 },  { -7, ULBN_ROUND_HALF_UP, -2, 1 },    /* */
 };
+static const enum ULBN_ROUND_ENUM _round_modes[] = {
+  ULBN_ROUND_DOWN,      ULBN_ROUND_UP,        ULBN_ROUND_FLOOR,   ULBN_ROUND_CEILING, ULBN_ROUND_HALF_ODD,
+  ULBN_ROUND_HALF_EVEN, ULBN_ROUND_HALF_DOWN, ULBN_ROUND_HALF_UP, ULBN_ROUND_FAIL,
+};
 void testDivModEx() {
   puts("======Test DivMod Ex");
 
@@ -291,6 +295,14 @@ void testDivMod2Exp() {
 }
 void testDivMod2ExpEx() {
   puts("======Test DivMod 2Exp Ex");
+
+  for(int t = TEST_BIG; t--;) {
+    BigInt a = BigInt::fromRandom("32");
+    for(auto round_mode: _round_modes) {
+      for(int i = 0; i >= -4; --i)
+        T_assert_pair_eq(a.divmod2Exp(i, round_mode), a * BigInt::from2Exp(-i), 0);
+    }
+  }
 
   for(auto&& item: _divmod_cases) {
     T_assert_pair_eq(BigInt(item.a).divmod2Exp(2, item.round_mode), item.q, item.r);

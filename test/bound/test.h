@@ -113,7 +113,7 @@ static const ulbn_alloc_t* const alloc = &_alloc;
 
 
 static ulbn_rand_t _rng;
-static ulbn_rand_t *rng = &_rng;
+static ulbn_rand_t* rng = &_rng;
 
 
 static ulbi_t t_bi_slots[16];
@@ -131,7 +131,7 @@ T_API ulbi_t* t_bi(const char* str) {
 
 
 static ulbn_usize_t USIZE_LIMIT;
-static ulbn_ssize_t SSIZE_LIMIT;
+static ulbn_usize_t BI_LEN_LIMIT;
 static const unsigned char LIMB_BITS = sizeof(ulbn_limb_t) * CHAR_BIT;
 T_API void t_startup(void) {
   unsigned i;
@@ -139,7 +139,7 @@ T_API void t_startup(void) {
   for(i = 0; i < 16; ++i)
     ulbi_init(&t_bi_slots[i]);
   USIZE_LIMIT = ulbn_usize_limit();
-  SSIZE_LIMIT = ulbn_ssize_limit();
+  BI_LEN_LIMIT = ulbi_len_limit();
   ulbn_rand_init(rng);
 }
 T_API void t_shutdown(void) {
@@ -158,7 +158,7 @@ T_API ulbi_t* t_bi_fill(ulbi_t* bi, size_t num) {
   return bi;
 }
 T_API ulbi_t* t_bi_max(ulbi_t* bi) {
-  return t_bi_fill(bi, ul_static_cast(size_t, SSIZE_LIMIT));
+  return t_bi_fill(bi, ul_static_cast(size_t, BI_LEN_LIMIT));
 }
 
 
