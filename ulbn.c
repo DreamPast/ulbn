@@ -839,6 +839,13 @@ ULBN_INTERNAL void ulbn_rcopy(ulbn_limb_t* dst, const ulbn_limb_t* src, ulbn_usi
   ulbn_assert(ul_static_cast(size_t, n) < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
   memmove(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
 }
+#if 0
+/* Copy src[0:n] to dst[0:n], not ensuring anything */
+ULBN_INTERNAL void ulbn_mcopy(ulbn_limb_t* dst, const ulbn_limb_t* src, ulbn_usize_t n) {
+  ulbn_assert(ul_static_cast(size_t, n) < _ULBN_SIZET_MAX / sizeof(ulbn_limb_t));
+  memmove(dst, src, ul_static_cast(size_t, n) * sizeof(*dst));
+}
+#endif
 #define ulbn_maycopy(dst, src, n) ((dst) != (src) ? ulbn_copy((dst), (src), (n)) : (void)0)
 
 /*************************
@@ -3220,8 +3227,7 @@ ULBN_PRIVATE void ulbnfft_init_int_bits(void) {
     mul[muln] = ulbn_mul1(mul, mul_copy, muln, ulbnfft_mods[mods]);
     muln += (mul[muln] != 0);
     ulbn_assert(muln > 0 && muln <= ULBNFFT_NMODS + 1);
-    ulbnfft_int_bits[mods] =
-      ul_static_cast(unsigned, ULBN_LIMB_BITS* muln - 1u - ul_static_cast(unsigned, _ulbn_clz_(mul[muln - 1])));
+    ulbnfft_int_bits[mods] = ulbn_bit_width(mul, muln) - 1;
   }
 }
 ULBN_PRIVATE void ulbnfft_init_proot(ulbn_rand_t* rng) {
@@ -4295,6 +4301,52 @@ ULBN_INTERNAL int ulbn_divmod_guard(
   return _ulbn_divmod_large(alloc, qp, rp, ap, an, dp, dn, shift);
 }
 
+/****************
+ * <ulbn> Round *
+ ****************/
+
+/* adjust half `round_mode` to normal */
+ULBN_INTERNAL enum ULBN_ROUND_ENUM ulbn_adjust_half_round(enum ULBN_ROUND_ENUM round_mode, int is_even) {
+  if(round_mode == ULBN_ROUND_HALF_ODD)
+    return !is_even ? ULBN_ROUND_DOWN : ULBN_ROUND_UP;
+  else if(round_mode == ULBN_ROUND_HALF_EVEN)
+    return is_even ? ULBN_ROUND_DOWN : ULBN_ROUND_UP;
+  else if(round_mode == ULBN_ROUND_HALF_DOWN)
+    return ULBN_ROUND_DOWN;
+  else /* if(round_mode == ULBN_ROUND_HALF_UP) */ {
+    ulbn_assert(round_mode == ULBN_ROUND_HALF_UP);
+    return ULBN_ROUND_UP;
+  }
+}
+ULBN_INTERNAL int ulbn_round_direction(enum ULBN_ROUND_ENUM round_mode, int positive) {
+  ulbn_assert(positive == 0 || positive == 1);
+  if(round_mode == ULBN_ROUND_DOWN)
+    return 0;
+  else if(round_mode == ULBN_ROUND_UP)
+    return positive ? 1 : -1;
+  else if(round_mode == ULBN_ROUND_CEILING)
+    return positive;
+  else /* if(round_mode == ULBN_ROUND_FLOOR) */ {
+    ulbn_assert(round_mode == ULBN_ROUND_FLOOR);
+    return positive - 1;
+  }
+}
+ULBN_INTERNAL ulbn_limb_t
+ulbn_round_highest_bit(const ulbn_limb_t* ptr, ulbn_usize_t len, ulbn_usize_t idx, int shift) {
+  ulbn_assert(idx != 0 && shift != 0);
+  if(idx >= len)
+    return 0;
+  return _ulbn_cast_limb((ptr[idx] >> (shift - 1)) & 1u);
+}
+ULBN_INTERNAL ulbn_limb_t ulbn_round_rest_bits(const ulbn_limb_t* ptr, ulbn_usize_t len, ulbn_usize_t idx, int shift) {
+  ulbn_assert(idx != 0 && shift != 0);
+  if(idx >= len)
+    return !ulbn_is0(ptr, len);
+  return _ulbn_cast_limb(
+    _ulbn_cast_limb(!ulbn_is0(ptr, idx)) | (ptr[idx] << (ul_static_cast(int, ULBN_LIMB_BITS) - shift + 1))
+  );
+}
+
 /**************************
  * <ulbn> Base conversion *
  **************************/
@@ -4553,10 +4605,7 @@ ULBN_INTERNAL ulbn_ulong_t ulbn_estimate_conv2_size(ulbn_ulong_t bits, int base,
   #else
   do {
     ulbn_ulong_t ret = 0;
-    if(ul_unlikely(
-         ul_static_cast(size_t, len* ULBN_LIMB_BITS) - ul_static_cast(size_t, _ulbn_clz_(buf[len - 1]))
-         > sizeof(ulbn_ulong_t) * CHAR_BIT
-       ))
+    if(ul_unlikely(ulbn_bit_width(buf, len) > sizeof(ulbn_ulong_t) * CHAR_BIT))
       return ULBN_ULONG_MAX;
     do {
       ret <<= ULBN_LIMB_BITS - 1;
@@ -4852,9 +4901,7 @@ ULBN_INTERNAL int ulbn_to_bit_info(const ulbn_limb_t* limb, ulbn_usize_t n, ulbn
   qn = ulbn_rnorm(q, n);
   ulbn_assert(qn > 0);
 
-  if(ul_unlikely(
-       qn * ULBN_LIMB_BITS - ul_static_cast(unsigned, _ulbn_clz_(q[qn - 1])) > sizeof(ulbn_usize_t) * CHAR_BIT
-     ))
+  if(ul_unlikely(ulbn_bit_width(q, qn) > sizeof(ulbn_usize_t) * CHAR_BIT))
     return ULBN_ERR_EXCEED_RANGE;
 
   do {
@@ -6404,32 +6451,6 @@ ULBN_PUBLIC int ulbi_mul(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
  * <ulbi> Division *
  *******************/
 
-ULBN_PRIVATE enum ULBN_ROUND_ENUM _ulbn_adjust_half_round(enum ULBN_ROUND_ENUM round_mode, int is_even) {
-  if(round_mode == ULBN_ROUND_HALF_ODD)
-    return !is_even ? ULBN_ROUND_DOWN : ULBN_ROUND_UP;
-  else if(round_mode == ULBN_ROUND_HALF_EVEN)
-    return is_even ? ULBN_ROUND_DOWN : ULBN_ROUND_UP;
-  else if(round_mode == ULBN_ROUND_HALF_DOWN)
-    return ULBN_ROUND_DOWN;
-  else /* if(round_mode == ULBN_ROUND_HALF_UP) */ {
-    ulbn_assert(round_mode == ULBN_ROUND_HALF_UP);
-    return ULBN_ROUND_UP;
-  }
-}
-ULBN_PRIVATE int _ulbn_get_round_op(enum ULBN_ROUND_ENUM round_mode, int q_positive) {
-  ulbn_assert(q_positive == 0 || q_positive == 1);
-  if(round_mode == ULBN_ROUND_DOWN)
-    return 0;
-  else if(round_mode == ULBN_ROUND_UP)
-    return q_positive ? 1 : -1;
-  else if(round_mode == ULBN_ROUND_CEILING)
-    return q_positive;
-  else /* if(round_mode == ULBN_ROUND_FLOOR) */ {
-    ulbn_assert(round_mode == ULBN_ROUND_FLOOR);
-    return q_positive - 1;
-  }
-}
-
 ULBN_PRIVATE int _ulbi_divmod(
   const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
   const ulbi_t* ao, ulbn_usize_t an, int a_positive, /* */
@@ -6528,10 +6549,10 @@ ULBN_PUBLIC int ulbi_divmod_ex(
       round_mode = ULBN_ROUND_UP;
       break;
     default:
-      round_mode = _ulbn_adjust_half_round(round_mode, ulbi_is_even(tqo));
+      round_mode = ulbn_adjust_half_round(round_mode, ulbi_is_even(tqo));
     }
 
-  op = _ulbn_get_round_op(round_mode, _ulbn_same_sign(ao->len, bo->len));
+  op = ulbn_round_direction(round_mode, _ulbn_same_sign(ao->len, bo->len));
 do_op:
   if(qo) {
     if(op == 0)
@@ -6678,9 +6699,9 @@ ULBN_PUBLIC int ulbi_divmod_limb_ex(
     else if(r > b - r)
       round_mode = ULBN_ROUND_UP;
     else
-      round_mode = _ulbn_adjust_half_round(round_mode, ulbi_is_even(qo));
+      round_mode = ulbn_adjust_half_round(round_mode, ulbi_is_even(qo));
   }
-  op = _ulbn_get_round_op(round_mode, a_positive);
+  op = ulbn_round_direction(round_mode, a_positive);
 
   if(qo != tqo) {
     if(op == 0) { /* do nothing */
@@ -6810,9 +6831,9 @@ ULBN_PUBLIC int ulbi_divmod_slimb_ex(
     else if(r > b - r)
       round_mode = ULBN_ROUND_UP;
     else
-      round_mode = _ulbn_adjust_half_round(round_mode, ulbi_is_even(qo));
+      round_mode = ulbn_adjust_half_round(round_mode, ulbi_is_even(qo));
   }
-  op = _ulbn_get_round_op(round_mode, positive);
+  op = ulbn_round_direction(round_mode, positive);
 
   if(qo != tqo) {
     if(op == 0) { /* do nothing */
@@ -7253,7 +7274,7 @@ ULBN_PRIVATE int _ulbi_divmod_2exp_ex(
   const ulbn_limb_t* ap;
 
   ulbn_limb_t cy = 0;
-  ulbn_limb_t rrest, rh = 0;
+  ulbn_limb_t rrest, rh;
   int err = 0;
 
   int op, q_even;
@@ -7270,23 +7291,18 @@ ULBN_PRIVATE int _ulbi_divmod_2exp_ex(
   }
 
   ap = _ulbi_limbs(ao);
+  if(shift == 0 && idx == 0) {
+    rh = 0;
+    rrest = 0;
+  }
   if(shift == 0) {
-    if(idx == 0)
-      rrest = 0;
-    else if(idx <= an) {
-      rh = _ulbn_cast_limb(ap[idx - 1] & ULBN_LIMB_SIGNBIT);
-      rrest = _ulbn_cast_limb(_ulbn_cast_limb(!ulbn_is0(ap, idx - 1)) | (ap[idx - 1] << 1));
-    } else
-      rrest = !ulbn_is0(ap, an);
+    const ulbn_usize_t idx2 = idx - 1;
+    const int shift2 = ul_static_cast(int, ULBN_LIMB_BITS);
+    rh = ulbn_round_highest_bit(ap, an, idx2, shift2);
+    rrest = ulbn_round_rest_bits(ap, an, idx2, shift2);
   } else {
-    if(idx < an)
-      rh = _ulbn_cast_limb((ap[idx] >> (shift - 1)) & 1u);
-    if(idx <= an)
-      rrest = _ulbn_cast_limb(
-        _ulbn_cast_limb(!ulbn_is0(ap, idx)) | (ap[idx] << (ul_static_cast(int, ULBN_LIMB_BITS) - shift + 1))
-      );
-    else
-      rrest = !ulbn_is0(ap, an);
+    rh = ulbn_round_highest_bit(ap, an, idx, shift);
+    rrest = ulbn_round_rest_bits(ap, an, idx, shift);
   }
 
   if(idx >= an) {
@@ -7352,9 +7368,9 @@ fix_remainder:
     else if(rh != 0 && rrest != 0)
       round_mode = ULBN_ROUND_UP;
     else
-      round_mode = _ulbn_adjust_half_round(round_mode, q_even);
+      round_mode = ulbn_adjust_half_round(round_mode, q_even);
   }
-  op = _ulbn_get_round_op(round_mode, a_pos);
+  op = ulbn_round_direction(round_mode, a_pos);
 
   if(qo) {
     if(op == 0) { /* do nothing */

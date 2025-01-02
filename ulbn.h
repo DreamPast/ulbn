@@ -471,6 +471,8 @@ typedef unsigned ulbn_usize_t;
 
 #define ulbn_cast_usize(n) ul_static_cast(ulbn_usize_t, (n))
 #define ulbn_cast_ssize(n) ul_static_cast(ulbn_ssize_t, (n))
+#define ULBN_USIZE_SIGNBIT ulbn_cast_usize((ULBN_USIZE_MAX >> 1u) + 1u)
+#define ULBN_USIZE_MASK ulbn_cast_usize(ULBN_USIZE_MAX >> 1)
 
 
 #if !defined(ULBN_BITS_MAX)
