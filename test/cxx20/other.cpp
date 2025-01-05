@@ -45,7 +45,7 @@ void testOther() {
   }
 
   {  // ulbi_init_2exp_usize
-    for(unsigned i = 0; i <= 16; ++i) {
+    for(uint8_t i = 0; i <= 16; ++i) {
       ulbi_t x[1];
       T_assert(ulbi_init_2exp_bits(ctx, x, i) == 0);
       T_assert(BigInt(x) == (1 << i));

@@ -2368,13 +2368,17 @@ cleanup_v2:
 }
 #endif /* _ULBN_USE_TOOM_4 */
 
+#define _ULBN_FFT_THRESHOLD 2048
+#if _ULBN_FFT_THRESHOLD >= ULBN_USIZE_MAX
+  #undef ULBN_CONF_FFT
+  #define ULBN_CONF_FFT 0
+#endif
 #if ULBN_CONF_FFT
 ULBN_PRIVATE int _ulbn_mul_fft(
   const ulbn_alloc_t* alloc, ulbn_limb_t* rp,                                    /* */
   const ulbn_limb_t* ap, ulbn_usize_t an, const ulbn_limb_t* bp, ulbn_usize_t bn /* */
 );
 ULBN_PRIVATE void _ulbn_init_fft(void);
-  #define _ULBN_FFT_THRESHOLD 2048
 #endif
 
 /* Note: If allocation fails, it falls back to using a version demanding less cache,
@@ -5473,7 +5477,8 @@ ULBN_PRIVATE ulbn_limb_t* _ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ul
   return new_limb;
 }
   #define _ulbi_limbs(o) ((o)->cap <= ULBI_SHORT_LIMB_SIZE ? (o)->u.shrt : (o)->u.lng)
-  #define _ulbi_res(alloc, o, n) ((ulbn_cast_usize(n) <= (o)->cap) ? _ulbi_limbs(o) : _ulbi_reserve((alloc), (o), (n)))
+  #define _ulbi_res(alloc, o, n) \
+    ((ulbn_cast_usize(n) <= (o)->cap) ? _ulbi_limbs(o) : _ulbi_reserve((alloc), (o), ulbn_cast_usize(n)))
 ULBN_PUBLIC int ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n) {
   ulbn_limb_t* ptr;
   if(ulbn_cast_usize(n) <= (o)->cap)
@@ -5498,7 +5503,7 @@ ULBN_PUBLIC int ulbi_set_limbs(const ulbn_alloc_t* alloc, ulbi_t* obj, const ulb
 
   if(ul_unlikely(len > _ULBI_SSIZE_LIMIT))
     return ULBN_ERR_EXCEED_RANGE;
-  rp = _ulbi_res(alloc, obj, ulbn_cast_usize(len));
+  rp = _ulbi_res(alloc, obj, len);
   ULBN_RETURN_IF_ALLOC_FAILED(rp, ULBN_ERR_NOMEM);
   memmove(rp, limbs, len * sizeof(ulbn_limb_t));
   rn = ulbn_rnorm(rp, ulbn_cast_usize(len));
@@ -5687,7 +5692,7 @@ ULBN_PUBLIC int ulbi_abs(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
 
 ULBN_PRIVATE int _ulbi_set_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbn_usize_t idx, int shift) {
   ulbn_limb_t* p;
-  p = _ulbi_res(alloc, dst, ulbn_cast_usize(idx + 1));
+  p = _ulbi_res(alloc, dst, idx + 1);
   ULBN_RETURN_IF_ALLOC_FAILED(p, ULBN_ERR_NOMEM);
   ulbn_fill0(p, ulbn_cast_usize(idx));
   p[idx] = ULBN_LIMB_SHL(1, shift);
@@ -5806,7 +5811,7 @@ ULBN_PRIVATE int _ulbi_set_bytes_pos_le(
     --len;
   wlen = _ulbi_set_bytes_fix_len(len);
   ULBI_RETURN_IF_SSIZE_OVERFLOW(wlen, ULBN_ERR_EXCEED_RANGE);
-  dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
+  dp = _ulbi_res(alloc, dst, wlen);
   ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
 
   _ulbi_set_bytes_unsafe_le(dp, ulbn_cast_usize(wlen), p, len);
@@ -5826,7 +5831,7 @@ ULBN_PRIVATE int _ulbi_set_bytes_pos_be(
   }
   wlen = _ulbi_set_bytes_fix_len(len);
   ULBI_RETURN_IF_SSIZE_OVERFLOW(wlen, ULBN_ERR_EXCEED_RANGE);
-  dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
+  dp = _ulbi_res(alloc, dst, wlen);
   ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
 
   _ulbi_set_bytes_unsafe_be(dp, ulbn_cast_usize(wlen), p, len);
@@ -5845,7 +5850,7 @@ ULBN_PRIVATE int _ulbi_set_bytes_neg_le(
     --len;
   wlen = _ulbi_set_bytes_fix_len(len);
   ULBI_RETURN_IF_SSIZE_OVERFLOW(wlen, ULBN_ERR_EXCEED_RANGE);
-  dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
+  dp = _ulbi_res(alloc, dst, wlen);
   ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
 
   _ulbi_set_bytes_unsafe_le(dp, ulbn_cast_usize(wlen), p, len);
@@ -5873,7 +5878,7 @@ ULBN_PRIVATE int _ulbi_set_bytes_neg_be(
   }
   wlen = _ulbi_set_bytes_fix_len(len);
   ULBI_RETURN_IF_SSIZE_OVERFLOW(wlen, ULBN_ERR_EXCEED_RANGE);
-  dp = _ulbi_res(alloc, dst, ulbn_cast_usize(wlen));
+  dp = _ulbi_res(alloc, dst, wlen);
   ULBN_RETURN_IF_ALLOC_FAILED(dp, ULBN_ERR_NOMEM);
 
   _ulbi_set_bytes_unsafe_be(dp, ulbn_cast_usize(wlen), p, len);
@@ -7029,7 +7034,7 @@ ULBN_PRIVATE int _ulbi_sar(
   }
 
   rn = an - idx;
-  rp = _ulbi_res(alloc, ro, ulbn_cast_usize(rn + ulbn_cast_uint(a_neg)));
+  rp = _ulbi_res(alloc, ro, rn + ulbn_cast_uint(a_neg));
   ULBN_RETURN_IF_ALLOC_FAILED(rp, ULBN_ERR_NOMEM);
   ap = _ulbi_limbs(ao);
 
