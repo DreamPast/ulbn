@@ -413,7 +413,7 @@ extern "C" {
 #endif
 
 
-#if 1
+#if 0
 typedef unsigned char ulbn_limb_t;
 typedef signed char ulbn_slimb_t;
   #define ULBN_LIMB_MAX UCHAR_MAX

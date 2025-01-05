@@ -4112,7 +4112,6 @@ ULBN_PRIVATE int _ulbn_divmod_large(
   int err;
 
   ulbn_assert(dn > 2);
-  ulbn_assert(qp != rp);
 
   /* Ensure `dp` is independent and normalized */
   if(shift != 0) {
@@ -6435,8 +6434,11 @@ ULBN_PRIVATE int _ulbi_divmod(
 
   if(an < bn) {
     _ulbi_may_set_zero(qo);
-    if(ro)
+    if(ro) {
       err = ulbi_set_copy(alloc, ro, ao);
+      ULBN_RETURN_IF_ALLOC_COND(err, err);
+    } else
+      err = an ? ULBN_ERR_INEXACT : 0;
     return err;
   }
   if(ul_unlikely(qo == ro))
@@ -8862,6 +8864,7 @@ ULBN_PRIVATE void _ulbi_to_bytes_neg_le(unsigned char* dst, size_t size, const u
   memset(dst, 0, t);
   if(size == 0)
     return;
+  dst += t;
 
   l = _ulbn_neg_(*limb++);
   --len;
@@ -8947,6 +8950,7 @@ ULBN_PRIVATE void _ulbi_to_bytes_neg_be(unsigned char* dst, size_t size, const u
       break;
   }
 
+  dst -= size;
   memset(dst, ulbn_cast_int(UCHAR_MAX), size);
 }
 
