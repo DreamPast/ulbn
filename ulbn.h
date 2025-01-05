@@ -34,11 +34,9 @@ ulbn - Big Number Library
 #if (ULBN_HEADER + 0)
 #endif
 
-
 /***************************
  * Internal Utility Macros *
  ***************************/
-
 
 /**
  * @def UL_PEDANTIC
@@ -303,22 +301,18 @@ ulbn - Big Number Library
   #endif
 #endif /* ul_export */
 
-
 /****************
  * Header Files *
  ****************/
-
 
 #include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
 
-
 /*****************
  * Configuration *
  *****************/
-
 
 /**
  * @def ULBN_CONF_CHECK_ALLOCATION_FAILURE
@@ -407,7 +401,6 @@ ulbn - Big Number Library
  * Basic Definitions *
  *********************/
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -417,6 +410,10 @@ extern "C" {
 
 #define ulbn_cast_int(v) ul_static_cast(int, (v))
 #define ulbn_cast_uint(v) ul_static_cast(unsigned, (v))
+
+#if (CHAR_BIT & 1) != 0
+  #error "ulbn: CHAR_BIT must be even"
+#endif
 
 
 #if 0
@@ -444,6 +441,14 @@ typedef signed long ulbn_slimb_t;
 
 #define ulbn_cast_limb(v) ul_static_cast(ulbn_limb_t, (v))
 #define ulbn_cast_slimb(v) ul_static_cast(ulbn_slimb_t, (v))
+#define ulbn_from_pos_slimb(v) ulbn_cast_limb(v)
+#define ulbn_from_neg_slimb(v) ulbn_cast_limb(ulbn_cast_limb(-((v) + 1)) + 1u)
+
+#define ULBN_LIMB_BITS (sizeof(ulbn_limb_t) * CHAR_BIT)
+#if ULBN_LIMB_MAX < UCHAR_MAX
+  #error "ulbn: `ulbn_limb_t` cannot be smaller than `unsigned char`"
+#endif
+
 
 #if !defined(ulbn_dlimb_t) && USHRT_MAX / ULBN_LIMB_MAX >= ULBN_LIMB_MAX \
   && USHRT_MAX / ULBN_LIMB_MAX - ULBN_LIMB_MAX >= 2
@@ -482,8 +487,13 @@ typedef unsigned ulbn_usize_t;
 
 #define ulbn_cast_usize(n) ul_static_cast(ulbn_usize_t, (n))
 #define ulbn_cast_ssize(n) ul_static_cast(ulbn_ssize_t, (n))
+
 #define ULBN_USIZE_SIGNBIT ulbn_cast_usize((ULBN_USIZE_MAX >> 1u) + 1u)
 #define ULBN_USIZE_MASK ulbn_cast_usize(ULBN_USIZE_MAX >> 1)
+
+#if ULBN_USIZE_MAX < UCHAR_MAX
+  #error "ulbn: `ulbn_usize_t` cannot be smaller than `unsigned char`"
+#endif
 
 
 #if !defined(ULBN_BITS_MAX)
@@ -522,6 +532,12 @@ typedef ulbn_ssize_t ulbn_sbits_t;
 
 #define ulbn_cast_bits(n) ul_static_cast(ulbn_bits_t, (n))
 #define ulbn_cast_sbits(n) ul_static_cast(ulbn_sbits_t, (n))
+#define ulbn_from_pos_sbits(v) ulbn_cast_bits(v)
+#define ulbn_from_neg_sbits(v) ulbn_cast_bits(ulbn_cast_bits(-((v) + 1)) + 1u)
+
+#if ULBN_BITS_MAX < UCHAR_MAX
+  #error "ulbn: `ulbn_bits_t` cannot be smaller than `unsigned char`"
+#endif
 
 
 #if !defined(ULBN_ULONG_MAX) || !defined(ULBN_SLONG_MAX) || !defined(ULBN_SLONG_MIN)
@@ -545,6 +561,11 @@ typedef signed long ulbn_slong_t;
     #define ULBN_SLONG_MIN LONG_MIN
   #endif
 #endif
+
+#define ulbn_cast_ulong(n) ul_static_cast(ulbn_ulong_t, (n))
+#define ulbn_cast_slong(n) ul_static_cast(ulbn_slong_t, (n))
+#define ulbn_from_pos_slong(v) ulbn_cast_ulong(v)
+#define ulbn_from_neg_slong(v) ulbn_cast_ulong(ulbn_cast_ulong(-((v) + 1)) + 1u)
 
 #define ULBN_ULONG_BITS (sizeof(ulbn_ulong_t) * CHAR_BIT)
 #define _ULBN_ULONG_LIMB_LEN ((sizeof(ulbn_ulong_t) + sizeof(ulbn_limb_t) - 1) / sizeof(ulbn_limb_t))
@@ -619,11 +640,17 @@ enum ULBN_ERROR_ENUM {
 
   ULBN_ERR_SUCCESS = 0,
   /**
-   * @brief Pole error
+   * @brief Pole error (or divided by zero)
    * @details The calculation results in infinity or undefined.
    * @details For example, 1/0, atan(pi/2).
    */
-  ULBN_ERR_DIV_BY_ZERO = 2,
+  ULBN_ERR_POLE = 2,
+  /**
+   * @brief Pole error (or divided by zero)
+   * @details The calculation results in infinity or undefined.
+   * @details For example, 1/0, atan(pi/2).
+   */
+  ULBN_ERR_DIV_BY_ZERO = ULBN_ERR_POLE,
   /**
    * @brief Inexact result.
    * @note This error occurs very frequently and can usually be ignored.
