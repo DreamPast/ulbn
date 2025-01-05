@@ -63,7 +63,7 @@ void testOther() {
 
   {  // ulbi_init_string, ulbi_set_string: base = -1
     ulbi_t x[1];
-    T_assert(ulbi_init_string(ctx, x, "12", -1) == ULBN_ERR_EXCEED_RANGE);
+    T_assert(ulbi_init_string(ctx, x, "12", -1) == ULBN_ERR_BAD_ARGUMENT);
     ulbi_deinit(ctx, x);
   }
 

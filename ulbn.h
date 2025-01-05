@@ -31,9 +31,6 @@ ulbn - Big Number Library
 #ifndef ULBN_HEADER
 #define ULBN_HEADER
 
-#if (ULBN_HEADER + 0)
-#endif
-
 /***************************
  * Internal Utility Macros *
  ***************************/
@@ -416,7 +413,7 @@ extern "C" {
 #endif
 
 
-#if 0
+#if 1
 typedef unsigned char ulbn_limb_t;
 typedef signed char ulbn_slimb_t;
   #define ULBN_LIMB_MAX UCHAR_MAX
@@ -475,6 +472,9 @@ typedef signed long ulbn_slimb_t;
     #define ulbn_sdlimb_t signed __int128
   #endif
 #endif
+
+#define ulbn_cast_dlimb(v) ul_static_cast(ulbn_dlimb_t, (v))
+#define ulbn_cast_sdlimb(v) ul_static_cast(ulbn_sdlimb_t, (v))
 
 
 #if !defined(ULBN_USIZE_MAX) || !defined(ULBN_SSIZE_MAX) || !defined(ULBN_SSIZE_MIN)
@@ -623,8 +623,17 @@ typedef signed long ulbn_slong_t;
 
 
 /* <0 indicates a system error, >0 indicates a mathematical error.
-This error directly corresponds to the IEEE754 error code. */
+This error corresponds to the IEEE754 error code. */
 enum ULBN_ERROR_ENUM {
+  /**
+   * @brief Result is not a finite number
+   * @details Use infinite precision to calculate a infinite number.
+   */
+  ULBN_ERR_NOT_FINITE = -5,
+  /**
+   * @brief Bad argument
+   */
+  ULBN_ERR_BAD_ARGUMENT = -4,
   /**
    * @brief External error
    */
@@ -640,37 +649,40 @@ enum ULBN_ERROR_ENUM {
 
   ULBN_ERR_SUCCESS = 0,
   /**
-   * @brief Pole error (or divided by zero)
-   * @details The calculation results in infinity or undefined.
-   * @details For example, 1/0, atan(pi/2).
-   */
-  ULBN_ERR_POLE = 2,
-  /**
-   * @brief Pole error (or divided by zero)
-   * @details The calculation results in infinity or undefined.
-   * @details For example, 1/0, atan(pi/2).
-   */
-  ULBN_ERR_DIV_BY_ZERO = ULBN_ERR_POLE,
-  /**
-   * @brief Inexact result.
+   * @brief Inexact result
    * @note This error occurs very frequently and can usually be ignored.
    */
-  ULBN_ERR_INEXACT = 4,
-  /**
-   * @brief Domain error
-   * @details For example, log(-1).
-   */
-  ULBN_ERR_INVALID = 8,
+  ULBN_ERR_INEXACT = 2,
   /**
    * @brief Overflow error
-   * @details The result is finite but rounded to infinity, or rounded down to the maximum finite value.
+   * @details The result is finite but rounded to infinity.
+   * @details This error implies `ULBN_ERR_INEXACT`.
    */
-  ULBN_ERR_OVERFLOW = 16,
+  ULBN_ERR_OVERFLOW = 4,
   /**
    * @brief Underflow error
    * @details The result is non-zero but rounded to zero.
+   * @details This error implies `ULBN_ERR_INEXACT`.
    */
-  ULBN_ERR_UNDERFLOW = 32
+  ULBN_ERR_UNDERFLOW = 8,
+
+  /**
+   * @brief Pole error (or divided by zero)
+   * @details The calculation results in infinity.
+   * @example 1/0, atan(pi/2).
+   */
+  ULBN_ERR_POLE = 16,
+  /**
+   * @brief Pole error (or divided by zero)
+   * @details The calculation results in infinity.
+   * @details 1/0, atan(pi/2).
+   */
+  ULBN_ERR_DIV_BY_ZERO = ULBN_ERR_POLE,
+  /**
+   * @brief Domain error
+   * @details log(-1).
+   */
+  ULBN_ERR_INVALID = 32
 };
 
 enum ULBN_ROUND_ENUM {
@@ -682,7 +694,7 @@ enum ULBN_ROUND_ENUM {
   ULBN_ROUND_HALF_EVEN = 5,
   ULBN_ROUND_HALF_DOWN = 6,
   ULBN_ROUND_HALF_UP = 7,
-  ULBN_ROUND_FAIL = 8,
+  ULBN_ROUND_FAITHFUL = 8,
 
   ULBN_ROUND_TRUNC = ULBN_ROUND_DOWN,
   ULBN_ROUND_TO_ZERO = ULBN_ROUND_DOWN,
@@ -697,7 +709,10 @@ enum ULBN_ROUND_ENUM {
   ULBN_RNDD = ULBN_ROUND_FLOOR,
   ULBN_RNDA = ULBN_ROUND_AWAY_FROM_ZERO,
   ULBN_RNDNA = ULBN_ROUND_HALF_UP,
-  ULBN_RNDF = ULBN_ROUND_FAIL
+  ULBN_RNDF = ULBN_ROUND_FAITHFUL,
+
+  ULBN_ROUND_BIG_INT_DEFAULT = ULBN_ROUND_DOWN,
+  ULBN_ROUND_IEEE754_DEFAULT = ULBN_ROUND_HALF_EVEN
 };
 
 enum ULBN_SET_STRING_FLAG_ENUM {
@@ -876,11 +891,11 @@ ULBN_PUBLIC void ulbi_deinit(const ulbn_alloc_t* alloc, ulbi_t* o);
 ULBN_PUBLIC int ulbi_shrink(const ulbn_alloc_t* alloc, ulbi_t* o);
 /**
  * @brief Reserve space for at least `n` limbs in `o`.
- * @return Non-null pointer if allocation is successful;
- * @return `NULL` if `n` == 0 and `o` is not allocated (handled as `ULBN_ERR_SUCCESS`);
- * @return `NULL` if out of memory (handled as `ULBN_ERR_NOMEM`).
+ * @return `0` if successful;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `ULBN_ERR_NOMEM` if out of memory.
  */
-ULBN_PUBLIC ulbn_limb_t* ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n);
+ULBN_PUBLIC int ulbi_reserve(const ulbn_alloc_t* alloc, ulbi_t* o, ulbn_usize_t n);
 
 /**
  * @brief Get the internal limbs of `obj`.
@@ -895,14 +910,14 @@ ULBN_PUBLIC size_t ulbi_get_limbs_len(const ulbi_t* obj);
  * @brief Sets `dst` to `limbs` with length of `len`.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `src` is too large.
+ * @return `ULBN_ERR_EXCEED_RANGE` if `limbs` is too large.
  */
 ULBN_PUBLIC int ulbi_set_limbs(const ulbn_alloc_t* alloc, ulbi_t* obj, const ulbn_limb_t* limbs, size_t len);
 /**
  * @brief Initializes `dst` to `limbs` with length of `len`.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `src` is too large.
+ * @return `ULBN_ERR_EXCEED_RANGE` if `limbs` is too large.
  */
 ULBN_PUBLIC int ulbi_init_limbs(const ulbn_alloc_t* alloc, ulbi_t* obj, const ulbn_limb_t* limbs, size_t len);
 
@@ -963,12 +978,14 @@ ULBN_PUBLIC ulbi_t* ulbi_init_slong(ulbi_t* dst, ulbn_slong_t l);
 ULBN_PUBLIC void ulbi_swap(ulbi_t* o1, ulbi_t* o2);
 /**
  * @brief `ro` = -`ao`.
+ * @note If `ro` == `ao`, this function never fails.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory and `ro` != `ao`.
  */
 ULBN_PUBLIC int ulbi_neg(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao);
 /**
  * @brief `ro` = abs(`ao`).
+ * @note If `ro` == `ao`, this function never fails.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory and `ro` != `ao`.
  */
@@ -977,12 +994,14 @@ ULBN_PUBLIC int ulbi_abs(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
 
 /**
  * @brief Copies `src` to `dst`.
+ * @note If `dst` == `src`, this function does nothing.
  * @return `0` if successful;
- * @return `ULBN_ERR_NOMEM` if out of memory and `dst` != `src`.
+ * @return `ULBN_ERR_NOMEM` if out of memory.
  */
 ULBN_PUBLIC int ulbi_set_copy(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* src);
 /**
  * @brief Moves `src` to `dst`
+ * @note If `dst` == `src`, this function does nothing.
  * @note This function never fails; after that `src` will be as if `ulbi_deinit` was called.
  */
 ULBN_PUBLIC void ulbi_set_move(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbi_t* src);
@@ -1018,7 +1037,7 @@ ULBN_PUBLIC int ulbi_set_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi
  * @param flag Combination of `ULBN_SET_STRING_FLAG_ENUM`.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `base` is invalid;
  * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
  * @return `ULBN_ERR_INEXACT` if the number represented by the string cannot be exactly represented as an integer;
  * @return `ULBN_ERR_INEXACT` if the string represents some form of -0.
@@ -1035,7 +1054,7 @@ ULBN_PUBLIC int ulbi_set_string_ex(
  *       and check if `str` is fully parsed and ignore `ULBN_ERR_INEXACT` (this function won't accpet decimal part)
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `base` is invalid;
  * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
  * @return `ULBN_ERR_INVALID` if the string cannot be fully parsed as an integer
  *         (but the result is still stored, so you can ignore it).
@@ -1049,7 +1068,7 @@ ULBN_PUBLIC int ulbi_set_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const ch
  *       and check if `str` is fully parsed and ignore `ULBN_ERR_INEXACT` (this function won't accpet decimal part)
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `base` is invalid;
  * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
  * @return `ULBN_ERR_INVALID` if the string cannot be fully parsed as an integer
  *         (but the result is still stored, so you can ignore it).
@@ -1120,12 +1139,14 @@ ULBN_PUBLIC int ulbi_set_bytes_signed(
 
 /**
  * @brief Initializes `dst` as a copy of `src`.
+ * @note If `dst` == `src`, this function does nothing.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory.
  */
 ULBN_PUBLIC int ulbi_init_copy(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi_t* src);
 /**
  * @brief Initializes `dst` as a move from `src`.
+ * @note If `dst` == `src`, this function does nothing.
  * @note This function never fails; after this `src` will be as if `ulbi_deinit` was called.
  */
 ULBN_PUBLIC void ulbi_init_move(const ulbn_alloc_t* alloc, ulbi_t* dst, ulbi_t* src);
@@ -1158,7 +1179,7 @@ ULBN_PUBLIC int ulbi_init_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulb
  * @param base 0 means automatic detection (according to the prefix); 2-36 means the base; otherwise, it is invalid.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `base` is invalid;
  * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
  * @return `ULBN_ERR_INVALID` if the string cannot be fully parsed as an integer
  *         (but the result is still stored, so you can ignore it).
@@ -1170,7 +1191,7 @@ ULBN_PUBLIC int ulbi_init_string(const ulbn_alloc_t* alloc, ulbi_t* dst, const c
  * @param base 0 means automatic detection (according to the prefix); 2-36 means the base; otherwise, it is invalid.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `base` is invalid;
  * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
  * @return `ULBN_ERR_INVALID` if the string cannot be fully parsed as an integer
  *         (but the result is still stored, so you can ignore it).
@@ -1473,7 +1494,7 @@ ULBN_PUBLIC int ulbi_divmod_slimb(
  * @brief `qo` = `ao` // `b`, `ro` = `ao` % `b`.
  * @note `qo` and `ro` is allowed to be `NULL`;
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `round_mode` is illegal;
  * @return `ULBN_ERR_INEXACT` if the ramainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
  * @return `0` otherwise.
  */
@@ -1525,7 +1546,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp(const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* 
  * @note `qo` and `ro` are allowed to be `NULL`.
  * @note If `qo` and `ro` are NULL, this function won't allocate any memory.
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `round_mode` is illegal;
  * @return `ULBN_ERR_INEXACT` if the ramainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
  * @return `0` otherwise.
  */
@@ -1539,7 +1560,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp_bits_ex(
  * @note `qo` and `ro` are allowed to be `NULL`.
  * @note If `qo` and `ro` are NULL, this function won't allocate any memory.
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `round_mode` is illegal;
  * @return `ULBN_ERR_INEXACT` if the ramainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
  * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
  * @return `0` otherwise.
@@ -1554,7 +1575,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp_sbits_ex(
  * @note `qo` and `ro` are allowed to be `NULL`.
  * @note If `qo` and `ro` are NULL, this function won't allocate any memory.
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_INVALID` if `round_mode` is illegal;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `round_mode` is illegal;
  * @return `ULBN_ERR_INEXACT` if the ramainder is not zero and (`ro` is NULL or `round_mode` is `ULBN_ROUND_FAIL`);
  * @return `ULBN_ERR_EXCEED_RANGE` if `e` is negative and very large;
  * @return `0` otherwise.
@@ -1829,7 +1850,7 @@ ULBN_PUBLIC int ulbi_as_int_usize(const ulbn_alloc_t* alloc, ulbi_t* ro, const u
 /**
  * @brief Converts `ao` to a number within the range of an n-bit unsigned binary number.
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `b` is negative;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `b` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_as_uint_ssize(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_ssize_t b);
@@ -1837,7 +1858,7 @@ ULBN_PUBLIC int ulbi_as_uint_ssize(const ulbn_alloc_t* alloc, ulbi_t* ro, const 
  * @brief Converts `ao` to a number within the range of an n-bit signed binary number.
  * @note If `b` == 2, the valid range of the number is -1 and 0.
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `b` is negative;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `b` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_as_int_ssize(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_ssize_t b);
@@ -1862,7 +1883,7 @@ ULBN_PUBLIC int ulbi_as_int_bits(const ulbn_alloc_t* alloc, ulbi_t* ro, const ul
  * @brief Converts `ao` to a number within the range of an n-bit unsigned binary number.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if too large;
- * @return `ULBN_ERR_EXCEED_RANGE` if `b` is negative;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `b` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_as_uint_sbits(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_sbits_t b);
@@ -1871,7 +1892,7 @@ ULBN_PUBLIC int ulbi_as_uint_sbits(const ulbn_alloc_t* alloc, ulbi_t* ro, const 
  * @note If `b` == 2, the valid range of the number is -1 and 0.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if too large;
- * @return `ULBN_ERR_EXCEED_RANGE` if `b` is negative;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `b` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_as_int_sbits(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, ulbn_sbits_t b);
@@ -1880,6 +1901,7 @@ ULBN_PUBLIC int ulbi_as_int_sbits(const ulbn_alloc_t* alloc, ulbi_t* ro, const u
  * @brief Converts `ao` to a number within the range of an n-bit unsigned binary number.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if too large;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `b` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_as_uint(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* b);
@@ -1887,6 +1909,7 @@ ULBN_PUBLIC int ulbi_as_uint(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t
  * @brief Converts `ao` to a number within the range of an n-bit unsigned binary number.
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if too large;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `b` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_as_int(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao, const ulbi_t* b);
@@ -1979,7 +2002,7 @@ ULBN_PUBLIC void ulbi_to_bytes_signed_be(const ulbi_t* ao, void* dst, size_t siz
  *
  * @return String if successful (allocated by alloc_func);
  * @return `NULL` if out of memory (considered as `ULBN_ERR_NOMEM`);
- * @return `NULL` if the base is invalid (considered as `ULBN_ERR_EXCEED_RANGE`).
+ * @return `NULL` if the base is invalid (considered as `ULBN_ERR_BAD_ARGUMENT`).
  */
 ULBN_PUBLIC char* ulbi_to_string_alloc(
   const ulbn_alloc_t* alloc, size_t* p_len, size_t* p_alloced, /* */
@@ -1994,7 +2017,7 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
  * @param base String base (2 <= base <= 36 with uppercase letters, -36 <= base <= -2 with lowercase letters).
  *
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `base` is invalid;
  * @return `ULBN_ERR_EXTERNAL` if `printer` returns non-zero;
  * @return `0` if successful.
  */
@@ -2008,7 +2031,7 @@ ULBN_PUBLIC int ulbi_print_ex(
  * @param base String base (2 <= base <= 36 with uppercase letters, -36 <= base <= -2 with lowercase letters).
  *
  * @return `ULBN_ERR_NOMEM` if out of memory;
- * @return `ULBN_ERR_EXCEED_RANGE` if `base` is invalid;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `base` is invalid;
  * @return `ULBN_ERR_EXTERNAL` if write to `fp` failed;
  * @return `0` if successful.
  */
@@ -2107,7 +2130,7 @@ ULBN_PUBLIC int ulbi_set_rand_bits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, 
  *
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
- * @return `ULBN_ERR_EXCEED_RANGE` if `n` is negative;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `n` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_set_rand_sbits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_sbits_t n);
@@ -2116,6 +2139,7 @@ ULBN_PUBLIC int ulbi_set_rand_sbits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng,
  *
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `n` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_set_rand(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* n);
@@ -2132,7 +2156,7 @@ ULBN_PUBLIC int ulbi_init_rand_bits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng,
  *
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
- * @return `ULBN_ERR_EXCEED_RANGE` if `n` is negative;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `n` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_init_rand_sbits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, ulbn_sbits_t n);
@@ -2141,17 +2165,24 @@ ULBN_PUBLIC int ulbi_init_rand_sbits(const ulbn_alloc_t* alloc, ulbn_rand_t* rng
  *
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `n` is too large;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `n` is negative;
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_init_rand(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* n);
 
 /**
  * @brief Sets `dst` to a random number in the range [0, limit).
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `limit` is negative or zero;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `limit` is too large;
+ * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_set_rand_range(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* limit);
 /**
  * @brief Sets `dst` to a random number in the range [lo, hi).
  * @note If `lo` > `hi`, swap them.
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_set_rand_range2(
   const ulbn_alloc_t* alloc, ulbn_rand_t* rng,    /* */
@@ -2159,11 +2190,17 @@ ULBN_PUBLIC int ulbi_set_rand_range2(
 );
 /**
  * @brief Initializes `dst` with a random number in the range [0, limit).
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `ULBN_ERR_BAD_ARGUMENT` if `limit` is negative or zero;
+ * @return `ULBN_ERR_EXCEED_RANGE` if `limit` is too large;
+ * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_init_rand_range(const ulbn_alloc_t* alloc, ulbn_rand_t* rng, ulbi_t* dst, const ulbi_t* limit);
 /**
  * @brief Initializes `dst` with a random number in the range [lo, hi).
  * @note If `lo` > `hi`, swap them.
+ * @return `ULBN_ERR_NOMEM` if out of memory;
+ * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_init_rand_range2(
   const ulbn_alloc_t* alloc, ulbn_rand_t* rng,    /* */

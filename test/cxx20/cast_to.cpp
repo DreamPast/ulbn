@@ -97,7 +97,7 @@ void testChar() {
   T_assert_eq(BigInt("012").toString(8), "12");
   T_assert_eq(BigInt("0x12").toString(16), "12");
 
-  T_assert_exception([] { (12_bi).toString(0); }, ULBN_ERR_EXCEED_RANGE);
+  T_assert_exception([] { (12_bi).toString(0); }, ULBN_ERR_BAD_ARGUMENT);
 
   for(int i = -LIMIT; i <= LIMIT; ++i) {
     T_assert_eq(BigInt(i).toString(), std::to_string(i));
@@ -119,7 +119,7 @@ void testChar() {
   std::cout << '\n';
   BigInt("-12345678901234567890").print(std::cout);
   std::cout << '\n';
-  T_assert_exception([] { BigInt("12345678901234567890").print(stdout, 0); }, ULBN_ERR_EXCEED_RANGE);
+  T_assert_exception([] { BigInt("12345678901234567890").print(stdout, 0); }, ULBN_ERR_BAD_ARGUMENT);
 
 
   for(auto base: { 8, 10, 16 })
@@ -197,7 +197,7 @@ void testWchar() {
   T_assert(BigInt(L"012").toString<wchar_t>(8) == L"12");
   T_assert(BigInt(L"0x12").toString<wchar_t>(16) == L"12");
 
-  T_assert_exception([] { (12_bi).toString<wchar_t>(0); }, ULBN_ERR_EXCEED_RANGE);
+  T_assert_exception([] { (12_bi).toString<wchar_t>(0); }, ULBN_ERR_BAD_ARGUMENT);
 
   for(int i = -LIMIT; i <= LIMIT; ++i) {
     T_assert(BigInt(i).toString<wchar_t>() == std::to_wstring(i));
@@ -296,7 +296,7 @@ void testChar16() {
   T_assert(BigInt(u"012").toString<char16_t>(8) == u"12");
   T_assert(BigInt(u"0x12").toString<char16_t>(16) == u"12");
 
-  T_assert_exception([] { (12_bi).toString<char16_t>(0); }, ULBN_ERR_EXCEED_RANGE);
+  T_assert_exception([] { (12_bi).toString<char16_t>(0); }, ULBN_ERR_BAD_ARGUMENT);
 
 
   for(int t = TEST_SMALL; t--;) {
@@ -322,7 +322,7 @@ void testChar32() {
   T_assert(BigInt(U"012").toString<char32_t>(8) == U"12");
   T_assert(BigInt(U"0x12").toString<char32_t>(16) == U"12");
 
-  T_assert_exception([] { (12_bi).toString<char32_t>(0); }, ULBN_ERR_EXCEED_RANGE);
+  T_assert_exception([] { (12_bi).toString<char32_t>(0); }, ULBN_ERR_BAD_ARGUMENT);
 
 
   for(int t = TEST_SMALL; t--;) {
