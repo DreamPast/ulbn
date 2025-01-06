@@ -6,6 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(BUILD_SHARED_LIBRARY "Build shared library" OFF)
 option(IGNORE_WARNINGS "Ignore warnings" OFF)
 
+option(ALWAYS_ENABLE_ASSERTION "Always enable assertion" OFF)
 option(BUILD_TEST "Build test" ON)
 option(BUILD_SHORT_LIMB_TEST "Build test for short `ulbn_limb_t`" ON)
 
@@ -154,5 +155,29 @@ if(BUILD_TEST)
         add_subdirectory(test/cxx20-limb8)
         add_subdirectory(test/cxx20-limb16)
         add_subdirectory(test/cxx20-limb32)
+    endif()
+endif()
+
+if(ALWAYS_ENABLE_ASSERTION)
+    if(NOT MSVC)
+        add_definitions(-D_DEBUG)
+    endif()
+    # On non-Debug builds cmake automatically defines NDEBUG, so we explicitly undefine it:
+    if(NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+        # NOTE: use `add_compile_options` rather than `add_definitions` since
+        # `add_definitions` does not support generator expressions.
+        add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-UNDEBUG>)
+
+        # Also remove /D NDEBUG to avoid MSVC warnings about conflicting defines.
+        foreach(flags_var_to_scrub
+            CMAKE_CXX_FLAGS_RELEASE
+            CMAKE_CXX_FLAGS_RELWITHDEBINFO
+            CMAKE_CXX_FLAGS_MINSIZEREL
+            CMAKE_C_FLAGS_RELEASE
+            CMAKE_C_FLAGS_RELWITHDEBINFO
+            CMAKE_C_FLAGS_MINSIZEREL)
+            string(REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
+                "${flags_var_to_scrub}" "${${flags_var_to_scrub}}")
+        endforeach()
     endif()
 endif()

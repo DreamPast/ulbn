@@ -16,19 +16,16 @@ jobs:
       fail-fast: false
 
       matrix:
-        build_type: [Release, RelWithDebInfo, MinSizeRel]
         os: [windows-latest, ubuntu-latest, macos-latest]
         compiler: [[clang, clang++], [gcc, g++]]
+        enable_assertion: [ON, OFF]
         include:
-          - build_type: Release
-            os: windows-latest
+          - os: windows-latest
             compiler: [cl, cl]
-          - build_type: RelWithDebInfo
-            os: windows-latest
+            enable_assertion: ON
+          - os: windows-latest
             compiler: [cl, cl]
-          - build_type: MinSizeRel
-            os: windows-latest
-            compiler: [cl, cl]
+            enable_assertion: OFF
     env:
       proj_type: ${{ (matrix.os == 'windows-latest' && matrix.compiler[0] != 'cl') && '-G "MinGW Makefiles"' || '' }}
 
@@ -43,12 +40,13 @@ jobs:
         run: >
           cmake ${{ env.proj_type }}
           -B ${{ github.workspace }}/build -S ${{ github.workspace }}
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_C_COMPILER=${{ matrix.compiler[0] }}
           -DCMAKE_CXX_COMPILER=${{ matrix.compiler[1] }}
           -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install
+          -DALWAYS_ENABLE_ASSERTION=${{ matrix.enable_assertion }}
       - name: build
-        run: cmake --build ${{ github.workspace }}/build --config ${{ matrix.build_type }}
+        run: cmake --build ${{ github.workspace }}/build --config Release --parallel 10
       - name: test
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --output-on-failure --build-config ${{ matrix.build_type }} --parallel 10
+        run: ctest --output-on-failure --build-config Release --parallel 10
