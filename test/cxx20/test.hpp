@@ -1,10 +1,24 @@
-#ifdef TEST_DEBUG_LIMB8
+#include <limits.h>
+#if defined(TEST_DEBUG_LIMB8)
 typedef unsigned char ulbn_limb_t;
 typedef signed char ulbn_slimb_t;
   #define ULBN_LIMB_MAX UCHAR_MAX
   #define ULBN_SLIMB_MAX SCHAR_MAX
   #define ULBN_SLIMB_MIN SCHAR_MIN
+#elif defined(TEST_DEBUG_LIMB16)
+typedef unsigned short ulbn_limb_t;
+typedef signed short ulbn_slimb_t;
+  #define ULBN_LIMB_MAX USHRT_MAX
+  #define ULBN_SLIMB_MAX SHRT_MAX
+  #define ULBN_SLIMB_MIN SHRT_MIN
+#elif defined(TEST_DEBUG_LIMB32)
+typedef unsigned ulbn_limb_t;
+typedef signed ulbn_slimb_t;
+  #define ULBN_LIMB_MAX UINT_MAX
+  #define ULBN_SLIMB_MAX INT_MAX
+  #define ULBN_SLIMB_MIN INT_MIN
 #endif
+
 #include "ulbn.hpp"
 using ul::bn::BigInt;
 using ul::bn::operator""_bi;

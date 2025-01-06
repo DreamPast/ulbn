@@ -4,8 +4,11 @@ project(ulbn)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(BUILD_SHARED_LIBRARY "Build shared library" OFF)
-option(BUILD_TEST "Build test" ON)
 option(IGNORE_WARNINGS "Ignore warnings" OFF)
+
+option(BUILD_TEST "Build test" ON)
+option(BUILD_SHORT_LIMB_TEST "Build test for short `ulbn_limb_t`" ON)
+
 
 if(BUILD_SHARED_LIBRARY)
     add_library(ulbn SHARED ulbn.c)
@@ -145,6 +148,11 @@ endif()
 if(BUILD_TEST)
     enable_testing()
     add_subdirectory(test/cxx20)
-    add_subdirectory(test/cxx20-limb8)
     add_subdirectory(test/bound)
+
+    if(BUILD_SHORT_LIMB_TEST)
+        add_subdirectory(test/cxx20-limb8)
+        add_subdirectory(test/cxx20-limb16)
+        add_subdirectory(test/cxx20-limb32)
+    endif()
 endif()
