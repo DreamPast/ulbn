@@ -120,6 +120,10 @@ if(IGNORE_WARNINGS)
     set(MSVC_ALL_WARNINGS)
     set(MSVC_CLOSE_WARNINGS)
 endif()
+if(ALWAYS_ENABLE_ASSERTION)
+    set(GCC_CLOSE_WARNINGS ${GCC_CLOSE_WARNINGS} -Wno-type-limits)
+    set(CLANG_CLOSE_WARNINGS ${CLANG_CLOSE_WARNINGS} -Wno-type-limits)
+endif()
 
 # enable most warnings
 if(CMAKE_COMPILER_IS_GNUCXX)
