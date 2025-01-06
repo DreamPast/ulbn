@@ -9,7 +9,7 @@ add_library(ulbn-cxx20-limb32-build STATIC build.c)
 target_include_directories(ulbn-cxx20-limb32-build PRIVATE ${PROJECT_SOURCE_DIR}/../../)
 if(CMAKE_COMPILER_IS_GNUCXX)
   target_compile_options(ulbn-cxx20-limb32-build PRIVATE
-    ${GCC_ALL_C_WARNINGS} ${GCC_CLOSE_WARNINGS} ${DISABLE_WARNINGS}
+    ${GCC_ALL_C_WARNINGS} ${GNUC_CLOSE_WARNINGS} ${DISABLE_WARNINGS}
   )
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   target_compile_options(ulbn-cxx20-limb32-build PRIVATE
@@ -47,7 +47,7 @@ foreach(TEST_ENTRY ${TEST_LIST})
 
     if(CMAKE_COMPILER_IS_GNUCXX)
         target_compile_options(${TEST_NAME} PRIVATE
-            ${GNUC_ALL_CXX_WARNINGS} ${GCC_CLOSE_WARNINGS}
+            ${GNUC_ALL_CXX_WARNINGS} ${GNUC_CLOSE_WARNINGS}
         )
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         target_compile_options(${TEST_NAME} PRIVATE

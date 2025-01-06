@@ -28,7 +28,7 @@ foreach(TEST_ENTRY ${TEST_LIST})
 
     if(CMAKE_COMPILER_IS_GNUCXX)
         target_compile_options(${TEST_NAME} PRIVATE
-            ${GNUC_ALL_CXX_WARNINGS} ${GCC_CLOSE_WARNINGS}
+            ${GNUC_ALL_CXX_WARNINGS} ${GNUC_CLOSE_WARNINGS}
         )
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         target_compile_options(${TEST_NAME} PRIVATE

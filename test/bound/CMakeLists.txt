@@ -30,7 +30,7 @@ add_library(ulbn-bound-build STATIC build.c)
 target_include_directories(ulbn-bound-build PRIVATE ${PROJECT_SOURCE_DIR}/../../)
 if(CMAKE_COMPILER_IS_GNUCXX)
   target_compile_options(ulbn-bound-build PRIVATE
-    ${GCC_ALL_C_WARNINGS} ${GCC_CLOSE_WARNINGS} ${DISABLE_WARNINGS}
+    ${GCC_ALL_C_WARNINGS} ${GNUC_CLOSE_WARNINGS} ${DISABLE_WARNINGS}
   )
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   target_compile_options(ulbn-bound-build PRIVATE
@@ -56,7 +56,7 @@ foreach(TEST_ENTRY ${TEST_LIST})
 
   if(CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TEST_NAME} PRIVATE
-      ${GNUC_ALL_C_WARNINGS} ${GCC_CLOSE_WARNINGS} ${DISABLE_WARNINGS})
+      ${GNUC_ALL_C_WARNINGS} ${GNUC_CLOSE_WARNINGS} ${DISABLE_WARNINGS})
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(${TEST_NAME} PRIVATE
       ${CLANG_ALL_C_WARNINGS} ${CLANG_CLOSE_WARNINGS} ${DISABLE_WARNINGS})
