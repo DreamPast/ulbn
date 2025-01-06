@@ -663,7 +663,9 @@ typedef signed long ulbn_slong_t;
 #endif /* ULBN_PRIVATE */
 
 #ifndef ULBN_CONF_FFT
-  #if ULBN_LIMB_MAX >= 0xFFFu
+  /* 2 bits to guard remainder; 8 bits to filter modulos; 10 bits for length.
+    it's recommended to use FFT on at least 20 bits */
+  #if ULBN_LIMB_MAX >= 0xFFFFFu
     #define ULBN_CONF_FFT 1
   #else
     #define ULBN_CONF_FFT 0

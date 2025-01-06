@@ -2790,7 +2790,8 @@ ULBN_PRIVATE void ulbnfft_init_mods(ulbn_rand_t* rng) {
 
   ulbn_limb_t m = ULBN_LIMB_SHL(1, ULBNFFT_MOD_LOG2_MAX) - 1;
   int mods = ULBNFFT_NMODS;
-  m &= ULBN_LIMB_SHL(ULBN_LIMB_MAX, ULBNFFT_PROOT_2EXP);
+  m >>= ULBNFFT_PROOT_2EXP;
+  m <<= ULBNFFT_PROOT_2EXP;
   m |= 1;
   for(; m >= LOWER_GUARD; m -= STEP_NUM) {
     if(ulbnfft_miller_rabin(rng, m))
@@ -3263,7 +3264,7 @@ ULBN_PRIVATE void ulbnfft_ntt_to_limb(
         carry[j - (nlimb_to_put + 1)] = u[j];
     } else {
       for(j = nlimb_to_put; j < nmods - 1; ++j)
-        carry[j - nlimb_to_put] = (u[j] >> shift) | (u[j + 1] << (ULBN_LIMB_BITS - shift));
+        carry[j - nlimb_to_put] = ulbn_cast_limb((u[j] >> shift) | (u[j + 1] << (ULBN_LIMB_BITS - shift)));
       carry[nmods - nlimb_to_put - 1] = u[nmods - 1] >> shift;
     }
   }
@@ -5264,13 +5265,13 @@ ULBN_PRIVATE void _ulbi_set_bytes_unsafe_be(
     p -= sizeof(ulbn_limb_t);
     q = p;
     for(sz = sizeof(ulbn_limb_t); sz--;)
-      limb = (limb << CHAR_BIT) | *q++;
+      limb = ulbn_cast_limb((limb << CHAR_BIT) | *q++);
     *dp++ = limb;
   }
   limb = 0;
   q = p - len;
   while(len--)
-    limb = (limb << CHAR_BIT) | *q++;
+    limb = ulbn_cast_limb((limb << CHAR_BIT) | *q++);
   if(limb)
     *dp++ = limb;
   #endif
