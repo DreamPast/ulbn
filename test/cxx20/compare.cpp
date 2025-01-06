@@ -25,7 +25,7 @@ void test() {
   T_assert(-BigInt("12345678901234567890") != static_cast<int8_t>(-12));
 
 
-  for(int a = -LIMIT; a <= LIMIT; ++a) {
+  for(auto a = -LIMIT; a <= LIMIT; ++a) {
     T_assert(BigInt(a).isZero() == (a == 0));
     T_assert(BigInt(a).sign() == (a == 0 ? 0 : (a > 0 ? 1 : -1)));
     T_assert(BigInt(a).isEven() == (a % 2 == 0));
@@ -33,7 +33,7 @@ void test() {
     T_assert(-BigInt(a) == -a);
     T_assert(BigInt(a).abs() == std::abs(a));
 
-    for(int b = -LIMIT; b <= LIMIT; ++b) {
+    for(auto b = -LIMIT; b <= LIMIT; ++b) {
       T_assert((BigInt(a) < BigInt(b)) == (a < b));
       T_assert((BigInt(a) <= BigInt(b)) == (a <= b));
       T_assert((BigInt(a) > BigInt(b)) == (a > b));

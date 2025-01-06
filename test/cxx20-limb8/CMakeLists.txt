@@ -28,8 +28,10 @@ set(TEST_LIST
     cast_from
     cast_to
     compare
+    divmod_2exp
     number_theory
     other
+    pow_root
     random
 )
 

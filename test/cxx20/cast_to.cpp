@@ -99,7 +99,7 @@ void testChar() {
 
   T_assert_exception([] { (12_bi).toString(0); }, ULBN_ERR_BAD_ARGUMENT);
 
-  for(int i = -LIMIT; i <= LIMIT; ++i) {
+  for(auto i = -LIMIT; i <= LIMIT; ++i) {
     T_assert_eq(BigInt(i).toString(), std::to_string(i));
   }
 
@@ -109,7 +109,7 @@ void testChar() {
   T_assert_eq(std::format("{}", BigInt("-12")), "-12");
   T_assert_eq(std::format("{}", BigInt("12345678901234567890")), "12345678901234567890");
 
-  for(int i = -LIMIT; i <= LIMIT; ++i) {
+  for(auto i = -LIMIT; i <= LIMIT; ++i) {
     T_assert_eq(std::format("{}", BigInt(i)), std::to_string(i));
   }
 #endif
@@ -199,7 +199,7 @@ void testWchar() {
 
   T_assert_exception([] { (12_bi).toString<wchar_t>(0); }, ULBN_ERR_BAD_ARGUMENT);
 
-  for(int i = -LIMIT; i <= LIMIT; ++i) {
+  for(auto i = -LIMIT; i <= LIMIT; ++i) {
     T_assert(BigInt(i).toString<wchar_t>() == std::to_wstring(i));
   }
 
@@ -209,7 +209,7 @@ void testWchar() {
   T_assert(std::format(L"{}", BigInt(L"-12")) == L"-12");
   T_assert(std::format(L"{}", BigInt(L"12345678901234567890")) == L"12345678901234567890");
 
-  for(int i = -LIMIT; i <= LIMIT; ++i) {
+  for(auto i = -LIMIT; i <= LIMIT; ++i) {
     T_assert(std::format(L"{}", BigInt(i)) == std::to_wstring(i));
   }
 #endif

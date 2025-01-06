@@ -3,11 +3,11 @@
 void testBitwiseOperation() {
   puts("======Test Bitwise Operation");
 
-  for(int a = -LIMIT; a <= LIMIT; ++a) {
+  for(auto a = -LIMIT; a <= LIMIT; ++a) {
     T_assert_eq((BigInt(a) & BigInt(a)), a);
     T_assert_eq((BigInt(a) | BigInt(a)), a);
     T_assert_eq((BigInt(a) ^ BigInt(a)), 0);
-    for(int b = -LIMIT; b <= LIMIT; ++b) {
+    for(auto b = -LIMIT; b <= LIMIT; ++b) {
       T_assert_eq((BigInt(a) | BigInt(b)), (a | b));
       T_assert_eq((BigInt(a) & BigInt(b)), (a & b));
       T_assert_eq((BigInt(a) ^ BigInt(b)), (a ^ b));
@@ -47,7 +47,7 @@ void testBitwiseOperation() {
 void testSingleBitOperation() {
   puts("======Test Single Bit Operation");
 
-  for(int32_t a = -LIMIT; a <= LIMIT; ++a) {
+  for(auto a = -LIMIT; a <= LIMIT; ++a) {
     for(unsigned b = 0; b < 31; ++b) {
       T_assert_eq(BigInt(a).testBit(b), ((a >> b) & 1));
       T_assert_eq(BigInt(a).setBit(b), (a | (1 << b)));
@@ -64,7 +64,7 @@ void testAsInt() {
   puts("======Test AsInt");
 
   static constexpr auto INT_BITS = sizeof(int) * CHAR_BIT;
-  for(int i = -LIMIT; i <= LIMIT; ++i) {
+  for(auto i = -LIMIT; i <= LIMIT; ++i) {
     T_assert_eq(BigInt(i).asUint(0), 0);
     T_assert_eq(BigInt(i).asUint(0_bi), 0);
     for(unsigned b = 1; b < INT_BITS - 1; ++b) {

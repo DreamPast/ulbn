@@ -3,8 +3,8 @@
 void testGcdLcm() {
   puts("======Test GCD LCM");
 
-  for(int x = -LIMIT; x <= LIMIT; ++x)
-    for(int y = x + 1; y <= LIMIT; ++y) {
+  for(auto x = -LIMIT; x <= LIMIT; ++x)
+    for(auto y = x + 1; y <= LIMIT; ++y) {
       T_assert_eq(BigInt(x).gcd(BigInt(y)), std::gcd(x, y));
       if(fitType<ulbn_limb_t>(y))
         T_assert_eq(BigInt(x).gcd(static_cast<ulbn_limb_t>(y)), std::gcd(x, y));
