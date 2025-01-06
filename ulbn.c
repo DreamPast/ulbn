@@ -4287,7 +4287,7 @@ ULBN_INTERNAL int ulbn_to_bit_info(const ulbn_limb_t* limb, ulbn_usize_t n, ulbn
   ulbn_usize_t idx = 0;
 
   static const ulbn_usize_t N_LIMIT = (sizeof(ulbn_usize_t) * CHAR_BIT + ULBN_LIMB_BITS - 1u) / ULBN_LIMB_BITS;
-  const int shift = ulbn_cast_int(ULBN_LIMB_BITS - ulbn_cast_uint(_ulbn_clz_(ulbn_cast_limb(ULBN_LIMB_BITS))));
+  const int shift = _ulbn_clz_(ulbn_cast_limb(ULBN_LIMB_BITS));
   const ulbn_limb_t d_norm = ulbn_cast_limb(ulbn_cast_limb(ULBN_LIMB_BITS) << shift);
   const ulbn_limb_t d_inv = ulbn_divinv1(d_norm);
 
