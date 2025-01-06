@@ -67,6 +67,8 @@ int main(void) {
   ulbi_t ro, ao, bo;
   int err;
 
+  /* 初始化库 */
+  ulbn_startup(); 
   /* 首先，我们需要初始化它们 */
   ulbi_init(&ro);
   ulbi_init(&ao);

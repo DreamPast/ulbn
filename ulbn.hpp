@@ -373,6 +373,18 @@ static_assert(std::uniform_random_bit_generator<Rand>);
 #endif
 
 inline ulbn_alloc_t* getCurrentAllocator() {
+  struct Startup {
+    Startup() {
+      ulbn_startup();
+    }
+    Startup(const Startup&) = delete;
+    Startup(Startup&&) = delete;
+    Startup& operator=(const Startup&) = delete;
+    Startup& operator=(Startup&&) = delete;
+    ~Startup() = default;
+  };
+  static const Startup startup;
+
   static ulbn_alloc_t alloc = *ulbn_default_alloc();
   return &alloc;
 }

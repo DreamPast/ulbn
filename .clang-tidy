@@ -14,6 +14,7 @@ Checks: |
   -cert-dcl51-cpp
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
   -cppcoreguidelines-avoid-magic-numbers
+  -cppcoreguidelines-avoid-non-const-global-variables
   -cppcoreguidelines-init-variables
   -eadability-avoid-unconditional-preprocessor-if
   -google-readability-braces-around-statements

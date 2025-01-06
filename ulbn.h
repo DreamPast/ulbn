@@ -27,6 +27,60 @@ ulbn - Big Number Library
   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
+
+# Example
+  ```c
+  #include "ulbn.h"
+  #include <stdio.h>
+
+  int main(void) {
+    const ulbn_alloc_t* alloc = ulbn_default_alloc(); // get default allocator
+    ulbi_t ro, ao, bo;
+    int err;
+    
+    // initialize library
+    ulbn_startup(); 
+    // first, we must initialize them
+    ulbi_init(&ro);
+    ulbi_init(&ao);
+    ulbi_init(&bo);
+
+    ulbi_set_slimb(&ao, 99);              // set ao = 99, `ulbi_set_slimb` doesn't make errors
+    ulbi_set_slimb(&bo, 99);              // set bo = 99, `ulbi_set_slimb` doesn't make errors
+    err = ulbi_add(alloc, &ro, &ao, &bo); // ro = ao + bo
+    if(err) {
+      (void)fprintf(stderr, "error: %d\n", err);
+      return 1;
+    }
+    ulbi_print(alloc, stdout, &ro, 10); // print ro
+    (void)putchar('\n');
+
+    err = ulbi_add_slimb(alloc, &ro, &ao, 99); // some functions have a simpler version
+    if(err) {
+      (void)fprintf(stderr, "error: %d\n", err);
+      return 1;
+    }
+    ulbi_print(alloc, stdout, &ro, 10); // print ro
+    (void)putchar('\n');
+
+    err = ulbi_pow(alloc, &ro, &ao, &bo); // we can try larger number
+    if(err) {
+      (void)fprintf(stderr, "error: %d\n", err);
+      return 1;
+    }
+    ulbi_print(alloc, stdout, &ro, 10); // print ro
+    (void)putchar('\n');
+
+    // finally, don't forget to deinitialize them
+    ulbi_deinit(alloc, &ro);
+    ulbi_deinit(alloc, &ao);
+    ulbi_deinit(alloc, &bo);
+
+    return 0;
+  }
+
+  #include "ulbn.c" // we can include source code directly
+  ```
 */
 #ifndef ULBN_HEADER
 #define ULBN_HEADER
@@ -752,6 +806,12 @@ enum ULBN_SET_STRING_FLAG_ENUM {
 /************************
  * `ulbn_*` Common APIs *
  ************************/
+
+/**
+ * @brief Initializes the library.
+ * @note This function is not thread-safe.
+ */
+ULBN_PUBLIC void ulbn_startup(void);
 
 
 typedef void* ulbn_alloc_func_t(void* opaque, void* ptr, size_t on, size_t nn);

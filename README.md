@@ -67,6 +67,8 @@ int main(void) {
   ulbi_t ro, ao, bo;
   int err;
 
+  /* initialize library */
+  ulbn_startup(); 
   /* first, we must initialize them */
   ulbi_init(&ro);
   ulbi_init(&ao);

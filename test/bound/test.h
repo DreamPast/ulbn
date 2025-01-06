@@ -135,6 +135,7 @@ static ulbn_usize_t BI_LEN_LIMIT;
 static const unsigned char LIMB_BITS = sizeof(ulbn_limb_t) * CHAR_BIT;
 T_API void t_startup(void) {
   unsigned i;
+  ulbn_startup();
   alloc_mem = 0;
   for(i = 0; i < 16; ++i)
     ulbi_init(&t_bi_slots[i]);

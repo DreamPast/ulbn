@@ -5,7 +5,9 @@ int main(void) {
   const ulbn_alloc_t* alloc = ulbn_default_alloc(); /* get default allocator */
   ulbi_t ro, ao, bo;
   int err;
-
+  
+  /* initialize library */
+  ulbn_startup(); 
   /* first, we must initialize them */
   ulbi_init(&ro);
   ulbi_init(&ao);
