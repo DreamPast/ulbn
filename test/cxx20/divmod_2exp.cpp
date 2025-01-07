@@ -1,43 +1,44 @@
 #include "test.hpp"
 
+using ul::bn::RoundMode;
 struct DivMod4Case {
   int a;
-  enum ULBN_ROUND_ENUM round_mode;
+  RoundMode round_mode;
   int q, r;
 };
 static const DivMod4Case _divmod_cases[] = {
-  { 1, ULBN_ROUND_DOWN, 0, 1 },         { 1, ULBN_ROUND_UP, 1, -3 },          /* */
-  { 1, ULBN_ROUND_FLOOR, 0, 1 },        { 1, ULBN_ROUND_CEILING, 1, -3 },     /* */
-  { -1, ULBN_ROUND_DOWN, 0, -1 },       { -1, ULBN_ROUND_UP, -1, 3 },         /* */
-  { -1, ULBN_ROUND_FLOOR, -1, 3 },      { -1, ULBN_ROUND_CEILING, 0, -1 },    /* */
-  { 1, ULBN_ROUND_HALF_ODD, 0, 1 },     { 1, ULBN_ROUND_HALF_EVEN, 0, 1 },    /* */
-  { 1, ULBN_ROUND_HALF_DOWN, 0, 1 },    { 1, ULBN_ROUND_HALF_UP, 0, 1 },      /* */
-  { 2, ULBN_ROUND_HALF_ODD, 1, -2 },    { 2, ULBN_ROUND_HALF_EVEN, 0, 2 },    /* */
-  { 2, ULBN_ROUND_HALF_DOWN, 0, 2 },    { 2, ULBN_ROUND_HALF_UP, 1, -2 },     /* */
-  { 3, ULBN_ROUND_HALF_ODD, 1, -1 },    { 3, ULBN_ROUND_HALF_EVEN, 1, -1 },   /* */
-  { 3, ULBN_ROUND_HALF_DOWN, 1, -1 },   { 3, ULBN_ROUND_HALF_UP, 1, -1 },     /* */
-  { 5, ULBN_ROUND_HALF_ODD, 1, 1 },     { 5, ULBN_ROUND_HALF_EVEN, 1, 1 },    /* */
-  { 5, ULBN_ROUND_HALF_DOWN, 1, 1 },    { 5, ULBN_ROUND_HALF_UP, 1, 1 },      /* */
-  { 6, ULBN_ROUND_HALF_ODD, 1, 2 },     { 6, ULBN_ROUND_HALF_EVEN, 2, -2 },   /* */
-  { 6, ULBN_ROUND_HALF_DOWN, 1, 2 },    { 6, ULBN_ROUND_HALF_UP, 2, -2 },     /* */
-  { 7, ULBN_ROUND_HALF_ODD, 2, -1 },    { 7, ULBN_ROUND_HALF_EVEN, 2, -1 },   /* */
-  { 7, ULBN_ROUND_HALF_DOWN, 2, -1 },   { 7, ULBN_ROUND_HALF_UP, 2, -1 },     /* */
-  { -1, ULBN_ROUND_HALF_ODD, 0, -1 },   { -1, ULBN_ROUND_HALF_EVEN, 0, -1 },  /* */
-  { -1, ULBN_ROUND_HALF_DOWN, 0, -1 },  { -1, ULBN_ROUND_HALF_UP, 0, -1 },    /* */
-  { -2, ULBN_ROUND_HALF_ODD, -1, 2 },   { -2, ULBN_ROUND_HALF_EVEN, 0, -2 },  /* */
-  { -2, ULBN_ROUND_HALF_DOWN, 0, -2 },  { -2, ULBN_ROUND_HALF_UP, -1, 2 },    /* */
-  { -3, ULBN_ROUND_HALF_ODD, -1, 1 },   { -3, ULBN_ROUND_HALF_EVEN, -1, 1 },  /* */
-  { -3, ULBN_ROUND_HALF_DOWN, -1, 1 },  { -3, ULBN_ROUND_HALF_UP, -1, 1 },    /* */
-  { -5, ULBN_ROUND_HALF_ODD, -1, -1 },  { -5, ULBN_ROUND_HALF_EVEN, -1, -1 }, /* */
-  { -5, ULBN_ROUND_HALF_DOWN, -1, -1 }, { -5, ULBN_ROUND_HALF_UP, -1, -1 },   /* */
-  { -6, ULBN_ROUND_HALF_ODD, -1, -2 },  { -6, ULBN_ROUND_HALF_EVEN, -2, 2 },  /* */
-  { -6, ULBN_ROUND_HALF_DOWN, -1, -2 }, { -6, ULBN_ROUND_HALF_UP, -2, 2 },    /* */
-  { -7, ULBN_ROUND_HALF_ODD, -2, 1 },   { -7, ULBN_ROUND_HALF_EVEN, -2, 1 },  /* */
-  { -7, ULBN_ROUND_HALF_DOWN, -2, 1 },  { -7, ULBN_ROUND_HALF_UP, -2, 1 },    /* */
+  { 1, RoundMode::DOWN, 0, 1 },         { 1, RoundMode::UP, 1, -3 },          /* */
+  { 1, RoundMode::FLOOR, 0, 1 },        { 1, RoundMode::CEILING, 1, -3 },     /* */
+  { -1, RoundMode::DOWN, 0, -1 },       { -1, RoundMode::UP, -1, 3 },         /* */
+  { -1, RoundMode::FLOOR, -1, 3 },      { -1, RoundMode::CEILING, 0, -1 },    /* */
+  { 1, RoundMode::HALF_ODD, 0, 1 },     { 1, RoundMode::HALF_EVEN, 0, 1 },    /* */
+  { 1, RoundMode::HALF_DOWN, 0, 1 },    { 1, RoundMode::HALF_UP, 0, 1 },      /* */
+  { 2, RoundMode::HALF_ODD, 1, -2 },    { 2, RoundMode::HALF_EVEN, 0, 2 },    /* */
+  { 2, RoundMode::HALF_DOWN, 0, 2 },    { 2, RoundMode::HALF_UP, 1, -2 },     /* */
+  { 3, RoundMode::HALF_ODD, 1, -1 },    { 3, RoundMode::HALF_EVEN, 1, -1 },   /* */
+  { 3, RoundMode::HALF_DOWN, 1, -1 },   { 3, RoundMode::HALF_UP, 1, -1 },     /* */
+  { 5, RoundMode::HALF_ODD, 1, 1 },     { 5, RoundMode::HALF_EVEN, 1, 1 },    /* */
+  { 5, RoundMode::HALF_DOWN, 1, 1 },    { 5, RoundMode::HALF_UP, 1, 1 },      /* */
+  { 6, RoundMode::HALF_ODD, 1, 2 },     { 6, RoundMode::HALF_EVEN, 2, -2 },   /* */
+  { 6, RoundMode::HALF_DOWN, 1, 2 },    { 6, RoundMode::HALF_UP, 2, -2 },     /* */
+  { 7, RoundMode::HALF_ODD, 2, -1 },    { 7, RoundMode::HALF_EVEN, 2, -1 },   /* */
+  { 7, RoundMode::HALF_DOWN, 2, -1 },   { 7, RoundMode::HALF_UP, 2, -1 },     /* */
+  { -1, RoundMode::HALF_ODD, 0, -1 },   { -1, RoundMode::HALF_EVEN, 0, -1 },  /* */
+  { -1, RoundMode::HALF_DOWN, 0, -1 },  { -1, RoundMode::HALF_UP, 0, -1 },    /* */
+  { -2, RoundMode::HALF_ODD, -1, 2 },   { -2, RoundMode::HALF_EVEN, 0, -2 },  /* */
+  { -2, RoundMode::HALF_DOWN, 0, -2 },  { -2, RoundMode::HALF_UP, -1, 2 },    /* */
+  { -3, RoundMode::HALF_ODD, -1, 1 },   { -3, RoundMode::HALF_EVEN, -1, 1 },  /* */
+  { -3, RoundMode::HALF_DOWN, -1, 1 },  { -3, RoundMode::HALF_UP, -1, 1 },    /* */
+  { -5, RoundMode::HALF_ODD, -1, -1 },  { -5, RoundMode::HALF_EVEN, -1, -1 }, /* */
+  { -5, RoundMode::HALF_DOWN, -1, -1 }, { -5, RoundMode::HALF_UP, -1, -1 },   /* */
+  { -6, RoundMode::HALF_ODD, -1, -2 },  { -6, RoundMode::HALF_EVEN, -2, 2 },  /* */
+  { -6, RoundMode::HALF_DOWN, -1, -2 }, { -6, RoundMode::HALF_UP, -2, 2 },    /* */
+  { -7, RoundMode::HALF_ODD, -2, 1 },   { -7, RoundMode::HALF_EVEN, -2, 1 },  /* */
+  { -7, RoundMode::HALF_DOWN, -2, 1 },  { -7, RoundMode::HALF_UP, -2, 1 },    /* */
 };
-static const enum ULBN_ROUND_ENUM _round_modes[] = {
-  ULBN_ROUND_DOWN,      ULBN_ROUND_UP,        ULBN_ROUND_FLOOR,   ULBN_ROUND_CEILING,  ULBN_ROUND_HALF_ODD,
-  ULBN_ROUND_HALF_EVEN, ULBN_ROUND_HALF_DOWN, ULBN_ROUND_HALF_UP, ULBN_ROUND_FAITHFUL,
+static const RoundMode _round_modes[] = {
+  RoundMode::DOWN,      RoundMode::UP,        RoundMode::FLOOR,   RoundMode::CEILING,  RoundMode::HALF_ODD,
+  RoundMode::HALF_EVEN, RoundMode::HALF_DOWN, RoundMode::HALF_UP, RoundMode::FAITHFUL,
 };
 
 void testDivMod2Exp() {

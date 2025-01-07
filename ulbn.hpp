@@ -389,6 +389,36 @@ inline ulbn_alloc_t* getCurrentAllocator() {
   return &alloc;
 }
 
+enum class RoundMode : int {
+  DOWN = ULBN_ROUND_DOWN,
+  UP = ULBN_ROUND_UP,
+  FLOOR = ULBN_ROUND_FLOOR,
+  CEILING = ULBN_ROUND_CEILING,
+  HALF_DOWN = ULBN_ROUND_HALF_DOWN,
+  HALF_UP = ULBN_ROUND_HALF_UP,
+  HALF_ODD = ULBN_ROUND_HALF_ODD,
+  HALF_EVEN = ULBN_ROUND_HALF_EVEN,
+  FAITHFUL = ULBN_ROUND_FAITHFUL,
+
+  TRUNC = ULBN_ROUND_TRUNC,
+  TO_ZERO = ULBN_ROUND_TO_ZERO,
+  AWAY_FROM_ZERO = ULBN_ROUND_AWAY_FROM_ZERO,
+  TO_POSITIVE_INFINITY = ULBN_ROUND_TO_POSITIVE_INFINITY,
+  TO_NEGATIVE_INFINITY = ULBN_ROUND_TO_NEGATIVE_INFINITY,
+  TO_NEAREST = ULBN_ROUND_TO_NEAREST,
+
+  RNDN = ULBN_RNDN,
+  RNDZ = ULBN_RNDZ,
+  RNDU = ULBN_RNDU,
+  RNDD = ULBN_RNDD,
+  RNDA = ULBN_RNDA,
+  RNDNA = ULBN_RNDNA,
+  RNDF = ULBN_RNDF,
+
+  BIG_INT_DEFAULT = ULBN_ROUND_BIG_INT_DEFAULT,
+  IEEE754_DEFAULT = ULBN_ROUND_IEEE754_DEFAULT,
+};
+
 template<class T>
 concept FitSlimb = requires {
   requires std::is_integral_v<T>;
@@ -1163,43 +1193,51 @@ public:
     return r;
   }
 
-  std::pair<BigInt, BigInt> divmod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT)
-    const {
+  std::pair<BigInt, BigInt> divmod(const BigInt& other, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q, r;
-    const int err = ulbi_divmod_ex(_ctx(), &q._val, &r._val, &_val, &other._val, round_mode);
+    const int err =
+      ulbi_divmod_ex(_ctx(), &q._val, &r._val, &_val, &other._val, static_cast<enum ULBN_ROUND_ENUM>(round_mode));
     _checkDivmodEx(err);
     return { q, r };
   }
-  BigInt div(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt div(const BigInt& other, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q;
-    const int err = ulbi_divmod_ex(_ctx(), &q._val, nullptr, &_val, &other._val, round_mode);
+    const int err =
+      ulbi_divmod_ex(_ctx(), &q._val, nullptr, &_val, &other._val, static_cast<enum ULBN_ROUND_ENUM>(round_mode));
     _checkDivmodEx(err);
     return q;
   }
-  BigInt mod(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt mod(const BigInt& other, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt r;
-    const int err = ulbi_divmod_ex(_ctx(), nullptr, &r._val, &_val, &other._val, round_mode);
+    const int err =
+      ulbi_divmod_ex(_ctx(), nullptr, &r._val, &_val, &other._val, static_cast<enum ULBN_ROUND_ENUM>(round_mode));
     _checkDivmodEx(err);
     return r;
   }
 
   template<FitSlimb T>
-  std::pair<BigInt, BigInt> divmod(T other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  std::pair<BigInt, BigInt> divmod(T other, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q;
     ulbn_slimb_t rl;
-    _checkDivmodEx(ulbi_divmod_slimb_ex(_ctx(), &q._val, &rl, &_val, static_cast<ulbn_slimb_t>(other), round_mode));
+    _checkDivmodEx(ulbi_divmod_slimb_ex(
+      _ctx(), &q._val, &rl, &_val, static_cast<ulbn_slimb_t>(other), static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return { q, BigInt(rl) };
   }
   template<FitSlimb T>
-  BigInt div(T other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt div(T other, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q;
-    _checkDivmodEx(ulbi_divmod_slimb_ex(_ctx(), &q._val, nullptr, &_val, static_cast<ulbn_slimb_t>(other), round_mode));
+    _checkDivmodEx(ulbi_divmod_slimb_ex(
+      _ctx(), &q._val, nullptr, &_val, static_cast<ulbn_slimb_t>(other), static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return q;
   }
   template<FitSlimb T>
-  BigInt mod(T other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt mod(T other, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     ulbn_slimb_t rl;
-    _checkDivmodEx(ulbi_divmod_slimb_ex(_ctx(), nullptr, &rl, &_val, static_cast<ulbn_slimb_t>(other), round_mode));
+    _checkDivmodEx(ulbi_divmod_slimb_ex(
+      _ctx(), nullptr, &rl, &_val, static_cast<ulbn_slimb_t>(other), static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return rl;
   }
 
@@ -1217,65 +1255,74 @@ public:
 
 
   template<FitBits T>
-  std::pair<BigInt, BigInt> divmod2Exp(T n, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  std::pair<BigInt, BigInt> divmod2Exp(T n, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q, r;
-    _checkDivmodEx(ulbi_divmod_2exp_bits_ex(_ctx(), &q._val, &r._val, &_val, static_cast<ulbn_bits_t>(n), round_mode));
+    _checkDivmodEx(ulbi_divmod_2exp_bits_ex(
+      _ctx(), &q._val, &r._val, &_val, static_cast<ulbn_bits_t>(n), static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return { q, r };
   }
   template<FitSbits T>
-  std::pair<BigInt, BigInt> divmod2Exp(T n, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  std::pair<BigInt, BigInt> divmod2Exp(T n, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q, r;
-    _checkDivmodEx(ulbi_divmod_2exp_sbits_ex(_ctx(), &q._val, &r._val, &_val, static_cast<ulbn_sbits_t>(n), round_mode)
-    );
+    _checkDivmodEx(ulbi_divmod_2exp_sbits_ex(
+      _ctx(), &q._val, &r._val, &_val, static_cast<ulbn_sbits_t>(n), static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return { q, r };
   }
-  std::pair<BigInt, BigInt> divmod2Exp(
-    const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT
-  ) const {
+  std::pair<BigInt, BigInt> divmod2Exp(const BigInt& other, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q, r;
-    _checkDivmodEx(ulbi_divmod_2exp_ex(_ctx(), &q._val, &r._val, &_val, &other._val, round_mode));
+    _checkDivmodEx(
+      ulbi_divmod_2exp_ex(_ctx(), &q._val, &r._val, &_val, &other._val, static_cast<enum ULBN_ROUND_ENUM>(round_mode))
+    );
     return { q, r };
   }
 
   template<FitBits T>
-  BigInt div2Exp(T n, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt div2Exp(T n, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q;
-    _checkDivmodEx(ulbi_divmod_2exp_bits_ex(_ctx(), &q._val, ul_nullptr, &_val, static_cast<ulbn_bits_t>(n), round_mode)
-    );
+    _checkDivmodEx(ulbi_divmod_2exp_bits_ex(
+      _ctx(), &q._val, ul_nullptr, &_val, static_cast<ulbn_bits_t>(n), static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return q;
   }
   template<FitSbits T>
-  BigInt div2Exp(T n, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt div2Exp(T n, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q;
-    _checkDivmodEx(
-      ulbi_divmod_2exp_sbits_ex(_ctx(), &q._val, ul_nullptr, &_val, static_cast<ulbn_sbits_t>(n), round_mode)
-    );
+    _checkDivmodEx(ulbi_divmod_2exp_sbits_ex(
+      _ctx(), &q._val, ul_nullptr, &_val, static_cast<ulbn_sbits_t>(n), static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return q;
   }
-  BigInt div2Exp(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt div2Exp(const BigInt& other, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt q;
-    _checkDivmodEx(ulbi_divmod_2exp_ex(_ctx(), &q._val, ul_nullptr, &_val, &other._val, round_mode));
+    _checkDivmodEx(ulbi_divmod_2exp_ex(
+      _ctx(), &q._val, ul_nullptr, &_val, &other._val, static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return q;
   }
 
   template<FitBits T>
-  BigInt mod2Exp(T n, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt mod2Exp(T n, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt r;
-    _checkDivmodEx(ulbi_divmod_2exp_bits_ex(_ctx(), ul_nullptr, &r._val, &_val, static_cast<ulbn_bits_t>(n), round_mode)
-    );
+    _checkDivmodEx(ulbi_divmod_2exp_bits_ex(
+      _ctx(), ul_nullptr, &r._val, &_val, static_cast<ulbn_bits_t>(n), static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return r;
   }
   template<FitSbits T>
-  BigInt mod2Exp(T n, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt mod2Exp(T n, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt r;
-    _checkDivmodEx(
-      ulbi_divmod_2exp_sbits_ex(_ctx(), ul_nullptr, &r._val, &_val, static_cast<ulbn_sbits_t>(n), round_mode)
-    );
+    _checkDivmodEx(ulbi_divmod_2exp_sbits_ex(
+      _ctx(), ul_nullptr, &r._val, &_val, static_cast<ulbn_sbits_t>(n), static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return r;
   }
-  BigInt mod2Exp(const BigInt& other, enum ULBN_ROUND_ENUM round_mode = ULBN_ROUND_BIG_INT_DEFAULT) const {
+  BigInt mod2Exp(const BigInt& other, RoundMode round_mode = RoundMode::BIG_INT_DEFAULT) const {
     BigInt r;
-    _checkDivmodEx(ulbi_divmod_2exp_ex(_ctx(), ul_nullptr, &r._val, &_val, &other._val, round_mode));
+    _checkDivmodEx(ulbi_divmod_2exp_ex(
+      _ctx(), ul_nullptr, &r._val, &_val, &other._val, static_cast<enum ULBN_ROUND_ENUM>(round_mode)
+    ));
     return r;
   }
 

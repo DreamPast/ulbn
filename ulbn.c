@@ -3772,15 +3772,15 @@ ULBN_INTERNAL int ulbn_check_round(const ulbn_limb_t* ap, ulbn_usize_t an, const
 
 /* adjust half `round_mode` to normal */
 ULBN_INTERNAL enum ULBN_ROUND_ENUM ulbn_adjust_half_round(enum ULBN_ROUND_ENUM round_mode, int is_even) {
-  if(round_mode == ULBN_ROUND_HALF_ODD)
-    return !is_even ? ULBN_ROUND_DOWN : ULBN_ROUND_UP;
-  else if(round_mode == ULBN_ROUND_HALF_EVEN)
-    return is_even ? ULBN_ROUND_DOWN : ULBN_ROUND_UP;
-  else if(round_mode == ULBN_ROUND_HALF_DOWN)
+  if(round_mode == ULBN_ROUND_HALF_DOWN)
     return ULBN_ROUND_DOWN;
-  else /* if(round_mode == ULBN_ROUND_HALF_UP) */ {
-    ulbn_assert(round_mode == ULBN_ROUND_HALF_UP);
+  else if(round_mode == ULBN_ROUND_HALF_UP)
     return ULBN_ROUND_UP;
+  else if(round_mode == ULBN_ROUND_HALF_ODD)
+    return !is_even ? ULBN_ROUND_DOWN : ULBN_ROUND_UP;
+  else /* if(round_mode == ULBN_ROUND_HALF_EVEN) */ {
+    ulbn_assert(round_mode == ULBN_ROUND_HALF_EVEN);
+    return is_even ? ULBN_ROUND_DOWN : ULBN_ROUND_UP;
   }
 }
 ULBN_INTERNAL int ulbn_round_direction(enum ULBN_ROUND_ENUM round_mode, int positive) {
@@ -3789,11 +3789,11 @@ ULBN_INTERNAL int ulbn_round_direction(enum ULBN_ROUND_ENUM round_mode, int posi
     return 0;
   else if(round_mode == ULBN_ROUND_UP)
     return positive ? 1 : -1;
-  else if(round_mode == ULBN_ROUND_CEILING)
-    return positive;
-  else /* if(round_mode == ULBN_ROUND_FLOOR) */ {
-    ulbn_assert(round_mode == ULBN_ROUND_FLOOR);
+  else if(round_mode == ULBN_ROUND_FLOOR)
     return positive - 1;
+  else /* if(round_mode == ULBN_ROUND_CEILING) */{
+    ulbn_assert(round_mode == ULBN_ROUND_CEILING);
+    return positive;
   }
 }
 
