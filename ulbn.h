@@ -3,7 +3,7 @@ ulbn - Big Number Library
 
 # Requirements
   - C89/C++98
-  - `CHAR_BIT` should be even
+  - `CHAR_BIT` or `sizeof(ulbn_limb_t)` should be even
 
 # License
   The MIT License (MIT)
@@ -37,9 +37,9 @@ ulbn - Big Number Library
     const ulbn_alloc_t* alloc = ulbn_default_alloc(); // get default allocator
     ulbi_t ro, ao, bo;
     int err;
-    
+
     // initialize library
-    ulbn_startup(); 
+    ulbn_startup();
     // first, we must initialize them
     ulbi_init(&ro);
     ulbi_init(&ao);
@@ -461,10 +461,6 @@ extern "C" {
 
 #define ulbn_cast_int(v) ul_static_cast(int, (v))
 #define ulbn_cast_uint(v) ul_static_cast(unsigned, (v))
-
-#if (CHAR_BIT & 1) != 0
-  #error "ulbn: CHAR_BIT must be even"
-#endif
 
 
 #if 0

@@ -3,7 +3,7 @@ ulbn - Big Number Library
 
 # Requirements
   - C89/C++98
-  - `CHAR_BIT` should be even
+  - `CHAR_BIT` or `sizeof(ulbn_limb_t)` should be even
 
 # License
   The MIT License (MIT)
@@ -194,6 +194,10 @@ ulbn - Big Number Library
  * Definations about `ulbn_limb_t` *
  ***********************************/
 
+#if (CHAR_BIT & 1) != 0
+ul_static_assert((sizeof(ulbn_limb_t) & 1) == 0, "`CHAR_BIT` or `sizeof(ulbn_limb_t)` should be even");
+#endif
+
 #define _ULBN_LIMB_HALF_BITS (ULBN_LIMB_BITS >> 1)
 #define ULBN_LIMB_SHL(val, shift) ulbn_cast_limb(ulbn_cast_limb(val) << (shift))
 #define _ULBN_LIMB_SIGNBIT (ULBN_LIMB_SHL(1, ULBN_LIMB_BITS - 1))
@@ -307,6 +311,7 @@ extern "C" {
  ******************/
 
 ULBN_PRIVATE void _ulbn_startup_fft(void);
+ULBN_PRIVATE void _ulbn_startup_setstr(void);
 ULBN_PRIVATE void _ulbn_startup_baseconv(void);
 ULBN_PRIVATE void _ulbn_startup_shortdiv(void);
 
@@ -316,8 +321,9 @@ ULBN_PUBLIC void ulbn_startup(void) {
     return;
 
   _ulbn_startup_fft();
-  _ulbn_startup_shortdiv();
+  _ulbn_startup_setstr();
   _ulbn_startup_baseconv();
+  _ulbn_startup_shortdiv();
 
   _ulbn_startup_state = 1;
 }
@@ -954,29 +960,6 @@ ULBN_INTERNAL ulbn_usize_t ulbn_set_ulong(ulbn_limb_t* p, ulbn_ulong_t v) {
   return n;
 }
 
-static const char _ULBN_LOWER_TABLE[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-static const char _ULBN_UPPER_TABLE[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-#if 0
-ul_unused ULBN_INTERNAL void ulbn_dumplimb(FILE* fp, ulbn_limb_t l) {
-  size_t j = sizeof(l) * CHAR_BIT / 4;
-  while(j--)
-    fputc(_ULBN_UPPER_TABLE[(l >> (j << 2)) & 0xF], fp);
-}
-ul_unused ULBN_INTERNAL void ulbn_dump(FILE* fp, const ulbn_limb_t* p, ulbn_usize_t n) {
-  ulbn_usize_t i;
-  for(i = n; i > 0; --i) {
-    ulbn_dumplimb(fp, p[i - 1]);
-    if(i != 1)
-      fputc('_', stdout);
-  }
-}
-ul_unused ULBN_INTERNAL void ulbn_dprint(FILE* fp, const char* prefix, const ulbn_limb_t* p, ulbn_usize_t n) {
-  if(prefix)
-    fputs(prefix, fp);
-  ulbn_dump(fp, p, n);
-  fputc('\n', fp);
-}
-#endif
 
 /*********************
  * <ulbn> Comparison *
@@ -3818,6 +3801,51 @@ ULBN_INTERNAL int ulbn_round_direction(enum ULBN_ROUND_ENUM round_mode, int posi
  * <ulbn> Base conversion *
  **************************/
 
+static const char _ulbn_lower_table[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+static const char _ulbn_upper_table[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+static unsigned char _ulbn_setstr_table[256];
+#if CHAR_BIT <= 8
+  #define _ulbn_setstr_val(ch) (_ulbn_setstr_table[ul_static_cast(unsigned char, (ch))])
+#else
+  #define _ulbn_setstr_val(ch) \
+    (ul_static_cast(unsigned char, (ch)) > 0xFF ? 0xFF : _ulbn_setstr_table[ul_static_cast(unsigned char, (ch))])
+#endif
+ULBN_PRIVATE void _ulbn_startup_setstr(void) {
+  unsigned i;
+  memset(_ulbn_setstr_table, 0xFF, sizeof(_ulbn_setstr_table));
+  for(i = 0; i < 10; ++i) {
+    ulbn_assert(ulbn_cast_uint(_ulbn_lower_table[i]) <= 0xFF);
+    _ulbn_setstr_table[ul_static_cast(unsigned char, _ulbn_lower_table[i])] = ul_static_cast(unsigned char, i);
+  }
+  for(; i <= 36; ++i) {
+    ulbn_assert(ulbn_cast_uint(_ulbn_lower_table[i]) <= 0xFF && ulbn_cast_uint(_ulbn_upper_table[i]) <= 0xFF);
+    _ulbn_setstr_table[ul_static_cast(unsigned char, _ulbn_lower_table[i])] = ul_static_cast(unsigned char, i);
+    _ulbn_setstr_table[ul_static_cast(unsigned char, _ulbn_upper_table[i])] = ul_static_cast(unsigned char, i);
+  }
+}
+
+#if 0
+ul_unused ULBN_INTERNAL void ulbn_dumplimb(FILE* fp, ulbn_limb_t l) {
+  size_t j = sizeof(l) * CHAR_BIT / 4;
+  while(j--)
+    fputc(_ulbn_upper_table[(l >> (j << 2)) & 0xF], fp);
+}
+ul_unused ULBN_INTERNAL void ulbn_dump(FILE* fp, const ulbn_limb_t* p, ulbn_usize_t n) {
+  ulbn_usize_t i;
+  for(i = n; i > 0; --i) {
+    ulbn_dumplimb(fp, p[i - 1]);
+    if(i != 1)
+      fputc('_', stdout);
+  }
+}
+ul_unused ULBN_INTERNAL void ulbn_dprint(FILE* fp, const char* prefix, const ulbn_limb_t* p, ulbn_usize_t n) {
+  if(prefix)
+    fputs(prefix, fp);
+  ulbn_dump(fp, p, n);
+  fputc('\n', fp);
+}
+#endif
+
 ULBN_PRIVATE int _ulbn_write0(ulbn_printer_t* printer, void* opaque, size_t len) {
   static const char ONLY_ZERO[16 + 1] = "0000000000000000";
   while(len > 16) {
@@ -5088,7 +5116,7 @@ ULBN_PRIVATE void ulbi_dprint(FILE* fp, const char* prefix, const ulbi_t* bi) {
     if(bi->len < 0)
       fputc('-', fp);
     ulbn_conv2print_generic(
-      ulbn_default_alloc(), 0, _ulbn_fileprinter, fp, _ulbi_limbs(bi), _ulbi_abs_size(bi->len), _ULBN_UPPER_TABLE, 10
+      ulbn_default_alloc(), 0, _ulbn_fileprinter, fp, _ulbi_limbs(bi), _ulbi_abs_size(bi->len), _ulbn_upper_table, 10
     );
   }
   fputc('\n', fp);
@@ -6916,20 +6944,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp_ex(
  * <ulbi> Set string *
  *********************/
 
-ul_static_assert('0' == 48, "not ASCII");
-ul_static_assert('A' == 65, "not ASCII");
-ul_static_assert('Z' == 90, "not ASCII");
-ul_static_assert('a' == 97, "not ASCII");
-ul_static_assert('z' == 122, "not ASCII");
-ul_static_assert('_' == 95, "not ASCII");
 ul_static_assert(ULBN_LIMB_MAX >= 36, "ulbn_limb_t is too small to hold base");
-static ul_constexpr const unsigned char _ULBI_SETSTR_TABLE[] = {
-  0,   1,  2,  3,  4,  5,  6,  7,  8,  9,  255, 255, 255, 255, 255, 255, /* \x30 - \x3F */
-  255, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,  20,  21,  22,  23,  24,  /* \x40 - \x4F */
-  25,  26, 27, 28, 29, 30, 31, 32, 33, 34, 35,  255, 255, 255, 255, 255, /* \x50 - \x5F */
-  255, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,  20,  21,  22,  23,  24,  /* \x60 - \x6F */
-  25,  26, 27, 28, 29, 30, 31, 32, 33, 34, 35,  255, 255, 255, 255, 255, /* \x70 - \x7F */
-};
 ULBN_PRIVATE int _ulbi_setstr_parse_short(
   const ulbn_alloc_t* alloc, ulbi_t* dst, const unsigned char* p, size_t len, ulbn_limb_t base
 ) {
@@ -6938,8 +6953,8 @@ ULBN_PRIVATE int _ulbi_setstr_parse_short(
   unsigned c;
   int err;
   while(len-- != 0) {
-    ulbn_assert(*p >= 0x30 && *p <= 0x7F);
-    c = _ULBI_SETSTR_TABLE[*p++ - 0x30];
+    c = _ulbn_setstr_val(*p);
+    ++p;
     if(c >= base)
       continue;
     if(intpart_B >= B_guard) {
@@ -7038,10 +7053,10 @@ ULBN_PRIVATE int _ulbi_setstr_parse(
 
     /* count digits */
     pow = 0;
-    while(len > 0 && _ULBI_SETSTR_TABLE[p[len - 1] - 0x30u] >= base) /* skip trailling seperate characters */
+    while(len > 0 && _ulbn_setstr_val(p[len - 1]) >= base) /* skip trailling seperate characters */
       --len;
     for(slen = 0; slen < len; ++slen)
-      if(_ULBI_SETSTR_TABLE[p[slen] - 0x30u] < base)
+      if(_ulbn_setstr_val(p[slen]) < base)
         ++pow;
       else
         last_sep = slen;
@@ -7051,7 +7066,7 @@ ULBN_PRIVATE int _ulbi_setstr_parse(
     l_has_sep = 0;
     for(slen = 0;; ++slen) {
       ulbn_assert(slen < len);
-      if(_ULBI_SETSTR_TABLE[p[slen] - 0x30u] < base) {
+      if(_ulbn_setstr_val(p[slen]) < base) {
         if(pow_copy == 0)
           break;
         --pow_copy;
@@ -7094,8 +7109,8 @@ ULBN_PUBLIC int ulbi_set_string_ex(
   const ulbn_alloc_t* alloc, ulbi_t* dst,           /* */
   const char** pstr, size_t len, int base, int flag /* */
 ) {
-  const int ch_dot = (flag & ULBN_SET_STRING_ACCEPT_DECIMAL_PART) ? '.' : 0x100;
-  const int ch_sep = (flag & ULBN_SET_STRING_ACCEPT_SEPARATOR) ? '_' : 0x100;
+  const int ch_dot = (flag & ULBN_SET_STRING_ACCEPT_DECIMAL_PART) ? '.' : INT_MIN;
+  const int ch_sep = (flag & ULBN_SET_STRING_ACCEPT_SEPARATOR) ? '_' : INT_MIN;
   int neg = 0; /* 1 means negative, 0 means positive */
   int err = 0;
   const char* str = *pstr;
@@ -7112,6 +7127,7 @@ ULBN_PUBLIC int ulbi_set_string_ex(
   ulbi_t dec = ULBI_INIT; /* decimal part */
   int err_dec = 0;        /* store `ULBN_ERR_INEXACT` in decimal part */
 
+  ulbn_check_startup();
   _ulbi_set_zero(dst);
   if(len == 0)
     return 0;
@@ -7144,34 +7160,23 @@ ULBN_PUBLIC int ulbi_set_string_ex(
       goto done;
     if(*str == 'x' || *str == 'X') {
       base = 16;
+    eat_prefix:
       if(len == 1) /* "0x" or "0X" */
         goto done;
-      if(!((str[1] >= 'A' && str[1] <= 'Z') || (str[1] >= 'a' && str[1] <= 'z') || (str[1] >= '0' && str[1] <= '9')
-           || str[1] == ch_dot)) /* the first character after 'x' or 'X' must be legal */
+      if(!(_ulbn_setstr_val(str[1]) < ulbn_cast_uint(base) || str[1] == ch_dot
+         )) /* the first character after preffix must be legal */
         goto done;
       ++str; /* eat "0x" or "0X" */
       --len;
     } else if(*str == 'o' || *str == 'O') {
       base = 8;
-      if(len == 1) /* "0o" or "0O" */
-        goto done;
-      if(!((str[1] >= '0' && str[1] <= '7') || str[1] == ch_dot
-         )) /* the first character after 'o' or 'O' must be legal */
-        goto done;
-      ++str; /* eat "0o" or "0O" */
-      --len;
+      goto eat_prefix;
     } else if(*str == 'b' || *str == 'B') {
       base = 2;
-      if(len == 1) /* "0b" or "0B" */
-        goto done;
-      if(!((str[1] == '0' || str[1] == '1') || str[1] == ch_dot
-         )) /* the first character after 'b' or 'B' must be legal */
-        goto done;
-      ++str; /* eat "0b" or "0B" */
-      --len;
+      goto eat_prefix;
     } else if(*str == '0') {
       goto done; /* "00" */
-    } else if(*str >= '1' && *str <= '7' && (flag & ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX)) {
+    } else if(_ulbn_setstr_val(*str) < 8 && (flag & ULBN_SET_STRING_ACCEPT_OCT_IMPLICIT_PREFIX)) {
       base = 8;
       goto handle_integer;
     } else if(*str == ch_dot) {
@@ -7188,12 +7193,10 @@ ULBN_PUBLIC int ulbi_set_string_ex(
 handle_integer:
   parse_ptr = str;
   for(; len != 0; --len) {
-    if(*str < 0x30 || ul_static_cast(unsigned char, *str) > 0x7F)
-      break;
     if(*str == ch_sep)
       ++parse_sep;
     else {
-      if(_ULBI_SETSTR_TABLE[*str - 0x30] >= ulbn_cast_uint(base))
+      if(_ulbn_setstr_val(*str) >= ulbn_cast_uint(base))
         break;
       ++parse_pow;
     }
@@ -7222,11 +7225,9 @@ handle_integer:
     parse_sep = 0;
 
     for(; len != 0; --len) {
-      if(*str < 0x30 || ul_static_cast(unsigned char, *str) > 0x7F)
-        break;
       if(*str == ch_sep)
         ++parse_sep;
-      else if(_ULBI_SETSTR_TABLE[*str - 0x30] >= ulbn_cast_uint(base))
+      else if(_ulbn_setstr_val(*str) >= ulbn_cast_uint(base))
         break;
       ++str;
       ++parse_pow;
@@ -7285,14 +7286,14 @@ handle_integer:
       goto handle_decimal;
 
     for(; len != 0; --len) {
-      if(!(*p >= '0' && *p <= '9'))
+      if(!(_ulbn_setstr_val(*p) < 10))
         break;
       if(ul_unlikely(expo > expo_limit)) {
         err = ULBN_ERR_EXCEED_RANGE;
         goto done;
       }
       expo *= 10;
-      expo += ul_static_cast(unsigned char, *p - '0');
+      expo += ul_static_cast(unsigned char, _ulbn_setstr_val(*p));
       ++p;
     }
     str = p;
@@ -8556,9 +8557,9 @@ ULBN_PUBLIC int ulbi_print_ex(
   err = ulbi_abs(alloc, &ro, ao);
   ULBN_RETURN_IF_ALLOC_COND(err < 0, err);
   if(base > 0)
-    err = _ulbi_print_ex(alloc, printer, opaque, &ro, base, 0, _ULBN_UPPER_TABLE);
+    err = _ulbi_print_ex(alloc, printer, opaque, &ro, base, 0, _ulbn_upper_table);
   else
-    err = _ulbi_print_ex(alloc, printer, opaque, &ro, -base, 0, _ULBN_LOWER_TABLE);
+    err = _ulbi_print_ex(alloc, printer, opaque, &ro, -base, 0, _ulbn_lower_table);
   ulbi_deinit(alloc, &ro);
   return err;
 }

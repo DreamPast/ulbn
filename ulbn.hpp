@@ -77,13 +77,13 @@ namespace ul {
 
 template<class CharT = char>
 struct FormatHelper {
-  enum class Align : int8_t {
+  enum class Align : signed char {
     DEFUALT,
     LEFT,
     RIGHT,
     INTERNAL,
   };
-  enum class Sign : int8_t {
+  enum class Sign : signed char {
     ONLY_NEGATIVE,
     ALWAYS,
     SPACE_ON_NONNEGATIVE,

@@ -22,7 +22,7 @@ Minimum C89/C++98, with macros to suggest optimizations for some code.
 
 Hardware Assumptions:
 
-- Requires `CHAR_BIT` to be even
+- Requires `sizeof(ulbn_limb_t)` or `CHAR_BIT` to be even
 
 ### ulbn.hpp
 
@@ -46,7 +46,7 @@ Requires the following assumptions for modern platforms:
 - Signed integers are stored in two's complement form
 - `float` has 23 bits of precision (IEEE754)
 - `double` has 52 bits of precision (IEEE754)
-- `char` is 8-bits
+- `char` is 8-bits, and use ASCII
 - `int64_t` exists
 - The platform is little-endian or big-endian
 - \<bit\>

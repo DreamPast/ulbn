@@ -22,7 +22,7 @@
 
 硬件假设：
 
-- 要求`CHAR_BIT`是偶数
+- 要求`sizeof(ulbn_limb_t)`或者`CHAR_BIT`是偶数
 
 ### ulbn.hpp
 
@@ -46,7 +46,7 @@
 - 以补码形式存储有符号整数
 - float的有效位数为23（IEEE754标准）
 - double的有效位数为52（IEEE754标准）
-- char为8比特
+- char为8比特，并且使用ASCII
 - int64_t存在
 - 平台要么大端，要么小端
 - \<bit\>
