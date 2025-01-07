@@ -797,7 +797,11 @@ enum ULBN_SET_STRING_FLAG_ENUM {
    * @brief Allow exponent mismatch (e.g., "0x1e2.5").
    * @note If this flag is not set, 'e' or 'E' can only be used in decimal, 'p' or 'P' can only be used in hexadecimal.
    */
-  ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH = (1 << 5)
+  ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH = (1 << 5),
+  /**
+   * @brief Accept infinite number (e.g., "inf", "infinity", "nan", "nan(...)").
+   */
+  ULBN_SET_STRING_ACCEPT_INFINITE = (1 << 6),
 };
 
 
@@ -1098,6 +1102,7 @@ ULBN_PUBLIC int ulbi_set_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi
  * @return `ULBN_ERR_BAD_ARGUMENT` if `base` is invalid;
  * @return `ULBN_ERR_EXCEED_RANGE` if some value is too large when calculating the result;
  * @return `ULBN_ERR_INEXACT` if the number represented by the string cannot be exactly represented as an integer;
+ * @return `ULBN_ERR_INVALID` if `ULBN_SET_STRING_ACCEPT_INFINITE` is set and the string represents an infinite number;
  * @return `ULBN_ERR_INEXACT` if the string represents some form of -0.
  */
 ULBN_PUBLIC int ulbi_set_string_ex(

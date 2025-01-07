@@ -141,6 +141,36 @@ void testSetString() {
     _checkSetString("0.1p5", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
     _checkSetString("0.1p6", 0, 3, ULBN_ERR_INEXACT, ~0 ^ ULBN_SET_STRING_ALLOW_EXPONENT_MISMATCH);
   }
+  
+  {
+    _checkSetString("inf", 0, -1, ULBN_ERR_INVALID);
+    _checkSetString("+inf", 0, -1, ULBN_ERR_INVALID);
+    _checkSetString("-inf", 0, -1, ULBN_ERR_INVALID);
+
+    _checkSetString("infinity", 0, -1, ULBN_ERR_INVALID);
+    _checkSetString("+infinity", 0, -1, ULBN_ERR_INVALID);
+    _checkSetString("-infinity", 0, -1, ULBN_ERR_INVALID);
+
+    _checkSetString("infI", 0, 3, ULBN_ERR_INVALID);
+    _checkSetString("+infI", 0, 4, ULBN_ERR_INVALID);
+    _checkSetString("-infI", 0, 4, ULBN_ERR_INVALID);
+
+    _checkSetString("nan", 0, -1, ULBN_ERR_INVALID);
+    _checkSetString("+nan", 0, -1, ULBN_ERR_INVALID);
+    _checkSetString("-nan", 0, -1, ULBN_ERR_INVALID);
+
+    _checkSetString("nan(A)", 0, -1, ULBN_ERR_INVALID);
+    _checkSetString("+nan(A)", 0, -1, ULBN_ERR_INVALID);
+    _checkSetString("-nan(A)", 0, -1, ULBN_ERR_INVALID);
+
+    _checkSetString("nan(A!)", 0, 3, ULBN_ERR_INVALID);
+    _checkSetString("+nan(A!)", 0, 4, ULBN_ERR_INVALID);
+    _checkSetString("-nan(A!)", 0, 4, ULBN_ERR_INVALID);
+
+    _checkSetString("nan(", 0, 3, ULBN_ERR_INVALID);
+    _checkSetString("+nan(", 0, 4, ULBN_ERR_INVALID);
+    _checkSetString("-nan(", 0, 4, ULBN_ERR_INVALID);
+  }
 }
 void testBytes() {
   puts("===Test Bytes");

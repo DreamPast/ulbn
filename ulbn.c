@@ -3797,9 +3797,9 @@ ULBN_INTERNAL int ulbn_round_direction(enum ULBN_ROUND_ENUM round_mode, int posi
   }
 }
 
-/**************************
- * <ulbn> Base conversion *
- **************************/
+/*********************
+ * <ulbn> Set string *
+ *********************/
 
 static const char _ulbn_lower_table[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 static const char _ulbn_upper_table[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -3823,6 +3823,74 @@ ULBN_PRIVATE void _ulbn_startup_setstr(void) {
     _ulbn_setstr_table[ul_static_cast(unsigned char, _ulbn_upper_table[i])] = ul_static_cast(unsigned char, i);
   }
 }
+
+/* 0: invalid, 1: inf, 2: nan, 3: nan (with char_sequence) */
+ULBN_INTERNAL int ulbn_setstr_infinite(const char** p_str, size_t len) {
+  static const char nfinity_lower[] = "nfinity";
+  static const char nfinity_upper[] = "NFINITY";
+  static const char an_lower[] = "an";
+  static const char an_upper[] = "AN";
+
+  const char* str = *p_str;
+  unsigned i;
+  int ret = 0;
+
+  ulbn_assert(len != 0);
+  --len;
+  if(*str == 'I' || *str == 'i') { /* inf */
+    ++str;
+    if(len < 2)
+      goto done;
+    for(i = 0; i < 2; ++i)
+      if(str[i] != nfinity_lower[i] && str[i] != nfinity_upper[i])
+        goto done;
+    ret = 1;
+    str += 2;
+    if(len < 7)
+      goto done;
+
+    for(i = 0; i < 5; ++i)
+      if(str[i] != nfinity_lower[i + 2] && str[i] != nfinity_upper[i + 2])
+        goto done;
+    str += 5;
+  } else if(*str == 'n' || *str == 'N') { /* nan */
+    ++str;
+    if(len < 2)
+      goto done;
+    for(i = 0; i < 2; ++i)
+      if(str[i] != an_lower[i] && str[i] != an_upper[i])
+        goto done;
+    ret = 2;
+    str += 2;
+    len -= 2;
+    if(ul_likely(len == 0))
+      goto done;
+    
+    if(str[0] != '(') goto done;
+    {
+      const char* str2 = str + 1;
+      /* parse `char_sequence` */
+      for(--len; len != 0; --len) {
+        if(*str2 == ')') {
+          ret = 3;
+          str = str2 + 1;
+          goto done;
+        }
+        if(!(_ulbn_setstr_val(*str2) < 36 || *str2 == '_'))
+          break;
+        ++str2;
+      }
+    }
+  }
+
+done:
+  *p_str = str;
+  return ret;
+}
+
+/**************************
+ * <ulbn> Base conversion *
+ **************************/
 
 #if 0
 ul_unused ULBN_INTERNAL void ulbn_dumplimb(FILE* fp, ulbn_limb_t l) {
@@ -7191,6 +7259,15 @@ ULBN_PUBLIC int ulbi_set_string_ex(
   }
 
 handle_integer:
+  if(ul_unlikely(flag & ULBN_SET_STRING_ACCEPT_INFINITE) && len != 0) {
+    if(base < 18 || (base < 23 && str[0] != 'i' && str[1] != 'I')) {
+      if(ulbn_setstr_infinite(&str, len) != 0) {
+        err = ULBN_ERR_INVALID;
+        goto done;
+      }
+    }
+  }
+
   parse_ptr = str;
   for(; len != 0; --len) {
     if(*str == ch_sep)
@@ -7216,7 +7293,7 @@ handle_integer:
   if(len == 0)
     goto handle_decimal;
 
-  /* if !(flag & ULBN_SET_STRING_ACCEPT_DECIMAL_PART), and `ch_dot` = 0x100, then `*str` never equals to `ch_dot` */
+  /* if !(flag & ULBN_SET_STRING_ACCEPT_DECIMAL_PART), and `ch_dot` = INT_MIN, then `*str` never equals to `ch_dot` */
   if(*str == ch_dot) {
     ++str;
     --len;
