@@ -46,8 +46,8 @@ void testOther() {
 
   {  // ulbi_init_2exp_usize
     for(uint8_t i = 0; i <= 16; ++i) {
-      ulbi_t x[1];
-      T_assert(ulbi_init_2exp_bits(ctx, x, i) == 0);
+      ulbi_t x[1] = { ULBI_INIT };
+      T_assert(ulbi_set_2exp_bits(ctx, x, i) == 0);
       T_assert(BigInt(x) == (1 << i));
       ulbi_deinit(ctx, x);
     }
@@ -61,9 +61,9 @@ void testOther() {
     ulbi_deinit(ctx, y);
   }
 
-  {  // ulbi_init_string, ulbi_set_string: base = -1
-    ulbi_t x[1];
-    T_assert(ulbi_init_string(ctx, x, "12", -1) == ULBN_ERR_BAD_ARGUMENT);
+  {  // ulbi_set_string: base = -1
+    ulbi_t x[1] = { ULBI_INIT };
+    T_assert(ulbi_set_string(ctx, x, "12", -1) == ULBN_ERR_BAD_ARGUMENT);
     ulbi_deinit(ctx, x);
   }
 
@@ -93,16 +93,6 @@ void testOther() {
     ulbi_set_zero(x.get());
     x.shrink();
     T_assert(x == 0);
-  }
-
-  {  // ulbi_init_reserve
-    ulbi_t x[1];
-    ulbi_init_reserve(ctx, x, 12);
-    ulbi_deinit(ctx, x);
-    T_assert(ulbi_is_zero(x));
-    ulbi_init_reserve(ctx, x, 0);
-    ulbi_deinit(ctx, x);
-    T_assert(ulbi_is_zero(x));
   }
 }
 

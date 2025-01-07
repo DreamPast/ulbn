@@ -586,17 +586,17 @@ public:
   template<IsCharType CharT>
     requires(sizeof(CharT) == 1)                                   // char8_t, signed char, char, unsigned char
   BigInt(const CharT* str, size_t len = SIZE_MAX, int base = 0) {  // for C-style string, we needn't know length
-    _checkSetString(ulbi_init_string_len(_ctx(), &_val, reinterpret_cast<const char*>(str), len, base));
+    _checkSetString(ulbi_set_string_len(_ctx(), &_val, reinterpret_cast<const char*>(str), len, base));
   }
   template<IsCharType CharT, class StringAllocator>
     requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
   BigInt(const std::basic_string<CharT, std::char_traits<CharT>, StringAllocator>& str, int base = 0) {
-    _checkSetString(ulbi_init_string_len(_ctx(), &_val, reinterpret_cast<const char*>(str.data()), str.size(), base));
+    _checkSetString(ulbi_set_string_len(_ctx(), &_val, reinterpret_cast<const char*>(str.data()), str.size(), base));
   }
   template<IsCharType CharT>
     requires(sizeof(CharT) == 1)  // char8_t, signed char, char, unsigned char
   BigInt(std::basic_string_view<CharT> str, int base = 0) {
-    _checkSetString(ulbi_init_string_len(_ctx(), &_val, reinterpret_cast<const char*>(str.data()), str.size(), base));
+    _checkSetString(ulbi_set_string_len(_ctx(), &_val, reinterpret_cast<const char*>(str.data()), str.size(), base));
   }
   template<IsCharType CharT>
     requires(sizeof(CharT) == 1)         // char8_t, signed char, char, unsigned char
@@ -623,7 +623,7 @@ public:
     std::string str2;
     for(; *str != 0 && len-- != 0; ++str)
       str2.push_back(*str >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(*str));
-    _checkSetString(ulbi_init_string_len(_ctx(), &_val, str2.c_str(), str2.size(), base));
+    _checkSetString(ulbi_set_string_len(_ctx(), &_val, str2.c_str(), str2.size(), base));
   }
   template<IsCharType CharT, class StringAllocator>
     requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
@@ -631,7 +631,7 @@ public:
     std::string str2;
     for(auto ch: str)
       str2.push_back(ch >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(ch));
-    _checkSetString(ulbi_init_string_len(_ctx(), &_val, str2.data(), str2.size(), base));
+    _checkSetString(ulbi_set_string_len(_ctx(), &_val, str2.data(), str2.size(), base));
   }
   template<IsCharType CharT>
     requires(sizeof(CharT) != 1)  // wchar_t, char16_t, char32_t
@@ -639,7 +639,7 @@ public:
     std::string str2;
     for(auto ch: str)
       str2.push_back(ch >= 0x7F ? static_cast<char>(0xFF) : static_cast<char>(ch));
-    _checkSetString(ulbi_init_string_len(_ctx(), &_val, str2.data(), str2.size(), base));
+    _checkSetString(ulbi_set_string_len(_ctx(), &_val, str2.data(), str2.size(), base));
   }
   template<IsCharType CharT>
     requires(sizeof(CharT) != 1)         // wchar_t, char16_t, char32_t
@@ -1982,7 +1982,7 @@ public:
 #if ULBN_CONF_HAS_FLOAT
   template<FitFloat T>
   explicit BigInt(T value) {
-    _check(ulbi_init_float(_ctx(), &_val, static_cast<float>(value)));
+    _check(ulbi_set_float(_ctx(), &_val, static_cast<float>(value)));
   }
   template<FitFloat T>
   BigInt& operator=(T value) {
@@ -2004,7 +2004,7 @@ public:
 #if ULBN_CONF_HAS_DOUBLE
   template<FitDoubleCase T>
   explicit BigInt(T value) {
-    _check(ulbi_init_double(_ctx(), &_val, static_cast<double>(value)));
+    _check(ulbi_set_double(_ctx(), &_val, static_cast<double>(value)));
   }
   template<FitDoubleCase T>
   BigInt& operator=(T value) {
@@ -2026,7 +2026,7 @@ public:
 #if ULBN_CONF_HAS_LONG_DOUBLE
   template<FitLongDoubleCase T>
   explicit BigInt(T value) {
-    _check(ulbi_init_long_double(_ctx(), &_val, static_cast<long double>(value)));
+    _check(ulbi_set_long_double(_ctx(), &_val, static_cast<long double>(value)));
   }
   template<FitLongDoubleCase T>
   BigInt& operator=(T value) {
@@ -2082,7 +2082,8 @@ public:
 
 
 private:
-  ulbi_t _val = ULBI_INIT;
+  inline static constexpr const ulbi_t _INIT = ULBI_INIT;
+  ulbi_t _val = _INIT;
 
   static const ulbn_alloc_t* _ctx() noexcept {
     return getCurrentAllocator();
