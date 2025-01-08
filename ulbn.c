@@ -663,6 +663,8 @@ ULBN_PRIVATE int _ulbn_clz_ulong(ulbn_ulong_t x) {
     } while(0)
 #endif /* _ulbn_udiv_ */
 
+/* See [Improved division by invariant integers](https://gmplib.org/~tege/division-paper.pdf) */
+
 /* Let B to be 2^{ULBN_LIMB_BITS}, di = (B^2-1)//d1 - B */
 ULBN_INTERNAL ulbn_limb_t _ulbn_divinv1(ulbn_limb_t d1) {
   /*
@@ -3746,17 +3748,11 @@ ULBN_PRIVATE void _ulbn_startup_shortdiv(void) {
     _ulbn_shortdiv_di[i] = ulbn_divinv1(d);
   }
 }
-
 ULBN_INTERNAL void ulbn_shortdiv(ulbn_limb_t* qp, const ulbn_limb_t* ap, ulbn_usize_t an, ulbn_limb_t d) {
   static ulbn_limb_t DIV_R;
   ulbn_assert(d >= 2 && d <= _ULBN_SHORTDIV_N);
   ulbn_divmod_inv1(qp, &DIV_R, ap, an, _ulbn_shortdiv_d[d], _ulbn_shortdiv_di[d], _ulbn_shortdiv_shift[d]);
 }
-#define ulbn_shortdiv1(q, r, a, d)   \
-  do {                               \
-    (r) = ulbn_cast_limb((a) % (d)); \
-    (q) = ulbn_cast_limb((a) / (d)); \
-  } while(0)
 
 /****************
  * <ulbn> Round *
@@ -3924,10 +3920,41 @@ ULBN_PRIVATE int _ulbn_write0(ulbn_printer_t* printer, void* opaque, size_t len)
   return 0;
 }
 
+/* Fast division, see [Division by Invariant Integers using Multiplication](https://gmplib.org/~tege/divcnst-pldi94.pdf)
+ */
+static int _ulbn_baseconv_div_sh[37];
+static ulbn_limb_t _ulbn_baseconv_div_m[37];
+ULBN_PRIVATE void _ulbn_startup_baseconv_fastdiv(void) {
+  static ulbn_limb_t r_temp;
+  int l;
+  ulbn_limb_t m, n1;
+  ulbn_limb_t d;
+  (void)r_temp;
+  for(d = 2; d <= 36; ++d) {
+    l = ulbn_cast_int(ULBN_LIMB_BITS) - _ulbn_clz_(d);
+    if((d & (d - 1)) == 0)
+      --l;
+    n1 = ulbn_cast_limb(ULBN_LIMB_SHL(1, l) - d);
+    _ulbn_udiv_(m, r_temp, n1, 0, d);
+    _ulbn_baseconv_div_m[d] = ++m;
+    ulbn_assert(l >= 1 && ulbn_cast_uint(l) < ULBN_LIMB_BITS);
+    _ulbn_baseconv_div_sh[d] = l - 1;
+  }
+}
+#define ulbn_baseconv_fastdiv(q, r, n, d, m, sh)           \
+  do {                                                     \
+    ulbn_limb_t __BC_t1, __BC_t0;                          \
+    _ulbn_umul_(__BC_t1, __BC_t0, (n), (m));               \
+    __BC_t0 = ulbn_cast_limb(((n) - __BC_t1) >> 1);        \
+    __BC_t0 = ulbn_cast_limb((__BC_t0 + __BC_t1) >> (sh)); \
+    (r) = (n) - __BC_t0 * (d);                             \
+    (q) = __BC_t0;                                         \
+  } while(0)
+
 static unsigned _ulbn_baseconv_pow[37];   /* the maximum power to make `b` <= ULBN_LIMB_MAX */
 static int _ulbn_baseconv_shift[37];      /* = _ulbn_ctz_(b) */
 static ulbn_limb_t _ulbn_baseconv_b[37];  /* = base**base_pow */
-static ulbn_limb_t _ulbn_baseconv_bi[37]; /* _ulbn_divinv1(b<<shift) */
+static ulbn_limb_t _ulbn_baseconv_bi[37]; /* = ulbn_divinv1(b<<shift) */
 ULBN_PRIVATE void _ulbn_startup_baseconv(void) {
   ulbn_limb_t b_guard;
   ulbn_limb_t base;
@@ -3946,6 +3973,7 @@ ULBN_PRIVATE void _ulbn_startup_baseconv(void) {
     b <<= _ulbn_baseconv_shift[base];
     _ulbn_baseconv_bi[base] = ulbn_divinv1(b);
   }
+  _ulbn_startup_baseconv_fastdiv();
 }
 
 
@@ -3972,6 +4000,8 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
   const ulbn_limb_t bi = _ulbn_baseconv_bi[base];
   const int b_shift = _ulbn_baseconv_shift[base];
   const unsigned base_pow = _ulbn_baseconv_pow[base];
+  const ulbn_limb_t fastdiv_m = _ulbn_baseconv_div_m[base];
+  const int fastdiv_shift = _ulbn_baseconv_div_sh[base];
 
   ulbn_assert(an > 0);
 
@@ -4003,7 +4033,7 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
   err = ULBN_ERR_EXTERNAL;
   c = cp[--ci];
   for(pbuf = buf_end; c;) {
-    ulbn_shortdiv1(c, short_r, c, base);
+    ulbn_baseconv_fastdiv(c, short_r, c, base, fastdiv_m, fastdiv_shift);
     *--pbuf = char_table[short_r];
   }
   if(desire_len / base_pow >= ci) {
@@ -4021,7 +4051,7 @@ ULBN_INTERNAL int ulbn_conv2print_generic(
   while(ci > 0) {
     c = cp[--ci];
     for(pbuf = buf + base_pow; c;) {
-      ulbn_shortdiv1(c, short_r, c, base);
+      ulbn_baseconv_fastdiv(c, short_r, c, base, fastdiv_m, fastdiv_shift);
       *--pbuf = char_table[short_r];
     }
     memset(buf, char_table[0], ul_static_cast(size_t, pbuf - buf));
