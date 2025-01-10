@@ -1101,8 +1101,7 @@ ULBN_PUBLIC int ulbi_set_2exp(const ulbn_alloc_t* alloc, ulbi_t* dst, const ulbi
  * @return `ULBN_ERR_INEXACT` if the string represents some form of -0.
  */
 ULBN_PUBLIC int ulbi_set_string_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* dst,           /* */
-  const char** pstr, size_t len, int base, int flag /* */
+  const ulbn_alloc_t* alloc, ulbi_t* dst, const char** pstr, size_t len, int base, int flag
 );
 /**
  * @brief Sets `dst` to the integer represented by 0-ended `str` in base `base`.
@@ -1139,40 +1138,28 @@ ULBN_PUBLIC int ulbi_set_string_len(const ulbn_alloc_t* alloc, ulbi_t* dst, cons
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
-ULBN_PUBLIC int ulbi_set_bytes_unsigned_le(
-  const ulbn_alloc_t* alloc, ulbi_t* dst, /* */
-  const void* bytes, size_t len           /* */
-);
+ULBN_PUBLIC int ulbi_set_bytes_unsigned_le(const ulbn_alloc_t* alloc, ulbi_t* dst, const void* bytes, size_t len);
 /**
  * @brief Sets `dst` to the unsigned integer represented by `bytes` in big-endian.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
-ULBN_PUBLIC int ulbi_set_bytes_unsigned_be(
-  const ulbn_alloc_t* alloc, ulbi_t* dst, /* */
-  const void* bytes, size_t len           /* */
-);
+ULBN_PUBLIC int ulbi_set_bytes_unsigned_be(const ulbn_alloc_t* alloc, ulbi_t* dst, const void* bytes, size_t len);
 /**
  * @brief Sets `dst` to the signed integer represented by `bytes` in little-endian.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
-ULBN_PUBLIC int ulbi_set_bytes_signed_le(
-  const ulbn_alloc_t* alloc, ulbi_t* dst, /* */
-  const void* bytes, size_t len           /* */
-);
+ULBN_PUBLIC int ulbi_set_bytes_signed_le(const ulbn_alloc_t* alloc, ulbi_t* dst, const void* bytes, size_t len);
 /**
  * @brief Sets `dst` to the signed integer represented by `bytes` in big-endian.
  * @return `0` if successful;
  * @return `ULBN_ERR_NOMEM` if out of memory;
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
-ULBN_PUBLIC int ulbi_set_bytes_signed_be(
-  const ulbn_alloc_t* alloc, ulbi_t* dst, /* */
-  const void* bytes, size_t len           /* */
-);
+ULBN_PUBLIC int ulbi_set_bytes_signed_be(const ulbn_alloc_t* alloc, ulbi_t* dst, const void* bytes, size_t len);
 /**
  * @brief Sets `dst` to the unsigned integer represented by `bytes`.
  * @return `0` if successful;
@@ -1180,8 +1167,7 @@ ULBN_PUBLIC int ulbi_set_bytes_signed_be(
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
 ULBN_PUBLIC int ulbi_set_bytes_unsigned(
-  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
-  const void* bytes, size_t len, int is_big_endian /* */
+  const ulbn_alloc_t* alloc, ulbi_t* dst, const void* bytes, size_t len, int is_big_endian
 );
 /**
  * @brief Sets `dst` to the signed integer represented by `bytes`.
@@ -1190,8 +1176,7 @@ ULBN_PUBLIC int ulbi_set_bytes_unsigned(
  * @return `ULBN_ERR_EXCEED_RANGE` if `len` is too large.
  */
 ULBN_PUBLIC int ulbi_set_bytes_signed(
-  const ulbn_alloc_t* alloc, ulbi_t* dst,          /* */
-  const void* bytes, size_t len, int is_big_endian /* */
+  const ulbn_alloc_t* alloc, ulbi_t* dst, const void* bytes, size_t len, int is_big_endian
 );
 
 
@@ -1380,9 +1365,8 @@ ULBN_PUBLIC int ulbi_divmod(const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, c
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
-  const ulbi_t* ao, const ulbi_t* bo,                /* */
-  enum ULBN_ROUND_ENUM round_mode                    /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro,                  /* */
+  const ulbi_t* ao, const ulbi_t* bo, enum ULBN_ROUND_ENUM round_mode /* */
 );
 
 /**
@@ -1395,8 +1379,7 @@ ULBN_PUBLIC int ulbi_divmod_ex(
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_limb(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_limb_t* ro, /* */
-  const ulbi_t* ao, ulbn_limb_t b                         /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_limb_t* ro, const ulbi_t* ao, ulbn_limb_t b
 );
 /**
  * @brief `qo` = `ao` // `b`, `ro` = The smallest non-negative number congruent to (`ao` % `b`) under modulo `b`.
@@ -1409,9 +1392,8 @@ ULBN_PUBLIC int ulbi_divmod_limb(
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_limb_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_limb_t* ro, /* */
-  const ulbi_t* ao, ulbn_limb_t b,                        /* */
-  enum ULBN_ROUND_ENUM round_mode                         /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_limb_t* ro,          /* */
+  const ulbi_t* ao, ulbn_limb_t b, enum ULBN_ROUND_ENUM round_mode /* */
 );
 
 /**
@@ -1422,8 +1404,7 @@ ULBN_PUBLIC int ulbi_divmod_limb_ex(
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_slimb(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_slimb_t* ro, /* */
-  const ulbi_t* ao, ulbn_slimb_t b                         /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_slimb_t* ro, const ulbi_t* ao, ulbn_slimb_t b
 );
 /**
  * @brief `qo` = `ao` // `b`, `ro` = `ao` % `b`.
@@ -1434,9 +1415,8 @@ ULBN_PUBLIC int ulbi_divmod_slimb(
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_slimb_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_slimb_t* ro, /* */
-  const ulbi_t* ao, ulbn_slimb_t b,                        /* */
-  enum ULBN_ROUND_ENUM round_mode                          /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbn_slimb_t* ro,          /* */
+  const ulbi_t* ao, ulbn_slimb_t b, enum ULBN_ROUND_ENUM round_mode /* */
 );
 
 
@@ -1449,8 +1429,7 @@ ULBN_PUBLIC int ulbi_divmod_slimb_ex(
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_2exp_bits(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
-  const ulbi_t* ao, ulbn_bits_t e                    /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, ulbn_bits_t e
 );
 /**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
@@ -1462,8 +1441,7 @@ ULBN_PUBLIC int ulbi_divmod_2exp_bits(
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_2exp_sbits(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
-  const ulbi_t* ao, ulbn_sbits_t e                   /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, const ulbi_t* ao, ulbn_sbits_t e
 );
 /**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
@@ -1486,9 +1464,8 @@ ULBN_PUBLIC int ulbi_divmod_2exp(const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* 
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_2exp_bits_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
-  const ulbi_t* ao, ulbn_bits_t e,                   /* */
-  enum ULBN_ROUND_ENUM round_mode                    /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro,               /* */
+  const ulbi_t* ao, ulbn_bits_t e, enum ULBN_ROUND_ENUM round_mode /* */
 );
 /**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
@@ -1501,9 +1478,8 @@ ULBN_PUBLIC int ulbi_divmod_2exp_bits_ex(
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_2exp_sbits_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
-  const ulbi_t* ao, ulbn_sbits_t e,                  /* */
-  enum ULBN_ROUND_ENUM round_mode                    /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro,                /* */
+  const ulbi_t* ao, ulbn_sbits_t e, enum ULBN_ROUND_ENUM round_mode /* */
 );
 /**
  * @brief `qo` = `ao` / (2**`e`), `ro` = `ao` % (2**`e`).
@@ -1516,9 +1492,8 @@ ULBN_PUBLIC int ulbi_divmod_2exp_sbits_ex(
  * @return `0` otherwise.
  */
 ULBN_PUBLIC int ulbi_divmod_2exp_ex(
-  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro, /* */
-  const ulbi_t* ao, const ulbi_t* eo,                /* */
-  enum ULBN_ROUND_ENUM round_mode                    /* */
+  const ulbn_alloc_t* alloc, ulbi_t* qo, ulbi_t* ro,                  /* */
+  const ulbi_t* ao, const ulbi_t* eo, enum ULBN_ROUND_ENUM round_mode /* */
 );
 
 
@@ -1940,9 +1915,8 @@ ULBN_PUBLIC void ulbi_to_bytes_signed_be(const ulbi_t* ao, void* dst, size_t siz
  * @return `NULL` if the base is invalid (considered as `ULBN_ERR_BAD_ARGUMENT`).
  */
 ULBN_PUBLIC char* ulbi_to_string_alloc(
-  const ulbn_alloc_t* alloc, size_t* p_len, size_t* p_alloced, /* */
-  ulbn_alloc_func_t* alloc_func, void* alloc_opaque,           /* */
-  const ulbi_t* ao, int base                                   /* */
+  const ulbn_alloc_t* alloc, size_t* p_len, size_t* p_alloced,                  /* */
+  ulbn_alloc_func_t* alloc_func, void* alloc_opaque, const ulbi_t* ao, int base /* */
 );
 /**
  * @brief Prints `o` with `printer`.
@@ -1957,8 +1931,7 @@ ULBN_PUBLIC char* ulbi_to_string_alloc(
  * @return `0` if successful.
  */
 ULBN_PUBLIC int ulbi_print_ex(
-  const ulbn_alloc_t* alloc, ulbn_printer_t* printer, void* opaque, /* */
-  const ulbi_t* ao, int base                                        /* */
+  const ulbn_alloc_t* alloc, ulbn_printer_t* printer, void* opaque, const ulbi_t* ao, int base
 );
 /**
  * @brief Prints `o` to `fp`.
@@ -2113,8 +2086,7 @@ ULBN_PUBLIC int ulbi_lcm(const ulbn_alloc_t* alloc, ulbi_t* ro, const ulbi_t* ao
  * @return `ULBN_ERR_INVALID` if `go` is `NULL` and `gcd(a,b) != 1`.
  */
 ULBN_PUBLIC int ulbi_gcdext(
-  const ulbn_alloc_t* alloc, ulbi_t* go, ulbi_t* uo, ulbi_t* vo, /* */
-  const ulbi_t* ao, const ulbi_t* bo                             /* */
+  const ulbn_alloc_t* alloc, ulbi_t* go, ulbi_t* uo, ulbi_t* vo, const ulbi_t* ao, const ulbi_t* bo
 );
 /**
  * @brief Calculates the modular inverse of `a` modulo `m` (`a*b = 1 (mod m)`).
