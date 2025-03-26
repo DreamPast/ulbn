@@ -23,6 +23,7 @@ Minimum C89/C++98, with macros to suggest optimizations for some code.
 Hardware Assumptions:
 
 - Requires `sizeof(ulbn_limb_t)` or `CHAR_BIT` to be even
+- Integer division must truncate toward zero (guaranteed since C99/C++98, implementation-defined otherwise)
 
 ### ulbn.hpp
 
